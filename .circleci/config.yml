@@ -3,7 +3,7 @@ jobs:
   build: 
     working_directory: ~/circleci-demo-python-django
     docker:
-      - image: miniconda3:latest
+      - image: continuumio/miniconda3:latest
         environment:
           MOCK_CUPY=True # Allows us to run lots of tests without a GPU
     steps:
@@ -18,7 +18,9 @@ jobs:
       #    key: deps-{{ .Branch }}-{{ checksum "pyks2.yml" }}
       #    paths:
       #      - "??"
-      - run: conda activate pyks2_test 
-      - run: pip install -r test_requirements.txt
-      - run:
-          command: pytest -m "not requires_gpu"
+      - run: 
+          name: run_tests
+          command: |
+              source activate pyks2_test 
+              pip install -r test_requirements.txt
+              pytest -m "not requires_gpu"
