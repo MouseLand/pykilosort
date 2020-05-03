@@ -4,13 +4,25 @@ This is a work-in-progress litteral Python port of the original MATLAB version o
 The code is still being debugged and is not ready for use.
 
 
-## Hardware requirements
+## Installation 
 
-The code makes extensive use of the GPU via the CUDA framework. A high-end GPU with at least 8GB of memory is required.
+### System Requirements
+
+The code makes extensive use of the GPU via the CUDA framework. A high-end NVIDIA GPU with at least 8GB of memory is required.
+
 A good CPU and a large amount of RAM (minimum 32GB or 64GB) is also required.
 
+See [the Wiki on the Matlab version](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide) for more information.
 
-## Dependencies
+<!-- TODO: What OS's does this work on? I am testing with Ubuntu 18.04. -->
+
+You will need NVIDIA drivers and cuda-toolkit installed on your computer too. This can be the hardest part of the installation. To test if your is working OK you should be able to run the following:
+```
+nvidia-smi # Should show how much your GPU is being used right now
+nvcc # This is the CUDA compiler
+```
+
+### Dependencies
 
 * Python 3.7+
 * NumPy
@@ -21,7 +33,15 @@ A good CPU and a large amount of RAM (minimum 32GB or 64GB) is also required.
 * click
 * pytest
 
+### Installation - Conda (recomended)
+
+If you don't already have conda installed you can follow the guide [here](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide).
+
 To create a conda environment with these dependencies, run the command: `conda env create -f pyks2.yml` inside your pykilosort directory.
+
+### Installation - Pip
+
+You can also install the requirements via pip: `pip install -r requirements.txt`. This is not the tested path and so if you run into issues you may get less support.
 
 ## Usage example
 

@@ -9,7 +9,7 @@ from tqdm import tqdm
 import numba
 import numpy as np
 import cupy as cp
-from cupyx.scipy.sparse import coo_matrix
+import cupyx as cpx
 
 from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .cluster import getClosestChannels
@@ -260,7 +260,7 @@ def clusterAverage(clu, spikeQuantity):
     _, cluInds, spikeCounts = cp.unique(clu, return_inverse=True, return_counts=True)
 
     # summation
-    q = coo_matrix((spikeQuantity, (cluInds, cp.zeros(len(clu))))).toarray().flatten()
+    q = cpx.scipy.sparse.coo_matrix((spikeQuantity, (cluInds, cp.zeros(len(clu))))).toarray().flatten()
 
     # had sums so dividing by spike counts gives the mean depth of each cluster
     clusterQuantity = q / spikeCounts
