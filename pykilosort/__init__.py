@@ -1,5 +1,12 @@
 import logging
-import os.path as op
+import os
+
+if os.getenv('MOCK_CUPY', False):
+    from pykilosort.testing.mock_cupy import cupy 
+    from pykilosort.testing.mock_cupyx import cupyx
+else:
+    import cupy
+    import cupyx
 
 from .utils import Bunch, memmap_binary_file, read_data, load_probe  # noqa
 from .main import run  # noqa
@@ -21,7 +28,7 @@ class _Formatter(logging.Formatter):
     def format(self, record):
         # Only keep the first character in the level name.
         record.levelname = record.levelname[0]
-        filename = op.splitext(op.basename(record.pathname))[0]
+        filename = os.path.splitext(os.path.basename(record.pathname))[0]
         record.caller = '{:s}:{:d}'.format(filename, record.lineno).ljust(20)
         message = super(_Formatter, self).format(record)
         color_code = {'D': '90', 'I': '0', 'W': '33', 'E': '31'}.get(record.levelname, '7')

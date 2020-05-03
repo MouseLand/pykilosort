@@ -1,0 +1,24 @@
+version: 2 # use CircleCI 2.0
+jobs:
+  build: 
+    working_directory: ~/circleci-demo-python-django
+    docker:
+      - image: miniconda3:latest
+        environment:
+          MOCK_CUPY=True # Allows us to run lots of tests without a GPU
+    steps:
+      - checkout
+      #  Uncomment the next two lines to enable caching of the conda environment 
+      #  ** This will speed up tests a lot **
+      #- restore_cache:
+      #    key: deps-{{ .Branch }}-{{ checksum "pyks2.yml" }}
+      - run: conda env create -f pyks2_test.yml
+      # And these ones.
+      #- save_cached:
+      #    key: deps-{{ .Branch }}-{{ checksum "pyks2.yml" }}
+      #    paths:
+      #      - "??"
+      - run: conda activate pyks2_test 
+      - run: pip install -r test_requirements.txt
+      - run:
+          command: pytest -m "not requires_gpu"

@@ -3,13 +3,14 @@ from numpy.testing import assert_allclose as ac
 from scipy.signal import lfilter as lfilter_cpu
 import cupy as cp
 
-from pytest import fixture
+import pytest
 
-from ..cptools import (
+from pykilosort.cptools import (
     median, lfilter, svdecon, svdecon_cpu, free_gpu_memory,
     convolve_cpu, convolve_gpu, convolve_gpu_direct, convolve_gpu_chunked)
 
 
+@pytest.mark.requires_gpu
 def test_median_1(dtype, axis):
     arr = cp.random.rand(2000, 1000).astype(dtype)
     m1 = cp.asnumpy(median(arr, axis=axis))
@@ -17,6 +18,7 @@ def test_median_1(dtype, axis):
     assert np.allclose(m1, m2)
 
 
+@pytest.mark.requires_gpu
 def test_lfilter_1():
     tmax = 1000
     dt = np.arange(-tmax, tmax + 1)
@@ -34,6 +36,7 @@ def test_lfilter_1():
     assert np.allclose(fil_cpu, fil_gpu, atol=1e-6)
 
 
+@pytest.mark.requires_gpu
 def test_lfilter_2():
     b = (0.96907117, -2.90721352, 2.90721352, -0.96907117)
     a = (1., -2.93717073, 2.87629972, -0.93909894)
@@ -45,6 +48,7 @@ def test_lfilter_2():
     assert np.allclose(fil_cpu, fil_gpu, atol=.2)
 
 
+@pytest.mark.requires_gpu
 def test_svdecon_1():
     X = cp.random.rand(10, 10)
 
@@ -54,28 +58,29 @@ def test_svdecon_1():
     assert np.allclose(S, Sn)
 
 
-@fixture(params=(100, 2_000, 10_000, 50_000, 250_000))
+@pytest.fixture(params=(100, 2_000, 10_000, 50_000, 250_000))
 def arr(request):
     return np.random.randn(int(request.param), 100)
 
 
-@fixture
+@pytest.fixture
 def gaus():
     dt = np.arange(-1000, 1000 + 1)
     gaus = np.exp(-dt ** 2 / (2 * 250 ** 2))
     return gaus / np.sum(gaus)
 
 
-@fixture(params=(None, 'zeros', 'flip', 'constant'))
+@pytest.fixture(params=(None, 'zeros', 'flip', 'constant'))
 def pad(request):
     return request.param
 
 
-@fixture
+@pytest.fixture
 def nwin():
     return 2500
 
 
+@pytest.mark.requires_gpu
 def test_convolve(arr, gaus, pad, nwin):
     free_gpu_memory()
     npad = gaus.shape[0] // 2
