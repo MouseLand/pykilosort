@@ -44,6 +44,8 @@ def run(dat_path=None, probe=None, params=None, dir_path=None, stop_after=None, 
     n_samples, n_channels = raw_data.shape
     logger.info("Loaded raw data with %d channels, %d samples.", n_channels, n_samples)
 
+    # TODO: design - let's pass in all of the config already parsed and ready into this function
+    #              - run should do 1 thing only - run the steps of the algorithm. 
     # Get probe.
     probe = probe or default_probe(raw_data)
     assert probe
@@ -72,6 +74,9 @@ def run(dat_path=None, probe=None, params=None, dir_path=None, stop_after=None, 
 
     # Load the intermediate results to avoid recomputing things.
     ctx.load()
+    # TODO: unclear - what if we have changed something e.g. a parameter? Shouldn't
+    #               - we make the path depdendent on at least the hash of the params?
+    #               - We should also be able to turn this off for easy testing / experimentation.
     ir = ctx.intermediate
 
     ir.Nbatch = get_Nbatch(raw_data, params)

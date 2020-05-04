@@ -3,7 +3,7 @@ import numpy as np
 from scipy.signal import lfilter as lfilter_cpu
 import cupy as cp
 
-from pykilosort.preprocess import my_conv2
+from pykilosort.postprocess import my_conv2
 
 sig = 250
 tmax = 1000

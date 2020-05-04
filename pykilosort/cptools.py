@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 # LTI filter on GPU (NOTE: inefficient and soon to be deprecated)
 # ---------------------------------------------------------------
 
+# TODO: design - Let's seperate out the CUDA *tools* from computations that happen
+#              - to rely on CUDA.
 def make_kernel(kernel, name, **const_arrs):
     """Compile a kernel and pass optional constant ararys."""
     mod = cp.core.core.compile_with_cache(kernel, prepend_cupy_headers=False)

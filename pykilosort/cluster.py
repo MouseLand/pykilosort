@@ -145,6 +145,8 @@ def extractPCfromSnippets(proc, probe=None, params=None, Nbatch=None):
     wPCA = U[:, :nPCs]  # take as many as needed
 
     # adjust the arbitrary sign of the first PC so its negativity is downward
+    # TODO: unclear - is 20 here the index into the spike waveform? Should this be hardcoded?
+    #               - should it be nt0min instead?
     wPCA[:, 0] = -wPCA[:, 0] * cp.sign(wPCA[20, 0])
 
     return wPCA
@@ -170,10 +172,12 @@ def sortBatches2(ccb0):
     xs = .01 * u[:, 0] / cp.std(u[:, 0], ddof=1)
 
     # 200 iterations of gradient descent should be enough
+    # TODO: move_to_config
     niB = 200
 
     # this learning rate should usually work fine, since it scales with the average gradient
     # and ccb0 is z-scored
+    # TODO: move_to_config
     eta = 1
     for k in tqdm(range(niB), desc="Sorting %d batches" % ccb0.shape[0]):
         # euclidian distances between 1D embedding positions
@@ -216,7 +220,7 @@ def initializeWdata2(call, uprojDAT, Nchan, nPCs, Nfilt, iC):
     # some more parameters need to be passed in from the main workspace
 
     # pick random spikes from the sample
-    # WARNING: replace ceil by warning because this is a random index, and 0/1 indexing
+    # WARNING: replace ceil by floor because this is a random index, and 0/1 indexing
     # discrepancy between Python and MATLAB.
     irand = np.floor(np.random.rand(Nfilt) * uprojDAT.shape[1]).astype(np.int32)
 
@@ -294,6 +298,8 @@ def mexThSpkPC(Params, dataRAW, wPCA, iC):
     d_id2[:] = d_id[:minSize]
 
     # Free memory.
+    # TODO: unclear - does this do something special for cupy objects?
+    #               - all of these go out of scope in the next line anyway
     del d_st, d_id, d_counter, d_Params, d_dmax, d_dout
     # free_gpu_memory()
 
@@ -444,6 +450,7 @@ def clusterSingleBatches(ctx):
     wPCA = extractPCfromSnippets(proc, probe=probe, params=params, Nbatch=Nbatch)
 
     Nchan = probe.Nchan
+    # TODO: move_to_config
     niter = 10  # iterations for k-means. we won't run it to convergence to save time
 
     nBatches = Nbatch
@@ -460,12 +467,14 @@ def clusterSingleBatches(ctx):
     Whs = ones((Nfilt, nBatches), dtype=np.int32, order='F')
 
     i0 = 0
+    # TODO: move_to_config
     NrankPC = 3  # I am not sure if this gets used, but it goes into the function
 
     # return an array of closest channels for each channel
     iC = getClosestChannels(probe, params.sigmaMask, NchanNear)[0]
 
     for ibatch in tqdm(range(nBatches), desc="Clustering spikes"):
+        enough_spikes = False
 
         # extract spikes using PCA waveforms
         uproj, call = extractPCbatch2(
@@ -475,6 +484,7 @@ def clusterSingleBatches(ctx):
             break  # I am not sure what case this safeguards against....
 
         if uproj.shape[1] > Nfilt:
+            enough_spikes = True
 
             # this initialize the k-means
             W, mu, Wheights, irand = initializeWdata2(call, uproj, Nchan, nPCs, Nfilt, iC)
@@ -515,7 +525,7 @@ def clusterSingleBatches(ctx):
             W0 = W0 / (1e-5 + cp.sum(cp.sum(W0 ** 2, axis=0)[np.newaxis, ...], axis=1) ** .5)
 
         # if a batch doesn't have enough spikes, it gets the cluster templates of the previous batc
-        if 'W0' in locals():
+        if enough_spikes:
             Ws[..., ibatch] = W0
             mus[:, ibatch] = mu
             ns[:, ibatch] = nsp
@@ -545,6 +555,7 @@ def clusterSingleBatches(ctx):
             W[:, iC[:, Wh0[t]], t] = cp.atleast_3d(Ws[:, :, t, ibatch])
 
         # pairs of templates that live on the same channels are potential "matches"
+        # TODO: move_to_config? is the 0.1 here important?
         iMatch = cp.min(cp.abs(iC - Wh0.reshape((1, 1, -1), order='F')), axis=0) < .1
 
         # compute dissimilarities for iMatch = 1
