@@ -10,7 +10,6 @@ from pykilosort.cptools import (
     convolve_cpu, convolve_gpu, convolve_gpu_direct, convolve_gpu_chunked)
 
 
-@pytest.mark.requires_gpu
 def test_median_1(dtype, axis):
     arr = cp.random.rand(2000, 1000).astype(dtype)
     m1 = cp.asnumpy(median(arr, axis=axis))
@@ -48,7 +47,6 @@ def test_lfilter_2():
     assert np.allclose(fil_cpu, fil_gpu, atol=.2)
 
 
-@pytest.mark.requires_gpu
 def test_svdecon_1():
     X = cp.random.rand(10, 10)
 

@@ -1,6 +1,7 @@
 # [WIP] Python port of KiloSort2
+[![CircleCI](https://circleci.com/gh/alexmorley/pykilosort/tree/master.svg?style=svg)](https://circleci.com/gh/alexmorley/pykilosort/tree/master)
 
-This is a work-in-progress litteral Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
+This is a work-in-progress literal Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
 The code is still being debugged and is not ready for use.
 
 
@@ -22,28 +23,24 @@ nvidia-smi # Should show how much your GPU is being used right now
 nvcc # This is the CUDA compiler
 ```
 
-### Dependencies
+### Doing the install
 
-* Python 3.7+
-* NumPy
-* SciPy
-* CuPy
-* matplotlib
-* tqdm
-* click
-* pytest
+We don't currently provide a packaged version of pykilosort on pypy or conda-forge. Thus you will need to clone the repo first `git clone https://github.com/rossant/pykilosort.git && cd pykilosort`.
 
-### Installation - Conda (recomended)
+#### Conda (recomended)
 
 If you don't already have conda installed you can follow the guide [here](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide).
 
 To create a conda environment with these dependencies, run the command: `conda env create -f pyks2.yml` inside your pykilosort directory.
 
-### Installation - Pip
+#### Pip
 
 You can also install the requirements via pip: `pip install -r requirements.txt`. This is not the tested path and so if you run into issues you may get less support.
 
-## Usage example
+
+## Usage
+
+### Example
 
 The programming interface is subject to change. The following code example should be saved in a directory, along with the following files:
 
@@ -75,7 +72,7 @@ run(dat_path, probe=probe, dir_path=dir_path, n_channels=385, dtype=np.int16, sa
 ```
 
 
-## Disk cache
+### Disk cache (serialized results & parameter objects)
 
 The MATLAB version used a big `rez` structured object containing the input data, the parameters, intermediate and final results.
 
