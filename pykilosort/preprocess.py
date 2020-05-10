@@ -63,12 +63,6 @@ def _is_vect(x):
     return hasattr(x, '__len__') and len(x) > 1
 
 
-def _make_vect(x):
-    if not hasattr(x, '__len__'):
-        x = np.array([x])
-    return x
-
-
 
 # TODO: design - can we abstract "running function" out so we don't duplicate most of the code in
 #              - my_min and my_max.

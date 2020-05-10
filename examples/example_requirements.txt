@@ -1,0 +1,2 @@
+git+https://github.com/flatironinstitute/spikeforest2.git
+spikeextractors==0.8.2
