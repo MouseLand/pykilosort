@@ -14,16 +14,10 @@ import cupyx as cpx
 from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
-from .preprocess import convolve_gpu, _is_vect
+from .preprocess import convolve_gpu, _is_vect, _make_vect
 from .utils import Bunch, NpyWriter
 
 logger = logging.getLogger(__name__)
-
-
-def _make_vect(x):
-    if not hasattr(x, '__len__'):
-        x = np.array([x])
-    return x
 
 
 def log(x):
