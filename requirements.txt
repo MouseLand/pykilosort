@@ -4,6 +4,7 @@ matplotlib
 mock
 numba
 numpy
+--pre phy
 pytest
 scipy
 tqdm

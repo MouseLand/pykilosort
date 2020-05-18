@@ -264,3 +264,5 @@ def run(dat_path=None, probe=None, params=None, dir_path=None, stop_after=None, 
     # Show timing information.
     ctx.show_timer()
     ctx.write(timer=ctx.timer)
+
+    return ctx
