@@ -66,9 +66,6 @@ def is_fortran(x):
 
 
 def _make_fortran(x):
-    # TODO: unclear - Are we using Dask? Are we explicitly support pykilosort for use with it?
-    if 'dask' in str(x.__class__):
-        x = x.compute()
     if isinstance(x, cp.ndarray):
         x = cp.asnumpy(x)
     return np.asfortranarray(x)
