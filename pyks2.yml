@@ -1,12 +1,22 @@
+# NOTE: Additonal dependencies may need to be added to pyks2_test.yml as well if 
+# they are required for pykilosort or the tests.
+
+
 name: pyks2
 channels:
   - defaults
+  - conda-forge
 dependencies:
  - python >=3.7
- - scipy
- - numpy
+ - scipy=1.4.*
+ - numpy=1.18.*
+ # Cupy needs some thought on whether to pin and/or which version to pin.
+ # It may be hard to get a version that works for a good range of hardware.
  - cupy
- - matplotlib
- - tqdm
- - click
- - pytest
+ - matplotlib=3.*
+ - tqdm=4.45.*
+ - click=7.*
+ - pytest=5.4.*
+ - pytest-cov=2.*
+ - mock=4.*
+ - numba=0.49.*

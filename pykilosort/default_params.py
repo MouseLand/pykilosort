@@ -1,6 +1,12 @@
 from math import ceil
 from .utils import Bunch
 
+# TODO: design - Let's move all of this to a yaml file with sections so that its easier to read.
+#              - We can then just parse the yaml file to generate this.
+
+# TODO: design - Configuration parameters deserve their own type. 90% of issues will be due to config
+#              - and if we have a dedicated type we can do lots of validation / clever things to catch
+#              - these early and give helpful error messages. (I suggest we use pydantic)
 default_params = Bunch()
 
 # sample rate

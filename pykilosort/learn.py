@@ -83,6 +83,7 @@ def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None
     return wTEMP, wPCA
 
 
+# TODO: design - if we just need a couple of params then we can just pass those in.
 def getKernels(params):
     # this function makes upsampling kernels for the temporal components.
     # those are used for interpolating the biggest negative peak,
@@ -162,6 +163,7 @@ def getMeUtU(iU, iC, mask, Nnearest, Nchan):
 
 def getMeWtW2(W, U0, Nnearest=None):
     # this function compute the correlation between any two pairs of templates
+
     # it relies on the fact that the W and U0 are unit normalized, so that the product of a
     # template with itself is 1, as it should be if we're trying to calculate correlations
 
@@ -445,6 +447,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
         d_counter[1] = d_counter[0]
 
     # compute PC features from reziduals + subtractions
+    # TODO: design - let's not use numeric indexing into the Params array. It's much more difficult to read.
     if Params[12] > 0:
         computePCfeatures = cp.RawKernel(code, 'computePCfeatures')
         computePCfeatures(
@@ -596,6 +599,7 @@ def learnAndSolve8b(ctx):
 
     iorig = ir.iorig
 
+    # TODO: move_to_config
     NrankPC = 6  # this one is the rank of the PCs, used to detect spikes with threshold crossings
     Nrank = 3  # this one is the rank of the templates
 
@@ -615,6 +619,7 @@ def learnAndSolve8b(ctx):
     Nchan = probe.Nchan
 
     # two variables for the same thing? number of nearest channels to each primary channel
+    # TODO: unclear - let's fix this
     NchanNear = min(probe.Nchan, 32)
     Nnearest = min(probe.Nchan, 32)
 

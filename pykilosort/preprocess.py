@@ -30,9 +30,6 @@ def gpufilter(buff, chanMap=None, fs=None, fslow=None, fshigh=None, car=True):
     # params.fs and params.fshigh are sampling and high-pass frequencies respectively
     # if params.fslow is present, it is used as low-pass frequency (discouraged)
 
-    # set up the parameters of the filter
-    b1, a1 = get_filter_params(fs, fshigh=fshigh, fslow=fslow)
-
     dataRAW = buff  # .T  # NOTE: we no longer use Fortran order upstream
     assert dataRAW.flags.c_contiguous
     assert dataRAW.ndim == 2
@@ -50,13 +47,18 @@ def gpufilter(buff, chanMap=None, fs=None, fslow=None, fshigh=None, car=True):
         # subtract median across channels
         dataRAW = dataRAW - median(dataRAW, axis=1)[:, np.newaxis]
 
+    # set up the parameters of the filter
+    filter_params = get_filter_params(fs, fshigh=fshigh, fslow=fslow)
+
     # next four lines should be equivalent to filtfilt (which cannot be
     # used because it requires float64)
-    datr = lfilter(b1, a1, dataRAW, axis=0)  # causal forward filter
-    datr = lfilter(b1, a1, datr, axis=0, reverse=True)  # backward
+    datr = lfilter(*filter_params, dataRAW, axis=0)  # causal forward filter
+    datr = lfilter(*filter_params, datr, axis=0, reverse=True)  # backward
     return datr
 
 
+# TODO: unclear - Do we really need these, can we not just pick a type for the config?
+#               - We can move this complexity into a "config parsing" stage.
 def _is_vect(x):
     return hasattr(x, '__len__') and len(x) > 1
 
@@ -67,6 +69,8 @@ def _make_vect(x):
     return x
 
 
+# TODO: design - can we abstract "running function" out so we don't duplicate most of the code in
+#              - my_min and my_max.
 def my_min(S1, sig, varargin=None):
     # returns a running minimum applied sequentially across a choice of dimensions and bin sizes
     # S1 is the matrix to be filtered
@@ -129,39 +133,6 @@ def my_sum(S1, sig, varargin=None):
         S1 = cp.reshape(Smax, dsnew, order='F')
         S1 = cp.transpose(S1, list(range(1, idim + 1)) + [0] + list(range(idim + 1, Nd)))
     return S1
-
-
-def my_conv2(x, sig, varargin=None, **kwargs):
-    # x is the matrix to be filtered along a choice of axes
-    # sig is either a scalar or a sequence of scalars, one for each axis to be filtered
-    # varargin can be the dimensions to do filtering, if len(sig) != x.shape
-    # if sig is scalar and no axes are provided, the default axis is 2
-    if sig <= .25:
-        return x
-    idims = 1
-    if varargin is not None:
-        idims = varargin
-    idims = _make_vect(idims)
-    if _is_vect(idims) and _is_vect(sig):
-        sigall = sig
-    else:
-        sigall = np.tile(sig, len(idims))
-
-    for sig, idim in zip(sigall, idims):
-        Nd = x.ndim
-        x = cp.transpose(x, [idim] + list(range(0, idim)) + list(range(idim + 1, Nd)))
-        dsnew = x.shape
-        x = cp.reshape(x, (x.shape[0], -1), order='F')
-
-        tmax = ceil(4 * sig)
-        dt = cp.arange(-tmax, tmax + 1)
-        gaus = cp.exp(-dt ** 2 / (2 * sig ** 2))
-        gaus = gaus / cp.sum(gaus)
-
-        y = convolve_gpu(x, gaus, **kwargs)
-        y = y.reshape(dsnew, order='F')
-        y = cp.transpose(y, list(range(1, idim + 1)) + [0] + list(range(idim + 1, Nd)))
-    return y
 
 
 def whiteningFromCovariance(CC):
@@ -289,6 +260,7 @@ def get_good_channels(raw_data=None, probe=None, params=None):
     ttime = 0
 
     # skip every 100 batches
+    # TODO: move_to_config - every N batches
     for ibatch in tqdm(range(0, Nbatch, int(ceil(Nbatch / 100))), desc="Finding good channels"):
         i = NT * ibatch
         buff = raw_data[i:i + NT]
@@ -308,6 +280,7 @@ def get_good_channels(raw_data=None, probe=None, params=None):
         # very basic threshold crossings calculation
         s = cp.std(datr, axis=0)
         datr = datr / s  # standardize each channel ( but don't whiten)
+        # TODO: move_to_config (30 sample range)
         mdat = my_min(datr, 30, 0)  # get local minima as min value in +/- 30-sample range
 
         # take local minima that cross the negative threshold
@@ -408,6 +381,8 @@ def preprocess(ctx):
             assert datr.flags.c_contiguous
 
             datr = datr[ioffset:ioffset + NT, :]  # remove timepoints used as buffers
+            # TODO: unclear - comment says we are scaling by 200. Is wrot already scaled?
+            #               - we should definitely scale as we could be hit badly by precision here.  
             datr = cp.dot(datr, Wrot)  # whiten the data and scale by 200 for int16 range
             assert datr.flags.c_contiguous
 

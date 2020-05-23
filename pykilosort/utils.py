@@ -62,17 +62,16 @@ def _extend(x, i0, i1, val, axis=0):
 def is_fortran(x):
     if isinstance(x, np.ndarray):
         return x.flags.f_contiguous
-    raise ValueError()
+    raise ValueError('`is_fortran` is only implemented for numpy arrays')
 
 
 def _make_fortran(x):
-    if 'dask' in str(x.__class__):
-        x = x.compute()
     if isinstance(x, cp.ndarray):
         x = cp.asnumpy(x)
     return np.asfortranarray(x)
 
 
+# TODO: design - let's move this to an io module
 def read_data(dat_path, offset=0, shape=None, dtype=None, axis=0):
     count = shape[0] * shape[1] if shape and -1 not in shape else -1
     buff = np.fromfile(dat_path, dtype=dtype, count=count, offset=offset)
@@ -83,6 +82,7 @@ def read_data(dat_path, offset=0, shape=None, dtype=None, axis=0):
     return buff
 
 
+# TODO: design - let's move this to an io module
 def memmap_binary_file(dat_path, n_channels=None, shape=None, dtype=None, offset=None):
     """Memmap a dat file in FORTRAN order, shape (n_channels, n_samples)."""
     assert dtype is not None
@@ -97,6 +97,7 @@ def memmap_binary_file(dat_path, n_channels=None, shape=None, dtype=None, offset
     return np.memmap(str(dat_path), dtype=dtype, shape=shape, offset=offset, order='F')
 
 
+# TODO: design - move this to cuda/cupy module.
 def extract_constants_from_cuda(code):
     r = re.compile(r'const int\s+\S+\s+=\s+\S+.+')
     m = r.search(code)
@@ -107,6 +108,7 @@ def extract_constants_from_cuda(code):
             yield a.strip(), int(b.strip())
 
 
+# TODO: design - move this to cuda/cupy module.
 def get_cuda(fn):
     path = Path(__file__).parent / 'cuda' / (fn + '.cu')
     assert path.exists
@@ -115,6 +117,7 @@ def get_cuda(fn):
     return code, Bunch(extract_constants_from_cuda(code))
 
 
+# TODO: design - let's move this to an io module
 class LargeArrayWriter(object):
     """Save a large array chunk by chunk, in a binary file with FORTRAN order."""
     def __init__(self, path, dtype=None, shape=None):
@@ -156,6 +159,7 @@ class LargeArrayWriter(object):
             json.dump({'shape': self.shape, 'dtype': str(self.dtype), 'order': 'F'}, f)
 
 
+# TODO: design - let's move this to an io module
 def memmap_large_array(path):
     """Memmap a large array saved by LargeArrayWriter."""
     path = Path(path)
@@ -167,6 +171,7 @@ def memmap_large_array(path):
     return memmap_binary_file(path, shape=shape, dtype=dtype)
 
 
+# TODO: design - let's move this to an io module
 def _npy_header(shape, dtype, order='C'):
     d = {'shape': shape}
     if order == 'C':
@@ -183,6 +188,7 @@ def _npy_header(shape, dtype, order='C'):
     return d
 
 
+# TODO: design - let's move this to an io module
 def save_large_array(fp, array, axis=0, desc=None):
     """Save a large, potentially memmapped array, into a NPY file, chunk by chunk to avoid loading
     it entirely in memory."""
@@ -201,6 +207,7 @@ def save_large_array(fp, array, axis=0, desc=None):
         fp.write(chunk.tobytes())
 
 
+# TODO: design - let's move this to an io module
 class NpyWriter(object):
     def __init__(self, path, shape, dtype, axis=0):
         assert axis == 0  # only concatenation along the first axis is supported right now
@@ -224,6 +231,11 @@ class NpyWriter(object):
         self.fp.close()
 
 
+# TODO: design - this is a nice pythonic-ish mirror of the MATLAB global context,
+#              - it might be nicer if it didn't inherit from Bunch (we can be more strict
+#              - about what attributes are guaranteed to be there etc.).
+
+# TODO: needs_test - pretty key class and need to make sure we can use it safely
 class Context(Bunch):
     def __init__(self, context_path):
         super(Context, self).__init__()
@@ -335,6 +347,7 @@ class Context(Bunch):
             self.show_timer(name)
 
 
+# TODO: design - let's move this to an io module
 def load_probe(probe_path):
     """Load a .mat probe file from Kilosort2, or a PRB file (experimental)."""
 

@@ -1,0 +1,17 @@
+# NOTE: Rhis file should be a strict *subset* of pyks2.yml - without GPU requirements.
+# This allows us to run some tests on circleCI and anywhere else without a GPU.
+
+name: pyks2_test
+channels:
+  - defaults
+dependencies:
+ - python >=3.7
+ - scipy=1.4.*
+ - numpy=1.18.*
+ - matplotlib=3.*
+ - tqdm=4.45.*
+ - click=7.*
+ - pytest==5.4.*
+ - pytest-cov=2.*
+ - mock==4.*
+ - numba==0.49.*

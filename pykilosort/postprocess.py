@@ -9,12 +9,12 @@ from tqdm import tqdm
 import numba
 import numpy as np
 import cupy as cp
-from cupyx.scipy.sparse import coo_matrix
+import cupyx as cpx
 
 from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
-from .preprocess import my_conv2
+from .preprocess import convolve_gpu, _is_vect, _make_vect
 from .utils import Bunch, NpyWriter
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,39 @@ def log(x):
     if x == 0:
         return -np.inf
     return log_(x)
+
+
+def my_conv2(x, sig, varargin=None, **kwargs):
+    # x is the matrix to be filtered along a choice of axes
+    # sig is either a scalar or a sequence of scalars, one for each axis to be filtered
+    # varargin can be the dimensions to do filtering, if len(sig) != x.shape
+    # if sig is scalar and no axes are provided, the default axis is 2
+    if sig <= .25:
+        return x
+    idims = 1
+    if varargin is not None:
+        idims = varargin
+    idims = _make_vect(idims)
+    if _is_vect(idims) and _is_vect(sig):
+        sigall = sig
+    else:
+        sigall = np.tile(sig, len(idims))
+
+    for sig, idim in zip(sigall, idims):
+        Nd = x.ndim
+        x = cp.transpose(x, [idim] + list(range(0, idim)) + list(range(idim + 1, Nd)))
+        dsnew = x.shape
+        x = cp.reshape(x, (x.shape[0], -1), order='F')
+
+        tmax = ceil(4 * sig)
+        dt = cp.arange(-tmax, tmax + 1)
+        gaus = cp.exp(-dt ** 2 / (2 * sig ** 2))
+        gaus = gaus / cp.sum(gaus)
+
+        y = convolve_gpu(x, gaus, **kwargs)
+        y = y.reshape(dsnew, order='F')
+        y = cp.transpose(y, list(range(1, idim + 1)) + [0] + list(range(idim + 1, Nd)))
+    return y
 
 
 def ccg_slow(st1, st2, nbins, tbin):
@@ -239,6 +272,8 @@ def _ccg(st1, st2, nbins, tbin):
 
 
 def ccg(st1, st2, nbins, tbin):
+    # TODO: move_to_config - There are a lot of parameters in the ccg computation that may need to
+    #                      - vary for different setups.
     st1 = cp.asnumpy(st1)
     st2 = cp.asnumpy(st2)
     return _ccg(st1, st2, nbins, tbin)
@@ -260,7 +295,7 @@ def clusterAverage(clu, spikeQuantity):
     _, cluInds, spikeCounts = cp.unique(clu, return_inverse=True, return_counts=True)
 
     # summation
-    q = coo_matrix((spikeQuantity, (cluInds, cp.zeros(len(clu))))).toarray().flatten()
+    q = cpx.scipy.sparse.coo_matrix((spikeQuantity, (cluInds, cp.zeros(len(clu))))).toarray().flatten()
 
     # had sums so dividing by spike counts gives the mean depth of each cluster
     clusterQuantity = q / spikeCounts
@@ -275,6 +310,7 @@ def find_merges(ctx, flag):
     params = ctx.params
     ir = ctx.intermediate
 
+    # TODO: move_to_config
     dt = 1. / 1000  # step size for CCG binning
     nbins = 500  # number of bins used for cross-correlograms
 
@@ -314,6 +350,7 @@ def find_merges(ctx, flag):
 
         if s1.size != nspk[isort[j]]:
             # this is a check to make sure new clusters are combined correctly into bigger clusters
+            # TODO: unclear - don't we want to bail in that case?
             logger.warn('Lost track of spike counts.')
 
         # sort all the pairs of this neuron, discarding any that have fewer spikes
@@ -347,6 +384,7 @@ def find_merges(ctx, flag):
             R = rir.min()
 
             if flag:
+                # TODO: move_to_config
                 if (Q < 0.2) and (R < 0.05):  # if both refractory criteria are met
                     i = ix[k]
                     # now merge j into i and move on
@@ -354,6 +392,7 @@ def find_merges(ctx, flag):
                     st3[:, 1][st3[:, 1] == isort[j]] = i
                     nspk[i] = nspk[i] + nspk[isort[j]]  # update number of spikes for cluster i
                     logger.debug(f'Merged {isort[j]} into {i}')
+                    # TODO: unclear - the comment below looks important :)
                     # YOU REALLY SHOULD MAKE SURE THE PC CHANNELS MATCH HERE
                     # break % if a pair is found, we don't need to keep going
                     # (we'll revisit this cluster when we get to the merged cluster)
@@ -444,6 +483,7 @@ def splitAllClusters(ctx, flag):
         free_gpu_memory()
 
         if nSpikes < 300:
+            # TODO: move_to_config
             # do not split if fewer than 300 spikes (we cannot estimate
             # cross-correlograms accurately)
             continue
@@ -496,6 +536,7 @@ def splitAllClusters(ctx, flag):
 
         logP = cp.zeros(50)  # used to monitor the cost function
 
+        # TODO: move_to_config - maybe...
         for k in range(50):
             # for each spike, estimate its probability to come from either Gaussian cluster
             logp[:, 0] = -1. / 2 * log(s1) - ((x - mu1) ** 2) / (2 * s1) + log(p)
@@ -550,6 +591,7 @@ def splitAllClusters(ctx, flag):
 
         # if the CCG has a dip, don't do the split.
         # These thresholds are consistent with the ones from merges.
+        # TODO: move_to_config (or at least a single constant so the are the same as the merges)
         if (Q12 < 0.25) and (R < 0.05):  # if both metrics are below threshold.
             nccg += 1  # keep track of how many splits were voided by the CCG criterion
             continue
@@ -570,12 +612,14 @@ def splitAllClusters(ctx, flag):
 
         # if the templates are correlated, and their amplitudes are similar, stop the split!!!
 
+        # TODO: move_to_config 
         if (cc[0, 1] > 0.9) and (r0 < 0.2):
             continue
 
         # finaly criteria to continue with the split: if the split piece is more than 5% of all
         # spikes, if the split piece is more than 300 spikes, and if the confidences for
         # assigning spikes to # both clusters exceeds a preset criterion ccsplit
+        # TODO: move_to_config 
         if (nremove > 0.05) and (min(plow, phigh) > ccsplit) and (
                 min(cp.sum(ilow), cp.sum(~ilow)) > 300):
             # one cluster stays, one goes
@@ -860,6 +904,7 @@ def checkClusters(ctx):
     return ctx
 
 
+# TODO: design - let's split this out into a different module and a class / a few functions
 def rezToPhy(ctx, dat_path=None, output_dir=None):
     # pull out results from kilosort's rez to either return to workspace or to
     # save in the appropriate format for the phy GUI to run on. If you provide

@@ -1,29 +1,46 @@
 # [WIP] Python port of KiloSort2
+[![CircleCI](https://circleci.com/gh/alexmorley/pykilosort/tree/master.svg?style=svg)](https://circleci.com/gh/alexmorley/pykilosort/tree/master)
 
-This is a work-in-progress litteral Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
+This is a work-in-progress literal Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
 The code is still being debugged and is not ready for use.
 
 
-## Hardware requirements
+## Installation 
 
-The code makes extensive use of the GPU via the CUDA framework. A high-end GPU with at least 8GB of memory is required.
+### System Requirements
+
+The code makes extensive use of the GPU via the CUDA framework. A high-end NVIDIA GPU with at least 8GB of memory is required.
+
 A good CPU and a large amount of RAM (minimum 32GB or 64GB) is also required.
 
+See [the Wiki on the Matlab version](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide) for more information.
 
-## Dependencies
+<!-- TODO: What OS's does this work on? I am testing with Ubuntu 18.04. -->
 
-* Python 3.7+
-* NumPy
-* SciPy
-* CuPy
-* matplotlib
-* tqdm
-* click
-* pytest
+You will need NVIDIA drivers and cuda-toolkit installed on your computer too. This can be the hardest part of the installation. To test if your is working OK you should be able to run the following:
+```
+nvidia-smi # Should show how much your GPU is being used right now
+nvcc # This is the CUDA compiler
+```
+
+### Doing the install
+
+We don't currently provide a packaged version of pykilosort on pypy or conda-forge. Thus you will need to clone the repo first `git clone https://github.com/rossant/pykilosort.git && cd pykilosort`.
+
+#### Conda (recomended)
+
+If you don't already have conda installed you can follow the guide [here](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide).
 
 To create a conda environment with these dependencies, run the command: `conda env create -f pyks2.yml` inside your pykilosort directory.
 
-## Usage example
+#### Pip
+
+You can also install the requirements via pip: `pip install -r requirements.txt`. This is not the tested path and so if you run into issues you may get less support.
+
+
+## Usage
+
+### Example
 
 The programming interface is subject to change. The following code example should be saved in a directory, along with the following files:
 
@@ -55,7 +72,7 @@ run(dat_path, probe=probe, dir_path=dir_path, n_channels=385, dtype=np.int16, sa
 ```
 
 
-## Disk cache
+### Disk cache (serialized results & parameter objects)
 
 The MATLAB version used a big `rez` structured object containing the input data, the parameters, intermediate and final results.
 

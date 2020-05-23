@@ -3,7 +3,7 @@ from numpy.testing import assert_array_equal as ae
 from numpy.testing import assert_allclose as ac
 from pytest import raises
 
-from ..utils import Context, LargeArrayWriter, memmap_large_array, save_large_array, NpyWriter
+from pykilosort.utils import Context, LargeArrayWriter, memmap_large_array, save_large_array, NpyWriter
 
 
 def test_context_1(tmp_path):
