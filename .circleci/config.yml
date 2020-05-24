@@ -1,6 +1,6 @@
 version: 2 # use CircleCI 2.0
 jobs:
-  build: 
+  test_no_gpu: 
     working_directory: ~/circleci-demo-python-django
     docker:
       - image: continuumio/miniconda3:latest
@@ -24,3 +24,9 @@ jobs:
               source activate pyks2_test 
               pip install -r test_requirements.txt
               pytest -m "not requires_gpu"
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test_no_gpu
