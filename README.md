@@ -1,5 +1,5 @@
 # [WIP] Python port of KiloSort2
-[![CircleCI](https://circleci.com/gh/alexmorley/pykilosort/tree/master.svg?style=svg)](https://circleci.com/gh/alexmorley/pykilosort/tree/master)
+[![CircleCI](https://circleci.com/gh/rossant/pykilosort/tree/master.svg?style=svg)](https://circleci.com/gh/rossant/pykilosort/tree/master)
 
 This is a work-in-progress literal Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
 The code is still being debugged and is not ready for use.
