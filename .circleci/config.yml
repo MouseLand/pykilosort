@@ -1,6 +1,6 @@
 version: 2 # use CircleCI 2.0
 jobs:
-  build: 
+  tests: 
     working_directory: ~/circleci-demo-python-django
     docker:
       - image: continuumio/miniconda3:latest
