@@ -5,9 +5,10 @@ import numpy as np
 import cupy as cp
 from tqdm import tqdm
 
-from .cptools import svdecon, svdecon_cpu, median, free_gpu_memory, ones
-from .cluster import isolated_peaks_new, get_SpikeSample, getClosestChannels
-from .utils import Bunch, get_cuda, _extend, LargeArrayWriter
+from pykilosort import ENABLE_STABLEMODE, ENSURE_DETERM
+from pykilosort.cptools import svdecon, svdecon_cpu, median, free_gpu_memory, ones
+from pykilosort.cluster import isolated_peaks_new, get_SpikeSample, getClosestChannels
+from pykilosort.utils import Bunch, get_cuda, _extend, LargeArrayWriter
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +386,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     # tpW = (Nnearest, Nrank)
     tpPC = (NchanU, Nrank)
 
+
     # filter the data with the spatial templates
     spaceFilter = cp.RawKernel(code, 'spaceFilter')
     spaceFilter((Nfilt,), (Nthreads,), (d_Params, d_draw, d_U, d_iC, d_iW, d_data))
@@ -418,16 +420,21 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
             extractFEAT = cp.RawKernel(code, 'extractFEAT')
             extractFEAT(
                 (64,), tpF, (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat))
+       
+        if ENSURE_DETERM:
+            raise NotImplementedError("")
+            if ENABLE_STABLEMODE:
+                raise NotImplementedError("")
+        else:
+            # subtract spikes from raw data here
+            subtract_spikes = cp.RawKernel(code, 'subtract_spikes')
+            subtract_spikes((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U))
 
-        # subtract spikes from raw data here
-        subtract_spikes = cp.RawKernel(code, 'subtract_spikes')
-        subtract_spikes((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U))
-
-        # filter the data with the spatial templates
-        spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
-        spaceFilterUpdate(
-            (Nfilt,), (2 * nt0 - 1,),
-            (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+            # filter the data with the spatial templates
+            spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
+            spaceFilterUpdate(
+                (Nfilt,), (2 * nt0 - 1,),
+                (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
 
         # filter the data with the temporal templates
         timeFilterUpdate = cp.RawKernel(code, 'timeFilterUpdate')
@@ -455,12 +462,16 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
             (d_Params, d_counter, d_draw, d_st, d_id, d_y,
              d_W, d_U, d_mu, d_iW, d_iC, d_wPCA, d_featPC))
 
+    d_idx = cp.arange(0, counter[0])
+    if ENABLE_STABLEMODE:
+        # To implement: d_idx = array of time sorted indicie
+        raise NotImplementedError("Stable mode not implemented yet")
+    
     # update dWU here by adding back to subbed spikes.
-    # additional parameter d_idx = array of time sorted indicies
     average_snips = cp.RawKernel(code, 'average_snips')
     average_snips(
         (Nfilt,), tpS,
-        (d_Params, d_st, d_id, d_x, d_y, d_counter, d_draw, d_W, d_U, d_dWU, d_nsp, d_mu, d_z))
+        (d_Params, d_st, d_idx, d_id, d_x, d_y, d_counter, d_draw, d_W, d_U, d_dWU, d_nsp, d_mu, d_z))
 
     if counter[0] < maxFR:
         minSize = counter[0]
