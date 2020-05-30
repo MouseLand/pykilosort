@@ -1,9 +1,8 @@
 import logging
 import os
 
-# TODO: move this to config
-# TODO: setting to true not yet implemented
-ENABLE_STABLEMODE = False
+# TODO: setting to true not yet tested
+ENABLE_STABLEMODE = True
 ENSURE_DETERM = False
 
 if os.getenv('MOCK_CUPY', False):

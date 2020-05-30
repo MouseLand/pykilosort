@@ -376,8 +376,8 @@ def mexClustering2(Params, uproj, W, mu, call, iMatch, iC):
     bestFilter((40,), (256,), (d_Params, d_iMatch, d_iC, d_call, d_cmax, d_id, d_x))
 
     # average all spikes for same template -- ORIGINAL
-    average_snips = cp.RawKernel(code, 'average_snips')
-    average_snips(
+    average_snips_v2 = cp.RawKernel(code, 'average_snips_v2')
+    average_snips_v2(
         (Nfilters,), (NrankPC, NchanNear), (d_Params, d_iC, d_call, d_id, d_uproj, d_cmax, d_dWU))
 
     count_spikes = cp.RawKernel(code, 'count_spikes')

@@ -372,7 +372,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     d_x = cp.zeros(maxFR, dtype=np.float32, order='F')
     d_y = cp.zeros(maxFR, dtype=np.float32, order='F')
     d_z = cp.zeros(maxFR, dtype=np.float32, order='F')
-
+    
     d_counter = cp.zeros(2, dtype=np.int32, order='F')
     d_count = cp.zeros(nmaxiter, dtype=np.int32, order='F')
     d_feat = cp.zeros((Nnearest, maxFR), dtype=np.float32, order='F')
@@ -400,6 +400,9 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     bestFilter(
         (int(NT // Nthreads),), (Nthreads,), (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype))
 
+    if ENABLE_STABLEMODE:
+        d_draw64 = cp.array(d_draw, dtype=np.float64)
+
     # loop to find and subtract spikes
     for k in range(int(Params[3])):
         # ignore peaks that are smaller than another nearby peak
@@ -422,19 +425,41 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
                 (64,), tpF, (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat))
        
         if ENSURE_DETERM:
-            raise NotImplementedError("")
             if ENABLE_STABLEMODE:
-                raise NotImplementedError("")
-        else:
-            # subtract spikes from raw data here
-            subtract_spikes = cp.RawKernel(code, 'subtract_spikes')
-            subtract_spikes((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U))
+                d_idx = cp.argsort(d_st[counter[1]:counter[1]+(counter[0]-counter[1])])
+            else:
+                d_idx = cp.arange(0, counter[0] - counter[1])
+           
+            if Nchan < Nthreads:
+                subtract_spikes_v2 = cp.RawKernel(code, 'subtract_spikes_v2')
+                subtract_spikes_v2((1,), (Nchan,), (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U))
+            else:
+                subtract_spikes_v2 = cp.RawKernel(code, 'subtract_spikes_v2')
+                subtract_spikes_v2((Nchan/Nthreads,), (Nthreads,), (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U))
 
-            # filter the data with the spatial templates
             spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
             spaceFilterUpdate(
                 (Nfilt,), (2 * nt0 - 1,),
                 (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+        else:
+            if ENABLE_STABLEMODE:
+                subtract_spikes_v4 = cp.RawKernel(code, 'subtract_spikes_v4')
+                subtract_spikes_v4((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw64, d_W, d_U))
+
+                spaceFilterUpdate_v2 = cp.RawKernel(code, 'spaceFilterUpdate_v2')
+                spaceFilterUpdate_v2(
+                    (Nfilt,), (2 * nt0 - 1,),
+                    (d_Params, d_draw64, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+            else:
+                # subtract spikes from raw data here
+                subtract_spikes = cp.RawKernel(code, 'subtract_spikes')
+                subtract_spikes((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U))
+
+                # filter the data with the spatial templates
+                spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
+                spaceFilterUpdate(
+                    (Nfilt,), (2 * nt0 - 1,),
+                    (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
 
         # filter the data with the temporal templates
         timeFilterUpdate = cp.RawKernel(code, 'timeFilterUpdate')
@@ -453,6 +478,9 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
         # update 1st counter from 2nd counter
         d_counter[1] = d_counter[0]
 
+    if ENABLE_STABLEMODE and not ENSURE_DETERM:
+        d_draw = cp.array(d_draw64, dtype=np.float32)
+
     # compute PC features from reziduals + subtractions
     # TODO: design - let's not use numeric indexing into the Params array. It's much more difficult to read.
     if Params[12] > 0:
@@ -462,10 +490,11 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
             (d_Params, d_counter, d_draw, d_st, d_id, d_y,
              d_W, d_U, d_mu, d_iW, d_iC, d_wPCA, d_featPC))
 
-    d_idx = cp.arange(0, counter[0])
     if ENABLE_STABLEMODE:
-        # To implement: d_idx = array of time sorted indicie
-        raise NotImplementedError("Stable mode not implemented yet")
+        # d_idx = array of time sorted indicie
+        d_idx = cp.argsort(d_st)
+    else:
+        d_idx = cp.arange(0, counter[0])
     
     # update dWU here by adding back to subbed spikes.
     average_snips = cp.RawKernel(code, 'average_snips')
