@@ -1,11 +1,11 @@
 from pathlib import Path
+
 import numpy as np
 
 import kachery as ka
-from spikeforest2_utils import AutoRecordingExtractor, AutoSortingExtractor
+from pykilosort import Bunch, add_default_handler, run
 from spikeextractors.extractors import bindatrecordingextractor as dat
-
-from pykilosort import add_default_handler, run, Bunch
+from spikeforest2_utils import AutoRecordingExtractor, AutoSortingExtractor
 
 dat_path = Path("test/test.bin").absolute()
 dir_path = dat_path.parent

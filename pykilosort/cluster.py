@@ -209,7 +209,7 @@ def sortBatches2(ccb0):
 
     # sort the matrix of dissimilarities
     ccb1 = ccb0[isort, :][:, isort]
-
+    
     return ccb1, isort
 
 
