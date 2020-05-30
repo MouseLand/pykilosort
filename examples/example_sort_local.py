@@ -7,6 +7,7 @@ from examples.utils import create_test_directory
 from pykilosort import Bunch, add_default_handler, run
 from spikeextractors.extractors import bindatrecordingextractor as dat
 
+# Set up (and download if necessary) a test recording
 _dir_path = os.path.dirname(os.path.realpath(__file__))
 test_dir = _dir_path+"/test/"
 dat_path = Path(test_dir + "test.bin").absolute()
@@ -15,16 +16,17 @@ if not dat_path.is_file():
 
 dir_path = dat_path.parent
 
+# Use spikeinterface to get a consistent interface to the recording
 recording = dat.BinDatRecordingExtractor(
         dat_path,
         sampling_frequency=3e4,
         numchan=4,
         dtype='int16'
 )
-#recording.write_to_binary_dat_format(str(dat_path))
 n_channels = len(recording.get_channel_ids())
 
-
+# Load the config into pykilosort2.
+# This should be automatic in the future.
 probe = Bunch()
 probe.NchanTOT = n_channels
 probe.chanMap = np.array(range(0, n_channels))
@@ -52,5 +54,6 @@ def run_example():
         sample_rate=3e4 #recording.get_sampling_frequency(),
     )
 
+# This can be run as a script or as part of a test
 if __name__ ==  "__main__":
     run_example()
