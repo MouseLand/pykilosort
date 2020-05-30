@@ -3,11 +3,9 @@ from pathlib import Path
 
 import numpy as np
 
-import kachery as ka
-from spikeextractors.extractors import bindatrecordingextractor as dat
-
-from pykilosort import add_default_handler, run, Bunch
 from examples.utils import create_test_directory
+from pykilosort import Bunch, add_default_handler, run
+from spikeextractors.extractors import bindatrecordingextractor as dat
 
 _dir_path = os.path.dirname(os.path.realpath(__file__))
 test_dir = _dir_path+"/test/"
