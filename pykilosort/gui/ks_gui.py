@@ -41,6 +41,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.select_data_file_layout.addWidget(self.select_data_file, 70)
         self.select_data_file_layout.addWidget(self.data_file_path, 30)
         self.select_data_file.clicked.connect(self.on_select_data_file_clicked)
+        self.data_file_path.textChanged.connect(self.on_data_file_path_changed)
+        self.data_file_path.editingFinished.connect(self.on_data_file_path_changed)
 
         self.select_working_directory_layout = QtWidgets.QHBoxLayout()
         self.select_working_directory = QtWidgets.QPushButton("Select Working Directory")
@@ -48,6 +50,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.select_working_directory_layout.addWidget(self.select_working_directory, 70)
         self.select_working_directory_layout.addWidget(self.working_directory, 30)
         self.select_working_directory.clicked.connect(self.on_select_working_dir_clicked)
+        self.working_directory.textChanged.connect(self.on_file_paths_changed)
+        self.working_directory.editingFinished.connect(self.on_file_paths_changed)
 
         self.select_results_directory_layout = QtWidgets.QHBoxLayout()
         self.select_results_directory = QtWidgets.QPushButton("Select Results Directory")
@@ -55,6 +59,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.select_results_directory_layout.addWidget(self.select_results_directory, 70)
         self.select_results_directory_layout.addWidget(self.results_directory, 30)
         self.select_results_directory.clicked.connect(self.on_select_results_dir_clicked)
+        self.results_directory.textChanged.connect(self.on_file_paths_changed)
+        self.results_directory.editingFinished.connect(self.on_file_paths_changed)
 
         self.probe_layout_layout = QtWidgets.QHBoxLayout()
         self.probe_layout_text = QtWidgets.QLabel("Select Probe Layout")
@@ -160,6 +166,22 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         if results_dir_name:
             self.results_directory.setText(results_dir_name)
+
+    def on_data_file_path_changed(self):
+        data_file_path = self.data_file_path.text()
+        try:
+            assert os.path.exists(data_file_path)
+
+            parent_folder = os.path.dirname(data_file_path)
+            self.working_directory.setText(parent_folder)
+            self.results_directory.setText(parent_folder)
+            self.error_label.hide()
+        except AssertionError:
+            self.error_label.setText("Please select a valid file path!")
+            self.error_label.show()
+
+    def on_file_paths_changed(self):
+        pass
 
     def on_advanced_options_clicked(self):
         advanced_options_dialog = QtWidgets.QMessageBox(self)
