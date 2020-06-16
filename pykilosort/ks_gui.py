@@ -1,9 +1,10 @@
 import os
 import sys
 import pyqtgraph as pg
-#TODO: optimize imports before incorporating into codebase
+# TODO: optimize imports before incorporating into codebase
 from pykilosort.default_params import default_params
 from PyQt5 import QtGui, QtWidgets, QtCore
+
 
 class HeaderBox(QtWidgets.QWidget):
 
@@ -24,6 +25,7 @@ class HeaderBox(QtWidgets.QWidget):
         self.layout.addWidget(self.reset_gui_button)
 
         self.setLayout(self.layout)
+
 
 class SettingsBox(QtWidgets.QGroupBox):
 
@@ -70,8 +72,8 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.time_range_layout = QtWidgets.QHBoxLayout()
         self.time_range_text = QtWidgets.QLabel("Time Range (in seconds)")
-        self.time_range_min = QtWidgets.QLineEdit("min")
-        self.time_range_max = QtWidgets.QLineEdit("max")
+        self.time_range_min = QtWidgets.QLineEdit(str(0))
+        self.time_range_max = QtWidgets.QLineEdit("inf")
         self.time_range_layout.addWidget(self.time_range_text, 70)
         self.time_range_layout.addWidget(self.time_range_min, 15)
         self.time_range_layout.addWidget(self.time_range_max, 15)
@@ -80,31 +82,31 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.min_firing_rate_layout = QtWidgets.QHBoxLayout()
         self.min_firing_rate_text = QtWidgets.QLabel("Min. Firing Rate/Channel\n(0 includes all channels)")
-        self.min_firing_rate = QtWidgets.QLineEdit("0.1")
+        self.min_firing_rate = QtWidgets.QLineEdit(str(default_params.minfr_goodchannels))
         self.min_firing_rate_layout.addWidget(self.min_firing_rate_text, 70)
         self.min_firing_rate_layout.addWidget(self.min_firing_rate, 30)
         self.min_firing_rate.textEdited.connect(self.on_min_firing_rate_changed)
 
         self.threshold_layout = QtWidgets.QHBoxLayout()
         self.threshold_text = QtWidgets.QLabel("Threshold")
-        self.threshold_upper = QtWidgets.QLineEdit("")
-        self.threshold_lower = QtWidgets.QLineEdit("")
+        self.threshold_upper = QtWidgets.QLineEdit(str(default_params.Th[0]))
+        self.threshold_lower = QtWidgets.QLineEdit(str(default_params.Th[1]))
         self.threshold_layout.addWidget(self.threshold_text, 70)
-        self.threshold_layout.addWidget(self.threshold_upper, 15)
         self.threshold_layout.addWidget(self.threshold_lower, 15)
+        self.threshold_layout.addWidget(self.threshold_upper, 15)
         self.threshold_upper.textEdited.connect(self.on_thresholds_changed)
         self.threshold_lower.textEdited.connect(self.on_thresholds_changed)
 
         self.lambda_layout = QtWidgets.QHBoxLayout()
         self.lambda_text = QtWidgets.QLabel("Lambda")
-        self.lambda_value = QtWidgets.QLineEdit()
+        self.lambda_value = QtWidgets.QLineEdit(str(default_params.lam))
         self.lambda_layout.addWidget(self.lambda_text, 70)
         self.lambda_layout.addWidget(self.lambda_value, 30)
         self.lambda_value.textEdited.connect(self.on_lambda_changed)
 
         self.auc_splits_layout = QtWidgets.QHBoxLayout()
         self.auc_splits_text = QtWidgets.QLabel("AUC for Splits")
-        self.auc_splits = QtWidgets.QLineEdit()
+        self.auc_splits = QtWidgets.QLineEdit(str(default_params.AUCsplit))
         self.auc_splits_layout.addWidget(self.auc_splits_text, 70)
         self.auc_splits_layout.addWidget(self.auc_splits, 30)
         self.auc_splits.textEdited.connect(self.on_auc_splits_changed)
@@ -113,6 +115,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.advanced_options_button = QtWidgets.QPushButton("Advanced Options")
         self.error_label = QtWidgets.QLabel("")
         self.error_label.setText("Invalid inputs!")
+        self.error_label.setWordWrap(True)
         error_label_palette = self.error_label.palette()
         error_label_palette.setColor(QtGui.QPalette.Foreground, QtGui.QColor("red"))
         self.error_label.setPalette(error_label_palette)
@@ -141,6 +144,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                                                                   directory=os.getcwd())
         if data_file_name:
             self.data_file_path.setText(data_file_name)
+            # TODO: pass onto plotting
 
     def on_select_working_dir_clicked(self):
         working_dir_name, _ = QtWidgets.QFileDialog.getExistingDirectory(parent=self,
@@ -177,33 +181,44 @@ class SettingsBox(QtWidgets.QGroupBox):
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid input!\nNo. of channels must be an integer!")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid input!\nNo. of channels must be > 0!")
             self.error_label.show()
 
     def on_time_range_changed(self):
         try:
             time_range_low = float(self.time_range_min.text())
-            time_range_high = float(self.time_range_max.text())
-            assert 0 < time_range_low < time_range_high
+            time_range_high = self.time_range_max.text()
+            if not time_range_high == "inf":
+                time_range_high = float(time_range_high)
+                assert 0 <= time_range_low < time_range_high
+            else:
+                assert 0 <= time_range_low
             self.error_label.hide()
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid inputs!\nTime range values must be floats!"
+                                     "\n(`inf` accepted as upper limit)")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid inputs!\nCheck that 0 <= lower limit < upper limit!")
             self.error_label.show()
 
     def on_min_firing_rate_changed(self):
         try:
             min_firing_rate = float(self.min_firing_rate.text())
-            assert min_firing_rate > 0
+            assert min_firing_rate >= 0
             self.error_label.hide()
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid input!\nMin. firing rate value must be a float!")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid input!\nMin. firing rate must be >= 0.0 Hz!")
             self.error_label.show()
 
     def on_thresholds_changed(self):
@@ -215,8 +230,10 @@ class SettingsBox(QtWidgets.QGroupBox):
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid inputs!\nThreshold values must be floats!")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid inputs!\nCheck that 0 < lower threshold < upper threshold!")
             self.error_label.show()
 
     def on_lambda_changed(self):
@@ -227,20 +244,24 @@ class SettingsBox(QtWidgets.QGroupBox):
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid input!\nLambda value must be a float!")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid input!\nLambda value must be > 0!")
             self.error_label.show()
 
     def on_auc_splits_changed(self):
         try:
             auc_split = float(self.auc_splits.text())
-            assert 0 < auc_split < 1
+            assert 0 <= auc_split <= 1
             self.error_label.hide()
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
+            self.error_label.setText("Invalid input!\nAUC split value must be a float!")
             self.error_label.show()
         except AssertionError:
+            self.error_label.setText("Invalid input!\nCheck that 0 <= AUC split <= 1!")
             self.error_label.show()
 
 
@@ -262,6 +283,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         self.layout.addWidget(self.probe_view, 95)
 
         self.setLayout(self.layout)
+
 
 class DataViewBox(QtWidgets.QGroupBox):
 
@@ -290,6 +312,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.setLayout(self.layout)
 
+
 class RunBox(QtWidgets.QGroupBox):
 
     def __init__(self, parent):
@@ -311,6 +334,7 @@ class RunBox(QtWidgets.QGroupBox):
 
         self.setLayout(self.layout)
 
+
 class MessageLogBox(QtWidgets.QGroupBox):
 
     def __init__(self, parent):
@@ -322,6 +346,7 @@ class MessageLogBox(QtWidgets.QGroupBox):
         self.layout.addWidget(self.log_box)
 
         self.setLayout(self.layout)
+
 
 class KiloSortGUI(QtWidgets.QMainWindow):
 
