@@ -29,6 +29,14 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.setup()
 
+        self.data_path = None
+        self.params_path = None
+        self.working_directory = None
+        self.results_directory = None
+
+        self.context = None
+        self.raw_data = None
+
     def keyPressEvent(self, event):
         QtWidgets.QMainWindow.keyPressEvent(self, event)
 

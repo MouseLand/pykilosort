@@ -1,41 +1,50 @@
 import os
-from PyQt5 import QtWidgets, QtGui
+from pathlib import Path
+from PyQt5 import QtWidgets, QtGui, QtCore
 
 from pykilosort.default_params import default_params
 
 
 class SettingsBox(QtWidgets.QGroupBox):
 
+    settingsUpdated = QtCore.pyqtSignal()
+
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
 
+        self.gui = parent
+
         self.select_data_file = QtWidgets.QPushButton("Select Data File")
-        self.data_file_path = QtWidgets.QLineEdit("")
+        self.data_file_path_input = QtWidgets.QLineEdit("")
 
         self.select_working_directory = QtWidgets.QPushButton("Select Working Directory")
-        self.working_directory = QtWidgets.QLineEdit("")
+        self.working_directory_input = QtWidgets.QLineEdit("")
 
         self.select_results_directory = QtWidgets.QPushButton("Select Results Directory")
-        self.results_directory = QtWidgets.QLineEdit("")
+        self.results_directory_input = QtWidgets.QLineEdit("")
 
         self.probe_layout_text = QtWidgets.QLabel("Select Probe Layout")
         self.probe_layout_selector = QtWidgets.QComboBox()
 
         self.num_channels_text = QtWidgets.QLabel("Number of Channels")
-        self.num_channels = QtWidgets.QLineEdit()
+        self.num_channels_input = QtWidgets.QLineEdit()
 
         self.time_range_text = QtWidgets.QLabel("Time Range (in seconds)")
-        self.time_range_min = QtWidgets.QLineEdit(str(0))
-        self.time_range_max = QtWidgets.QLineEdit("inf")
+        self.time_range_min_input = QtWidgets.QLineEdit(str(0))
+        self.time_range_max_input = QtWidgets.QLineEdit("inf")
 
         self.min_firing_rate_text = QtWidgets.QLabel("Min. Firing Rate/Channel\n(0 includes all channels)")
-        self.min_firing_rate = QtWidgets.QLineEdit(str(default_params.minfr_goodchannels))
+        self.min_firing_rate_input = QtWidgets.QLineEdit(str(default_params.minfr_goodchannels))
+
+        self.threshold_text = QtWidgets.QLabel("Threshold")
+        self.threshold_upper_input = QtWidgets.QLineEdit(str(default_params.Th[0]))
+        self.threshold_lower_input = QtWidgets.QLineEdit(str(default_params.Th[1]))
 
         self.lambda_text = QtWidgets.QLabel("Lambda")
-        self.lambda_value = QtWidgets.QLineEdit(str(default_params.lam))
+        self.lambda_value_input = QtWidgets.QLineEdit(str(default_params.lam))
 
         self.auc_splits_text = QtWidgets.QLabel("AUC for Splits")
-        self.auc_splits = QtWidgets.QLineEdit(str(default_params.AUCsplit))
+        self.auc_splits_input = QtWidgets.QLineEdit(str(default_params.AUCsplit))
 
         self.advanced_options_button = QtWidgets.QPushButton("Advanced Options")
         self.error_label = QtWidgets.QLabel("")
@@ -44,6 +53,22 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.setup()
 
+        self.data_file_path = None
+        self.working_directory_path = None
+        self.results_directory_path = None
+        self.probe_layout = None
+        self.num_channels = None
+        self.time_range_min = None
+        self.time_range_max = None
+        self.min_firing_rate = None
+        self.threshold_lower = None
+        self.threshold_upper = None
+        self.auc_splits = None
+
+        self.settings = {}
+
+        self.update_settings()
+
     def setup(self):
         self.setTitle("Settings")
 
@@ -51,24 +76,24 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         select_data_file_layout = QtWidgets.QHBoxLayout()
         select_data_file_layout.addWidget(self.select_data_file, 70)
-        select_data_file_layout.addWidget(self.data_file_path, 30)
+        select_data_file_layout.addWidget(self.data_file_path_input, 30)
         self.select_data_file.clicked.connect(self.on_select_data_file_clicked)
-        self.data_file_path.textChanged.connect(self.on_data_file_path_changed)
-        self.data_file_path.editingFinished.connect(self.on_data_file_path_changed)
+        self.data_file_path_input.textChanged.connect(self.on_data_file_path_changed)
+        self.data_file_path_input.editingFinished.connect(self.on_data_file_path_changed)
 
         select_working_directory_layout = QtWidgets.QHBoxLayout()
         select_working_directory_layout.addWidget(self.select_working_directory, 70)
-        select_working_directory_layout.addWidget(self.working_directory, 30)
+        select_working_directory_layout.addWidget(self.working_directory_input, 30)
         self.select_working_directory.clicked.connect(self.on_select_working_dir_clicked)
-        self.working_directory.textChanged.connect(self.on_file_paths_changed)
-        self.working_directory.editingFinished.connect(self.on_file_paths_changed)
+        self.working_directory_input.textChanged.connect(self.on_file_paths_changed)
+        self.working_directory_input.editingFinished.connect(self.on_file_paths_changed)
 
         select_results_directory_layout = QtWidgets.QHBoxLayout()
         select_results_directory_layout.addWidget(self.select_results_directory, 70)
-        select_results_directory_layout.addWidget(self.results_directory, 30)
+        select_results_directory_layout.addWidget(self.results_directory_input, 30)
         self.select_results_directory.clicked.connect(self.on_select_results_dir_clicked)
-        self.results_directory.textChanged.connect(self.on_file_paths_changed)
-        self.results_directory.editingFinished.connect(self.on_file_paths_changed)
+        self.results_directory_input.textChanged.connect(self.on_file_paths_changed)
+        self.results_directory_input.editingFinished.connect(self.on_file_paths_changed)
 
         probe_layout_layout = QtWidgets.QHBoxLayout()
         probe_layout_layout.addWidget(self.probe_layout_text, 70)
@@ -77,40 +102,37 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         num_channels_layout = QtWidgets.QHBoxLayout()
         num_channels_layout.addWidget(self.num_channels_text, 70)
-        num_channels_layout.addWidget(self.num_channels, 30)
-        self.num_channels.textEdited.connect(self.on_number_of_channels_changed)
+        num_channels_layout.addWidget(self.num_channels_input, 30)
+        self.num_channels_input.textEdited.connect(self.on_number_of_channels_changed)
 
         time_range_layout = QtWidgets.QHBoxLayout()
         time_range_layout.addWidget(self.time_range_text, 70)
-        time_range_layout.addWidget(self.time_range_min, 15)
-        time_range_layout.addWidget(self.time_range_max, 15)
-        self.time_range_min.textEdited.connect(self.on_time_range_changed)
-        self.time_range_max.textEdited.connect(self.on_time_range_changed)
+        time_range_layout.addWidget(self.time_range_min_input, 15)
+        time_range_layout.addWidget(self.time_range_max_input, 15)
+        self.time_range_min_input.textEdited.connect(self.on_time_range_changed)
+        self.time_range_max_input.textEdited.connect(self.on_time_range_changed)
 
         min_firing_rate_layout = QtWidgets.QHBoxLayout()
         min_firing_rate_layout.addWidget(self.min_firing_rate_text, 70)
-        min_firing_rate_layout.addWidget(self.min_firing_rate, 30)
-        self.min_firing_rate.textEdited.connect(self.on_min_firing_rate_changed)
+        min_firing_rate_layout.addWidget(self.min_firing_rate_input, 30)
+        self.min_firing_rate_input.textEdited.connect(self.on_min_firing_rate_changed)
 
         threshold_layout = QtWidgets.QHBoxLayout()
-        self.threshold_text = QtWidgets.QLabel("Threshold")
-        self.threshold_upper = QtWidgets.QLineEdit(str(default_params.Th[0]))
-        self.threshold_lower = QtWidgets.QLineEdit(str(default_params.Th[1]))
         threshold_layout.addWidget(self.threshold_text, 70)
-        threshold_layout.addWidget(self.threshold_lower, 15)
-        threshold_layout.addWidget(self.threshold_upper, 15)
-        self.threshold_upper.textEdited.connect(self.on_thresholds_changed)
-        self.threshold_lower.textEdited.connect(self.on_thresholds_changed)
+        threshold_layout.addWidget(self.threshold_lower_input, 15)
+        threshold_layout.addWidget(self.threshold_upper_input, 15)
+        self.threshold_upper_input.textEdited.connect(self.on_thresholds_changed)
+        self.threshold_lower_input.textEdited.connect(self.on_thresholds_changed)
 
         lambda_layout = QtWidgets.QHBoxLayout()
         lambda_layout.addWidget(self.lambda_text, 70)
-        lambda_layout.addWidget(self.lambda_value, 30)
-        self.lambda_value.textEdited.connect(self.on_lambda_changed)
+        lambda_layout.addWidget(self.lambda_value_input, 30)
+        self.lambda_value_input.textEdited.connect(self.on_lambda_changed)
 
         auc_splits_layout = QtWidgets.QHBoxLayout()
         auc_splits_layout.addWidget(self.auc_splits_text, 70)
-        auc_splits_layout.addWidget(self.auc_splits, 30)
-        self.auc_splits.textEdited.connect(self.on_auc_splits_changed)
+        auc_splits_layout.addWidget(self.auc_splits_input, 30)
+        self.auc_splits_input.textEdited.connect(self.on_auc_splits_changed)
 
         advanced_options_layout = QtWidgets.QHBoxLayout()
         error_label_palette = self.error_label.palette()
@@ -140,7 +162,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                                                                   caption="Choose data file to load...",
                                                                   directory=os.getcwd())
         if data_file_name:
-            self.data_file_path.setText(data_file_name)
+            self.data_file_path_input.setText(data_file_name)
             # TODO: pass onto plotting
 
     def on_select_working_dir_clicked(self):
@@ -148,7 +170,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                                                                          caption="Choose working directory...",
                                                                          directory=os.getcwd())
         if working_dir_name:
-            self.working_directory.setText(working_dir_name)
+            self.working_directory_input.setText(working_dir_name)
 
     def on_select_results_dir_clicked(self):
         results_dir_name, _ = QtWidgets.QFileDialog.getExistingDirectory(parent=self,
@@ -156,23 +178,41 @@ class SettingsBox(QtWidgets.QGroupBox):
                                                                          directory=os.getcwd())
 
         if results_dir_name:
-            self.results_directory.setText(results_dir_name)
+            self.results_directory_input.setText(results_dir_name)
 
     def on_data_file_path_changed(self):
-        data_file_path = self.data_file_path.text()
+        data_file_path = Path(self.data_file_path_input.text())
         try:
-            assert os.path.exists(data_file_path)
+            assert data_file_path.exists()
 
-            parent_folder = os.path.dirname(data_file_path)
-            self.working_directory.setText(parent_folder)
-            self.results_directory.setText(parent_folder)
+            parent_folder = data_file_path.parent
+            self.working_directory_input.setText(parent_folder)
+            self.results_directory_input.setText(parent_folder)
             self.error_label.hide()
+
+            self.data_file_path = data_file_path
+            self.working_directory_path = parent_folder
+            self.results_directory_path = parent_folder
+
+            self.update_settings()
         except AssertionError:
             self.error_label.setText("Please select a valid file path!")
             self.error_label.show()
 
-    def on_file_paths_changed(self):
-        pass
+    def update_settings(self):
+        self.settings = {
+            'data_file_path': self.data_file_path,
+            'working_directory': self.working_directory_path,
+            'results_directory': self.working_directory_path,
+            'probe_layout': self.probe_layout,
+            'num_channels': self.num_channels,
+            'time_range': [self.time_range_min, self.time_range_max],
+            'min_firing_rate': self.min_firing_rate,
+            'thresholds': [self.threshold_upper, self.threshold_lower],
+            'auc_split': self.auc_splits
+        }
+
+        self.settingsUpdated.emit()
 
     def on_advanced_options_clicked(self):
         advanced_options_dialog = QtWidgets.QMessageBox(self)
@@ -188,9 +228,11 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_number_of_channels_changed(self):
         try:
-            number_of_channels = int(self.num_channels.text())
+            number_of_channels = int(self.num_channels_input.text())
             assert number_of_channels > 0
             self.error_label.hide()
+
+            self.num_channels = number_of_channels
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
@@ -202,14 +244,17 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_time_range_changed(self):
         try:
-            time_range_low = float(self.time_range_min.text())
-            time_range_high = self.time_range_max.text()
+            time_range_low = float(self.time_range_min_input.text())
+            time_range_high = self.time_range_max_input.text()
             if not time_range_high == "inf":
                 time_range_high = float(time_range_high)
                 assert 0 <= time_range_low < time_range_high
             else:
                 assert 0 <= time_range_low
             self.error_label.hide()
+
+            self.time_range_min = time_range_low
+            self.time_range_max = time_range_high
             # TODO: pass onto plotting
             # TODO: specific error messages
         except ValueError:
@@ -222,7 +267,7 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_min_firing_rate_changed(self):
         try:
-            min_firing_rate = float(self.min_firing_rate.text())
+            min_firing_rate = float(self.min_firing_rate_input.text())
             assert min_firing_rate >= 0
             self.error_label.hide()
             # TODO: pass onto plotting
@@ -236,8 +281,8 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_thresholds_changed(self):
         try:
-            threshold_upper = float(self.threshold_upper.text())
-            threshold_lower = float(self.threshold_lower.text())
+            threshold_upper = float(self.threshold_upper_input.text())
+            threshold_lower = float(self.threshold_lower_input.text())
             assert 0 < threshold_lower < threshold_upper
             self.error_label.hide()
             # TODO: pass onto plotting
@@ -251,7 +296,7 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_lambda_changed(self):
         try:
-            lambda_value = float(self.lambda_value.text())
+            lambda_value = float(self.lambda_value_input.text())
             assert 0 < lambda_value
             self.error_label.hide()
             # TODO: pass onto plotting
@@ -265,7 +310,7 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_auc_splits_changed(self):
         try:
-            auc_split = float(self.auc_splits.text())
+            auc_split = float(self.auc_splits_input.text())
             assert 0 <= auc_split <= 1
             self.error_label.hide()
             # TODO: pass onto plotting
