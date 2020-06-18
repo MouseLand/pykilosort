@@ -70,10 +70,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         data_seek_layout = QtWidgets.QHBoxLayout()
         data_seek_layout.addWidget(self.data_seek_widget)
 
-        layout.addLayout(self.controls_button_layout, 2)
-        layout.addLayout(self.data_view_layout, 80)
-        layout.addLayout(self.data_controls_layout, 3)
-        layout.addLayout(self.data_seek_layout, 15)
+        layout.addLayout(controls_button_layout, 2)
+        layout.addLayout(data_view_layout, 80)
+        layout.addLayout(data_controls_layout, 3)
+        layout.addLayout(data_seek_layout, 15)
 
         self.setLayout(layout)
 
