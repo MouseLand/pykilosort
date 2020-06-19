@@ -9,6 +9,7 @@ class MessageLogBox(QtWidgets.QGroupBox):
 
         self.layout = QtWidgets.QHBoxLayout()
         self.log_box = QtWidgets.QPlainTextEdit()
+        self.log_box.setReadOnly(True)
         self.layout.addWidget(self.log_box)
 
         self.setLayout(self.layout)
