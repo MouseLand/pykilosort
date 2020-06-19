@@ -1,9 +1,15 @@
 import os
 import sys
+import numpy as np
 import pyqtgraph as pg
+from pathlib import Path
 # TODO: optimize imports before incorporating into codebase
+from phylib.io.traces import FlatEphysReader
 from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox
 from pykilosort.gui import DarkPalette
+from pykilosort.default_params import default_params, set_dependent_params
+from pykilosort.utils import Context
+from pykilosort.main import default_probe
 from PyQt5 import QtGui, QtWidgets, QtCore
 
 
@@ -29,10 +35,16 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.setup()
 
+        self.settings_box.settingsUpdated.connect(self.set_parameters)
+
         self.data_path = None
-        self.params_path = None
+        self.probe_layout = None
+        self.params = None
         self.working_directory = None
         self.results_directory = None
+
+        self.time_range = None
+        self.num_channels = None
 
         self.context = None
         self.raw_data = None
@@ -100,6 +112,54 @@ class KiloSortGUI(QtWidgets.QMainWindow):
             self.data_view_box.residual_button.toggle()
         else:
             raise ValueError("Invalid mode requested!")
+
+    def set_parameters(self):
+        settings = self.settings_box.settings
+
+        self.data_path = settings.pop('data_file_path')
+        self.working_directory = settings.pop('working_directory')
+        self.results_directory = settings.pop('results_directory')
+        self.probe_layout = settings.pop('probe_layout')
+        self.time_range = settings.pop('time_range')
+        self.num_channels = settings.pop('num_channels')
+
+        params = default_params.copy()
+        set_dependent_params(params)
+        params.update(settings)
+
+        assert params
+
+        self.params = params
+
+        self.update_data_view()
+
+    def load_context(self):
+        context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))
+
+        self.context = Context(context_path=context_path)
+        self.context.probe = self.probe_layout
+        self.context.params = self.params
+        self.context.raw_data = self.raw_data
+
+        self.context.load()
+
+    def update_data_view(self):
+
+        # TODO: account for these temporary hardcoded params
+        n_channels = 385
+        dtype = np.int16
+        sample_rate = 3e4
+
+        raw_data = FlatEphysReader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
+        self.raw_data = raw_data
+
+        # TODO: account for this hackish setup of probe
+        self.probe_layout = default_probe(self.raw_data)
+
+        if self.context is None:
+            self.load_context()
+
+        self.data_view_box.update_plot(self.context)
 
 
 if __name__ == "__main__":
