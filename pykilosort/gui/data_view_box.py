@@ -14,6 +14,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.data_view_widget = pg.PlotWidget()
         self.plot_item = self.data_view_widget.getPlotItem()
+
         self.data_seek_widget = pg.PlotWidget()
 
         self.traces_view_button = QtWidgets.QPushButton("Traces")
@@ -26,7 +27,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
         self.view_buttons = [self.traces_view_button, self.colormap_view_button]
 
-        self.central_channel = 0
+        self.central_channel = 80
+
+        colors = [(240, 228, 66), (0, 0, 0), (86, 180, 233)]
+        positions = np.linspace(0.0, 1.0, 3)
+        color_map = pg.ColorMap(pos=positions, color=colors)
+        self.lookup_table = color_map.getLookupTable(nPts=4196, alpha=True)
 
         self.setup()
 
@@ -45,6 +51,9 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.data_view_widget.setMenuEnabled(False)
         self.data_view_widget.setMouseEnabled(False, False)
         self.data_view_widget.hideAxis("left")
+
+        self.data_seek_widget.setMenuEnabled(False)
+        self.data_seek_widget.hideAxis("left")
 
         data_controls_layout = QtWidgets.QHBoxLayout()
 
@@ -157,45 +166,34 @@ class DataViewBox(QtWidgets.QGroupBox):
     def update_plot(self, context=None):
         if context is None:
             context = self.gui.context
-            assert context is not None
 
-        raw_data = context.raw_data
+        if context is not None:
 
-        single_view = self.traces_view_button.isChecked() ^ self.colormap_view_button.isChecked()
+            raw_data = context.raw_data
 
-        self.plot_item.clear()
+            single_view = self.traces_view_button.isChecked() ^ self.colormap_view_button.isChecked()
 
-        if single_view:
-            if self.traces_view_button.isChecked():
-                if self.raw_button.isChecked():
-                    raw_traces = raw_data._mmaps[0].T
-                    for i in range(self.central_channel, self.central_channel+32):
-                        data_item = pg.PlotDataItem(raw_traces[i, :3000] + 200*i, pen=pg.mkPen(color='w', width=1))
-                        self.plot_item.addItem(data_item)
+            self.plot_item.clear()
 
-            if self.colormap_view_button.isChecked():
-                self.enforce_single_mode()
+            if single_view:
+                if self.traces_view_button.isChecked():
+                    if self.raw_button.isChecked():
+                        raw_traces = raw_data._mmaps[0].T
+                        for i in range(self.central_channel, self.central_channel+32):
+                            data_item = pg.PlotDataItem(raw_traces[i, :3000] + 200*i, pen=pg.mkPen(color='w', width=1))
+                            self.plot_item.addItem(data_item)
+                            self.data_view_widget.setXRange(0, 3000, padding=0.0)
 
-                if self.raw_button.isChecked():
-                    raw_traces = raw_data._mmaps[0].T
-                    image_item = pg.ImageItem()
-                    image_item.setImage(raw_traces[:, :3000].T, autoLevels=True)
-                    self.plot_item.addItem(image_item)
-        else:
-            print("Invalid option!")
+                if self.colormap_view_button.isChecked():
+                    self.enforce_single_mode()
 
-
-class Heatmap(pg.ImageItem):
-    def __init__(self, image=None):
-
-        if image is not None:
-            self.image = image
-        else:
-            self.image = np.zeros((500, 500))
-
-        pg.ImageItem.__init__(self, self.image)
-
-    def update_image(self, image, image_rect):
-        self.image[image_rect.y(): image_rect.y()+image.shape[0], image_rect.x(): image_rect.x()+image.shape[1]] = image
-        self.render()
-        self.update()
+                    if self.raw_button.isChecked():
+                        raw_traces = raw_data._mmaps[0].T
+                        image_item = pg.ImageItem(setPxMode=False)
+                        image_item.setImage(raw_traces[:, :3000].T, autoLevels=True, autoDownsample=True)
+                        image_item.setLookupTable(self.lookup_table)
+                        self.plot_item.addItem(image_item)
+                        self.data_view_widget.setXRange(0, 3000, padding=0.02)
+                        self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
+            else:
+                print("Invalid option!")

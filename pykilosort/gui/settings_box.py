@@ -66,7 +66,8 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.setup()
 
-        # set default parameters to trigger an update on settingsz
+        # set default parameters to trigger an update on settings
+        self.num_channels_input.setText(str(1))
         self.time_range_min_input.setText(str(0))
         self.time_range_max_input.setText("inf")
         self.min_firing_rate_input.setText(str(default_params.minfr_goodchannels))

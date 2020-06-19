@@ -18,6 +18,18 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         QtWidgets.QMainWindow.__init__(self, *args, **kwargs)
 
+        self.data_path = None
+        self.probe_layout = None
+        self.params = None
+        self.working_directory = None
+        self.results_directory = None
+
+        self.time_range = None
+        self.num_channels = None
+
+        self.context = None
+        self.raw_data = None
+
         self.content = QtWidgets.QWidget(self)
         self.content_layout = QtWidgets.QVBoxLayout()
 
@@ -34,20 +46,6 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.message_log_box = MessageLogBox(self)
 
         self.setup()
-
-        self.settings_box.settingsUpdated.connect(self.set_parameters)
-
-        self.data_path = None
-        self.probe_layout = None
-        self.params = None
-        self.working_directory = None
-        self.results_directory = None
-
-        self.time_range = None
-        self.num_channels = None
-
-        self.context = None
-        self.raw_data = None
 
     def keyPressEvent(self, event):
         QtWidgets.QMainWindow.keyPressEvent(self, event)
@@ -92,6 +90,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.content_layout.setContentsMargins(10, 10, 10, 10)
         self.content.setLayout(self.content_layout)
         self.setCentralWidget(self.content)
+
+        self.settings_box.settingsUpdated.connect(self.set_parameters)
 
     def change_channel(self, shift):
         # TODO: shift channel by +1 or -1
