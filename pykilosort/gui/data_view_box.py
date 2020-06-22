@@ -24,6 +24,9 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.prediction_button = QtWidgets.QPushButton("Prediction")
         self.residual_button = QtWidgets.QPushButton("Residual")
 
+        self.mode_buttons_group = QtWidgets.QButtonGroup(self)
+        self.view_buttons_group = QtWidgets.QButtonGroup(self)
+
         self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
         self.view_buttons = [self.traces_view_button, self.colormap_view_button]
 
@@ -64,6 +67,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_view_button.setCheckable(True)
         self.traces_view_button.setChecked(True)
 
+        self.mode_buttons_group.addButton(self.traces_view_button)
+        self.mode_buttons_group.addButton(self.colormap_view_button)
+        self.mode_buttons_group.setExclusive(True)
+
         self.traces_view_button.clicked.connect(self.toggle_view)
         self.colormap_view_button.clicked.connect(self.toggle_view)
 
@@ -83,6 +90,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.residual_button.setCheckable(True)
         self.residual_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
         self.residual_button.toggled.connect(self.on_residual_button_toggled)
+
+        self.view_buttons_group.addButton(self.raw_button)
+        self.view_buttons_group.addButton(self.whitened_button)
+        self.view_buttons_group.addButton(self.prediction_button)
+        self.view_buttons_group.addButton(self.residual_button)
+        self.view_buttons_group.setExclusive(False)
 
         data_controls_layout.addWidget(self.traces_view_button)
         data_controls_layout.addWidget(self.colormap_view_button)
@@ -134,7 +147,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.update_plot()
 
-    def enforce_single_mode(self):
+    def enforce_single_mode(self, enforce=True):
         def only_one_true(iterable):
             true_found = False
             for item in iterable:
@@ -145,12 +158,14 @@ class DataViewBox(QtWidgets.QGroupBox):
                         true_found = True
             return true_found
 
-        if not only_one_true([self.raw_button.isChecked(), self.prediction_button.isChecked(),
-                              self.residual_button.isChecked(), self.whitened_button.isChecked()]):
+        if enforce and not only_one_true([self.raw_button.isChecked(), self.prediction_button.isChecked(),
+                                          self.residual_button.isChecked(), self.whitened_button.isChecked()]):
             for button in self.mode_buttons:
                 button.setChecked(False)
 
             self.raw_button.setChecked(True)
+
+        self.view_buttons_group.setExclusive(enforce)
 
     def toggle_view(self):
         traces_state, colormap_state = self.traces_view_button.isChecked(), self.colormap_view_button.isChecked()
@@ -180,6 +195,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             if single_view:
                 if self.traces_view_button.isChecked():
+                    self.enforce_single_mode(False)
+
                     if self.raw_button.isChecked():
                         raw_traces = raw_data[:3000].T
                         for i in range(self.central_channel, self.central_channel+32):
@@ -189,7 +206,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                             self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
 
                 if self.colormap_view_button.isChecked():
-                    self.enforce_single_mode()
+                    self.enforce_single_mode(True)
 
                     if self.raw_button.isChecked():
                         raw_traces = raw_data[:3000].T
