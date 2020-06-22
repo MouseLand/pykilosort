@@ -29,6 +29,9 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.central_channel = 80
 
+        self.traces_view = None
+        self.colormap_view = None
+
         colors = [(240, 228, 66), (0, 0, 0), (86, 180, 233)]
         positions = np.linspace(0.0, 1.0, 3)
         color_map = pg.ColorMap(pos=positions, color=colors)
@@ -178,19 +181,20 @@ class DataViewBox(QtWidgets.QGroupBox):
             if single_view:
                 if self.traces_view_button.isChecked():
                     if self.raw_button.isChecked():
-                        raw_traces = raw_data._mmaps[0].T
+                        raw_traces = raw_data[:3000].T
                         for i in range(self.central_channel, self.central_channel+32):
-                            data_item = pg.PlotDataItem(raw_traces[i, :3000] + 200*i, pen=pg.mkPen(color='w', width=1))
+                            data_item = pg.PlotDataItem(raw_traces[i] + 200*i, pen=pg.mkPen(color='w', width=1))
                             self.plot_item.addItem(data_item)
                             self.data_view_widget.setXRange(0, 3000, padding=0.0)
+                            self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
 
                 if self.colormap_view_button.isChecked():
                     self.enforce_single_mode()
 
                     if self.raw_button.isChecked():
-                        raw_traces = raw_data._mmaps[0].T
+                        raw_traces = raw_data[:3000].T
                         image_item = pg.ImageItem(setPxMode=False)
-                        image_item.setImage(raw_traces[:, :3000].T, autoLevels=True, autoDownsample=True)
+                        image_item.setImage(raw_traces.T, autoLevels=True, autoDownsample=True)
                         image_item.setLookupTable(self.lookup_table)
                         self.plot_item.addItem(image_item)
                         self.data_view_widget.setXRange(0, 3000, padding=0.02)
