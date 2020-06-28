@@ -307,7 +307,7 @@ def get_good_channels(raw_data=None, probe=None, params=None):
     # keep only those channels above the preset mean firing rate
     igood = cp.asnumpy(nc >= minfr_goodchannels)
 
-    if len(igood) == 0:
+    if np.sum(igood) == 0:
         raise RuntimeError("No good channels found! Verify your raw data and parameters.")
 
     logger.info('Found %d threshold crossings in %2.2f seconds of data.' % (k, ttime))
