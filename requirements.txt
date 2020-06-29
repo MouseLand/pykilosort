@@ -5,6 +5,7 @@ mock
 numba
 numpy
 --pre phy
+pydantic
 pytest
 scipy
 spikeextractors

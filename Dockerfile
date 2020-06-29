@@ -16,10 +16,16 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
 RUN bash /root/miniconda.sh -b -p /root/miniconda
 
 WORKDIR /root/pykilosort
-COPY . ./
+
+# Copy these into build context for install.
+# Don't add more files yet to preserve the cached layer.
+COPY pyks2.yml ./
+COPY test_requirements.txt ./
 
 # Be great to do better at caching this.
 RUN eval "$(/root/miniconda/bin/conda shell.bash hook)" && conda init && \
     conda env create -f pyks2.yml && \
     conda activate pyks2 && \
     pip install -r test_requirements.txt
+
+COPY . ./
