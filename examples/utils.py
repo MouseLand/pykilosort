@@ -13,5 +13,6 @@ def create_test_directory(test_dir_path):
     for file_ in ['xc.npy', 'yc.npy', 'test.bin']:
         url = S3_BUCKET_BASE_URL + file_
         filename = test_dir_path + file_
+        print(url)
         urllib.request.urlretrieve(url, filename)
     print("Done")
