@@ -17,8 +17,8 @@ RUN bash /root/miniconda.sh -b -p /root/miniconda
 
 WORKDIR /root/pykilosort
 
-# Copy these into build context for install 
-# (but not other files yet to preserve the cached layer)
+# Copy these into build context for install.
+# Don't add more files yet to preserve the cached layer.
 COPY pyks2.yml ./
 COPY test_requirements.txt ./
 
