@@ -62,8 +62,12 @@ def run(
     assert probe
 
     # Get params.
-    if not isinstance(params, BaseModel):
-        params = KilosortParams(**params or {})
+    user_params = params or {}
+    params = default_params.copy()
+    set_dependent_params(params)
+    params.update(user_params)
+    print('Parameters used:')
+    pprint(params)
     assert params
 
     # dir path
@@ -73,11 +77,7 @@ def run(
     assert dir_path.exists()
 
     # Create the context.
-    ctx_path = dir_path / ".kilosort" / raw_data.name
-    if clear_context:
-        logger.info(f"Clearing context at {ctx_path} ...")
-        shutil.rmtree(ctx_path, ignore_errors=True)
-
+    ctx_path = dir_path / '.kilosort' / raw_data.name
     ctx = Context(ctx_path)
     ctx.params = params
     ctx.probe = probe
