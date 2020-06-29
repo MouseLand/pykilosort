@@ -24,3 +24,5 @@ RUN eval "$(/root/miniconda/bin/conda shell.bash hook)" && conda init && \
     conda env create -f pyks2.yml && \
     conda activate pyks2 && \
     pip install -r test_requirements.txt
+
+COPY . ./
