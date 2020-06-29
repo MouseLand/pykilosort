@@ -24,7 +24,7 @@ def default_probe(raw_data):
 def run(
     dat_path: str = None,
     dir_path: Path = None,
-    output_dir: Path = f"{dir_path}/output",
+    output_dir: Path = None,
     probe=None,
     params=None,
     stop_after=None,
@@ -276,8 +276,9 @@ def run(
 
     # write to Phy
     logger.info("Saving results to phy.")
+    output_dir = output_dir or f"{dir_path}/output"
     with ctx.time("output"):
-        rezToPhy(ctx, dat_path=dat_path, output_dir=dir_path / "output")
+        rezToPhy(ctx, dat_path=dat_path, output_dir=output_dir)
 
     # Show timing information.
     ctx.show_timer()

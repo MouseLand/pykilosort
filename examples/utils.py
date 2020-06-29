@@ -1,7 +1,7 @@
 import os
 import urllib.request
 
-S3_BUCKET_BASE_URL = 'https://pykilosort.s3.eu-west-2.amazonaws.com/test-recording/'
+S3_BUCKET_BASE_URL = 'https://static.alexmorley.me/pykilosort/test-recording/'
 
 def create_test_directory(test_dir_path):
     try:
