@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
-
+from scipy.io.matlab.miobase import MatReadError
+from pykilosort.utils import load_probe
 from pykilosort.default_params import default_params
 
 
@@ -25,6 +26,8 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.probe_layout_text = QtWidgets.QLabel("Select Probe Layout")
         self.probe_layout_selector = QtWidgets.QComboBox()
+        self._probes = []
+        self.populate_probe_selector()
 
         self.num_channels_text = QtWidgets.QLabel("Number of Channels")
         self.num_channels_input = QtWidgets.QLineEdit()
@@ -109,7 +112,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         probe_layout_layout = QtWidgets.QHBoxLayout()
         probe_layout_layout.addWidget(self.probe_layout_text, 70)
         probe_layout_layout.addWidget(self.probe_layout_selector, 30)
-        self.probe_layout_selector.currentIndexChanged.connect(self.on_probe_layout_selected)
+        self.probe_layout_selector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
+        self.probe_layout_selector.currentTextChanged.connect(self.on_probe_layout_selected)
 
         num_channels_layout = QtWidgets.QHBoxLayout()
         num_channels_layout.addWidget(self.num_channels_text, 70)
@@ -240,7 +244,7 @@ class SettingsBox(QtWidgets.QGroupBox):
             'data_file_path': self.data_file_path,
             'working_directory': self.working_directory_path,
             'results_directory': self.working_directory_path,
-            'probe_layout': "not none",
+            'probe_layout': self.probe_layout,
             'num_channels': self.num_channels,
             'lam': self.lambda_value,
             'time_range': [self.time_range_min, self.time_range_max],
@@ -261,8 +265,20 @@ class SettingsBox(QtWidgets.QGroupBox):
         advanced_options_dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
         advanced_options_dialog.exec_()
 
-    def on_probe_layout_selected(self):
-        pass
+    def on_probe_layout_selected(self, name):
+        if name != "":
+            probe_path = Path(self.gui.probe_files_path).joinpath(name)
+            try:
+                probe_layout = load_probe(probe_path)
+                self.error_label.hide()
+
+                self.probe_layout = probe_layout
+                total_channels = self.probe_layout.NchanTOT
+
+                self.num_channels_input.setText(str(total_channels))
+            except MatReadError:
+                self.error_label.setText("Invalid probe file!")
+                self.error_label.show()
 
     def on_number_of_channels_changed(self):
         try:
@@ -368,3 +384,11 @@ class SettingsBox(QtWidgets.QGroupBox):
         except AssertionError:
             self.error_label.setText("Invalid input!\nCheck that 0 <= AUC split <= 1!")
             self.error_label.show()
+
+    def populate_probe_selector(self):
+        probe_folder = self.gui.probe_files_path
+        probes = os.listdir(probe_folder)
+        probes = [probe for probe in probes if probe.endswith(".mat") or probe.endswith(".prb")]
+
+        self.probe_layout_selector.addItems([""] + probes)
+        self._probes = probes

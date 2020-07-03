@@ -87,8 +87,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.second_boxes_layout.addWidget(self.run_box, 15)
 
         self.boxes_layout.addLayout(self.second_boxes_layout, 20)
-        self.boxes_layout.addWidget(self.probe_view_box, 15)
-        self.boxes_layout.addWidget(self.data_view_box, 65)
+        self.boxes_layout.addWidget(self.probe_view_box, 10)
+        self.boxes_layout.addWidget(self.data_view_box, 70)
 
         self.boxes.setLayout(self.boxes_layout)
         self.content_layout.addWidget(self.boxes, 90)
@@ -140,6 +140,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.params = params
 
+        self.update_probe_view()
         self.update_data_view()
 
     def load_context(self):
@@ -162,14 +163,14 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         raw_data = FlatEphysReader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
         self.raw_data = raw_data
 
-        # TODO: account for this hackish setup of probe
-        self.probe_layout = default_probe(self.raw_data)
-
         if self.context is None:
             self.load_context()
 
         self.data_view_box.set_seek_range(self.context)
         self.data_view_box.update_plot(self.context)
+
+    def update_probe_view(self):
+        self.probe_view_box.set_layout(self.probe_layout)
 
 
 if __name__ == "__main__":
