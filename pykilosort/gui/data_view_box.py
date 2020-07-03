@@ -33,12 +33,9 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
         self.view_buttons = [self.traces_view_button, self.colormap_view_button]
 
-        self.central_channel = 0
+        self.first_channel = 0
         self.current_time = 0
         self.plot_range = 0.1  # seconds
-
-        self.traces_view = None
-        self.colormap_view = None
 
         colors = [(240, 228, 66), (0, 0, 0), (86, 180, 233)]
         positions = np.linspace(0.0, 1.0, 3)
@@ -123,9 +120,9 @@ class DataViewBox(QtWidgets.QGroupBox):
         data_seek_layout.addWidget(self.data_seek_widget)
 
         layout.addLayout(controls_button_layout, 2)
-        layout.addLayout(data_view_layout, 80)
+        layout.addLayout(data_view_layout, 85)
         layout.addLayout(data_controls_layout, 3)
-        layout.addLayout(data_seek_layout, 15)
+        layout.addLayout(data_seek_layout, 10)
 
         self.setLayout(layout)
 
@@ -166,7 +163,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def trace_clicked(self, curve):
         label = curve.label
-        channel = self.central_channel + label
+        channel = self.first_channel + label
 
         self.channelChanged.emit(channel)
 
@@ -209,7 +206,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.raw_button.isChecked():
                     raw_traces = raw_data[start_time:end_time].T
-                    for i in range(self.central_channel+32, self.central_channel, -1):
+                    for i in range(self.first_channel + 32, self.first_channel, -1):
                         curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
                                                  pen=pg.mkPen(color='w', width=1))
                         curve.label = i
@@ -224,6 +221,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 if self.raw_button.isChecked():
                     raw_traces = raw_data[start_time:end_time]
                     image_item = pg.ImageItem(setPxMode=False)
+
                     image_item.setImage(raw_traces, autoLevels=True, autoDownsample=True)
                     image_item.setLookupTable(self.lookup_table)
                     self.plot_item.addItem(image_item)
