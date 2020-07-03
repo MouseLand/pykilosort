@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import logging
 import pyqtgraph as pg
 from pathlib import Path
 # TODO: optimize imports before incorporating into codebase
@@ -10,19 +11,25 @@ from pykilosort.gui import DarkPalette
 from pykilosort.default_params import default_params, set_dependent_params
 from pykilosort.utils import Context
 from pykilosort.main import default_probe
+from pykilosort.gui import probes
 from PyQt5 import QtGui, QtWidgets, QtCore
 
 
 class KiloSortGUI(QtWidgets.QMainWindow):
 
-    def __init__(self, *args, **kwargs):
-        QtWidgets.QMainWindow.__init__(self, *args, **kwargs)
+    def __init__(self, application, *args, **kwargs):
+        super(KiloSortGUI, self).__init__(*args, **kwargs)
+
+        self.app = application
 
         self.data_path = None
         self.probe_layout = None
         self.params = None
         self.working_directory = None
         self.results_directory = None
+
+        self.probe_files_path = Path(probes.__file__).parent
+        assert self.probe_files_path.exists()
 
         self.time_range = None
         self.num_channels = None
@@ -93,6 +100,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.settings_box.settingsUpdated.connect(self.set_parameters)
 
+        self.data_view_box.channelChanged.connect(self.probe_view_box.update_channel)
+
     def change_channel(self, shift):
         # TODO: shift channel by +1 or -1
         pass
@@ -159,6 +168,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         if self.context is None:
             self.load_context()
 
+        self.data_view_box.set_seek_range(self.context)
         self.data_view_box.update_plot(self.context)
 
 
@@ -174,7 +184,7 @@ if __name__ == "__main__":
     pg.setConfigOption('foreground', 'w')
     pg.setConfigOption('useOpenGL', True)
 
-    kilosort_gui = KiloSortGUI()
+    kilosort_gui = KiloSortGUI(kilosort_application)
     kilosort_gui.showMaximized()
     kilosort_gui.show()
 

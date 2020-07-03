@@ -1,9 +1,10 @@
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 import numpy as np
 
 
 class DataViewBox(QtWidgets.QGroupBox):
+    channelChanged = QtCore.pyqtSignal(int)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -12,10 +13,12 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.controls_button = QtWidgets.QPushButton("Controls")
 
-        self.data_view_widget = pg.PlotWidget()
+        self.data_view_widget = pg.PlotWidget(useOpenGL=True)
         self.plot_item = self.data_view_widget.getPlotItem()
 
-        self.data_seek_widget = pg.PlotWidget()
+        self.data_seek_widget = pg.PlotWidget(useOpenGL=True)
+        self.time_seek = pg.InfiniteLine(pen=pg.mkPen((255, 0, 0, 128)), movable=True, name="indicator")
+        self.time_label = pg.TextItem(color=(180, 180, 180))
 
         self.traces_view_button = QtWidgets.QPushButton("Traces")
         self.colormap_view_button = QtWidgets.QPushButton("Colormap")
@@ -30,7 +33,9 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
         self.view_buttons = [self.traces_view_button, self.colormap_view_button]
 
-        self.central_channel = 80
+        self.central_channel = 0
+        self.current_time = 0
+        self.plot_range = 0.1  # seconds
 
         self.traces_view = None
         self.colormap_view = None
@@ -54,11 +59,20 @@ class DataViewBox(QtWidgets.QGroupBox):
         data_view_layout = QtWidgets.QHBoxLayout()
         data_view_layout.addWidget(self.data_view_widget)
 
+        data_seek_view_box = self.data_seek_widget.getViewBox()
+        self.time_label.setParentItem(data_seek_view_box)
+        self.time_label.setPos(0, 0)
+        self.data_seek_widget.addItem(self.time_seek)
+
+        self.time_seek.sigPositionChanged.connect(self.update_seek_text)
+        self.time_seek.sigPositionChangeFinished.connect(self.update_seek_position)
+
         self.data_view_widget.setMenuEnabled(False)
-        self.data_view_widget.setMouseEnabled(False, False)
+        self.data_view_widget.setMouseEnabled(False, True)
         self.data_view_widget.hideAxis("left")
 
         self.data_seek_widget.setMenuEnabled(False)
+        self.data_seek_widget.setMouseEnabled(False, False)
         self.data_seek_widget.hideAxis("left")
 
         data_controls_layout = QtWidgets.QHBoxLayout()
@@ -147,38 +161,33 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.update_plot()
 
-    def enforce_single_mode(self, enforce=True):
-        def only_one_true(iterable):
-            true_found = False
-            for item in iterable:
-                if item:
-                    if true_found:
-                        return False
-                    else:
-                        true_found = True
-            return true_found
-
-        if enforce and not only_one_true([self.raw_button.isChecked(), self.prediction_button.isChecked(),
-                                          self.residual_button.isChecked(), self.whitened_button.isChecked()]):
-            for button in self.mode_buttons:
-                button.setChecked(False)
-
-            self.raw_button.setChecked(True)
-
-        self.view_buttons_group.setExclusive(enforce)
-
     def toggle_view(self):
-        traces_state, colormap_state = self.traces_view_button.isChecked(), self.colormap_view_button.isChecked()
+        self.update_plot()
 
-        # if traces_state and not colormap_state:
-        #     self.traces_view_button.setChecked(False)
-        #     self.colormap_view_button.setChecked(True)
-        # elif colormap_state and not traces_state:
-        #     self.traces_view_button.setChecked(True)
-        #     self.colormap_view_button.setChecked(False)
-        # else:
-        #     print("Something is wrong!")
+    def trace_clicked(self, curve):
+        label = curve.label
+        channel = self.central_channel + label
 
+        self.channelChanged.emit(channel)
+
+    def set_seek_range(self, context):
+        raw_data = context.raw_data
+        sample_rate = raw_data.sample_rate
+
+        timepoints = raw_data.shape[0]
+        max_time = timepoints/sample_rate
+
+        self.data_seek_widget.setXRange(min=0, max=max_time, padding=0.02)
+        self.time_seek.setPos(0)
+        self.time_seek.setBounds((0, max_time))
+
+    def update_seek_text(self, seek):
+        position = seek.pos()[0]
+        self.time_label.setText("t={0:.2f} s".format(position))
+
+    def update_seek_position(self, seek):
+        position = seek.pos()[0]
+        self.current_time = position
         self.update_plot()
 
     def update_plot(self, context=None):
@@ -188,33 +197,35 @@ class DataViewBox(QtWidgets.QGroupBox):
         if context is not None:
 
             raw_data = context.raw_data
+            sample_rate = raw_data.sample_rate
 
-            single_view = self.traces_view_button.isChecked() ^ self.colormap_view_button.isChecked()
+            start_time = int(self.current_time * sample_rate)
+            time_range = int(self.plot_range * sample_rate)
+            end_time = start_time + time_range
 
             self.plot_item.clear()
 
-            if single_view:
-                if self.traces_view_button.isChecked():
-                    self.enforce_single_mode(False)
+            if self.traces_view_button.isChecked():
 
-                    if self.raw_button.isChecked():
-                        raw_traces = raw_data[:3000].T
-                        for i in range(self.central_channel, self.central_channel+32):
-                            data_item = pg.PlotDataItem(raw_traces[i] + 200*i, pen=pg.mkPen(color='w', width=1))
-                            self.plot_item.addItem(data_item)
-                            self.data_view_widget.setXRange(0, 3000, padding=0.0)
-                            self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
-
-                if self.colormap_view_button.isChecked():
-                    self.enforce_single_mode(True)
-
-                    if self.raw_button.isChecked():
-                        raw_traces = raw_data[:3000].T
-                        image_item = pg.ImageItem(setPxMode=False)
-                        image_item.setImage(raw_traces.T, autoLevels=True, autoDownsample=True)
-                        image_item.setLookupTable(self.lookup_table)
-                        self.plot_item.addItem(image_item)
-                        self.data_view_widget.setXRange(0, 3000, padding=0.02)
+                if self.raw_button.isChecked():
+                    raw_traces = raw_data[start_time:end_time].T
+                    for i in range(self.central_channel+32, self.central_channel, -1):
+                        curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
+                                                 pen=pg.mkPen(color='w', width=1))
+                        curve.label = i
+                        curve.setData(raw_traces[i] + 200*i)
+                        self.plot_item.addItem(curve)
+                        curve.sigClicked.connect(self.trace_clicked)
+                        self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
                         self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
-            else:
-                print("Invalid option!")
+
+            if self.colormap_view_button.isChecked():
+
+                if self.raw_button.isChecked():
+                    raw_traces = raw_data[start_time:end_time]
+                    image_item = pg.ImageItem(setPxMode=False)
+                    image_item.setImage(raw_traces, autoLevels=True, autoDownsample=True)
+                    image_item.setLookupTable(self.lookup_table)
+                    self.plot_item.addItem(image_item)
+                    self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
+                    self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
