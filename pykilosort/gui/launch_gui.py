@@ -100,7 +100,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.settings_box.settingsUpdated.connect(self.set_parameters)
 
-        self.data_view_box.channelChanged.connect(self.probe_view_box.update_channel)
+        self.data_view_box.channelChanged.connect(self.probe_view_box.update_probe_view)
+        self.data_view_box.modeChanged.connect(self.probe_view_box.synchronize_data_view_mode)
+
+        self.probe_view_box.channelSelected.connect(self.data_view_box.change_primary_channel)
 
     def change_channel(self, shift):
         # TODO: shift channel by +1 or -1
@@ -186,7 +189,7 @@ if __name__ == "__main__":
     pg.setConfigOption('useOpenGL', True)
 
     kilosort_gui = KiloSortGUI(kilosort_application)
-    kilosort_gui.showMaximized()
+    # kilosort_gui.showMaximized()
     kilosort_gui.show()
 
     sys.exit(kilosort_application.exec_())

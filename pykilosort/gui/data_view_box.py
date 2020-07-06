@@ -5,6 +5,7 @@ import numpy as np
 
 class DataViewBox(QtWidgets.QGroupBox):
     channelChanged = QtCore.pyqtSignal(int)
+    modeChanged = QtCore.pyqtSignal(str)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -33,7 +34,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
         self.view_buttons = [self.traces_view_button, self.colormap_view_button]
 
-        self.first_channel = 0
+        self.primary_channel = 0
         self.current_time = 0
         self.plot_range = 0.1  # seconds
 
@@ -82,8 +83,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons_group.addButton(self.colormap_view_button)
         self.mode_buttons_group.setExclusive(True)
 
-        self.traces_view_button.clicked.connect(self.toggle_view)
-        self.colormap_view_button.clicked.connect(self.toggle_view)
+        self.traces_view_button.toggled.connect(self.toggle_view)
 
         self.raw_button.setCheckable(True)
         self.raw_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
@@ -158,14 +158,25 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.update_plot()
 
-    def toggle_view(self):
+    def toggle_view(self, toggled):
+        if toggled:
+            self.modeChanged.emit("traces")
+        else:
+            self.modeChanged.emit("colormap")
+
+        self.update_plot()
+
+    def change_primary_channel(self, channel):
+        self.primary_channel = channel
+        self.channelChanged.emit(channel)
         self.update_plot()
 
     def trace_clicked(self, curve):
         label = curve.label
-        channel = self.first_channel + label
+        self.primary_channel = label
 
-        self.channelChanged.emit(channel)
+        self.channelChanged.emit(label)
+        self.update_plot()
 
     def set_seek_range(self, context):
         raw_data = context.raw_data
@@ -206,15 +217,18 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.raw_button.isChecked():
                     raw_traces = raw_data[start_time:end_time].T
-                    for i in range(self.first_channel + 32, self.first_channel, -1):
+                    for i in range(self.primary_channel + 32, self.primary_channel, -1):
                         curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
                                                  pen=pg.mkPen(color='w', width=1))
                         curve.label = i
-                        curve.setData(raw_traces[i] + 200*i)
-                        self.plot_item.addItem(curve)
-                        curve.sigClicked.connect(self.trace_clicked)
-                        self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
-                        self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
+                        try:
+                            curve.setData(raw_traces[i] + 200*i)
+                            self.plot_item.addItem(curve)
+                            curve.sigClicked.connect(self.trace_clicked)
+                            self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
+                            self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
+                        except IndexError:
+                            continue
 
             if self.colormap_view_button.isChecked():
 
