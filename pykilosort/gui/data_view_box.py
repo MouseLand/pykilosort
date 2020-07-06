@@ -171,6 +171,15 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.channelChanged.emit(channel)
         self.update_plot()
 
+    def shift_primary_channel(self, shift):
+        primary_channel = self.primary_channel
+        primary_channel += shift
+        total_channels = self.gui.probe_view_box.total_channels
+        if (0 <= primary_channel < total_channels) and total_channels is not None:
+            self.primary_channel = primary_channel
+            self.channelChanged.emit(self.primary_channel)
+            self.update_plot()
+
     def trace_clicked(self, curve):
         label = curve.label
         self.primary_channel = label

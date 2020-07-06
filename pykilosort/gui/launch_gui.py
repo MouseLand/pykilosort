@@ -106,12 +106,11 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.probe_view_box.channelSelected.connect(self.data_view_box.change_primary_channel)
 
     def change_channel(self, shift):
-        # TODO: shift channel by +1 or -1
-        pass
+        if self.context is not None:
+            self.data_view_box.shift_primary_channel(shift)
 
     def toggle_view(self):
-        # TODO: toggle between traces view and colormap view
-        self.data_view_box.toggle_view()
+        self.data_view_box.traces_view_button.toggle()
 
     def toggle_mode(self, mode):
         if mode == "raw":
