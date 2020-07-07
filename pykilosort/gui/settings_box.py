@@ -49,10 +49,13 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.auc_splits_text = QtWidgets.QLabel("AUC for Splits")
         self.auc_splits_input = QtWidgets.QLineEdit()
 
-        self.advanced_options_button = QtWidgets.QPushButton("Advanced Options")
         self.error_label = QtWidgets.QLabel("")
         self.error_label.setText("Invalid inputs!")
         self.error_label.setWordWrap(True)
+
+        self.advanced_options_button = QtWidgets.QPushButton("Advanced Options")
+
+        self.load_settings_button = QtWidgets.QPushButton("Load")
 
         self.data_file_path = None
         self.working_directory_path = None
@@ -149,15 +152,23 @@ class SettingsBox(QtWidgets.QGroupBox):
         auc_splits_layout.addWidget(self.auc_splits_input, 30)
         self.auc_splits_input.textChanged.connect(self.on_auc_splits_changed)
 
-        advanced_options_layout = QtWidgets.QHBoxLayout()
+        error_label_layout = QtWidgets.QHBoxLayout()
+        error_label_size_policy = self.error_label.sizePolicy()
+        error_label_size_policy.setVerticalPolicy(QtWidgets.QSizePolicy.Maximum)
+        error_label_size_policy.setRetainSizeWhenHidden(True)
+        self.error_label.setSizePolicy(error_label_size_policy)
         error_label_palette = self.error_label.palette()
         error_label_palette.setColor(QtGui.QPalette.Foreground, QtGui.QColor("red"))
         self.error_label.setPalette(error_label_palette)
-        advanced_options_layout.addWidget(self.error_label)
-        advanced_options_layout.addStretch(0)
-        advanced_options_layout.addWidget(self.advanced_options_button)
-        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
+        error_label_layout.addWidget(self.error_label)
         self.error_label.hide()
+
+        buttons_layout = QtWidgets.QHBoxLayout()
+        buttons_layout.addWidget(self.advanced_options_button)
+        buttons_layout.addStretch(0)
+        buttons_layout.addWidget(self.load_settings_button)
+        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
+        self.load_settings_button.clicked.connect(self.update_settings)
 
         layout.addLayout(select_data_file_layout)
         layout.addLayout(select_working_directory_layout)
@@ -168,7 +179,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         layout.addLayout(min_firing_rate_layout)
         layout.addLayout(threshold_layout)
         layout.addLayout(auc_splits_layout)
-        layout.addLayout(advanced_options_layout)
+        layout.addLayout(error_label_layout)
+        layout.addLayout(buttons_layout)
 
         self.setLayout(layout)
 
@@ -201,8 +213,6 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             self.working_directory_path = working_directory
             self.error_label.hide()
-
-            self.update_settings()
         except AssertionError:
             self.error_label.setText("Please select an existing working directory!")
             self.error_label.show()
@@ -214,8 +224,6 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             self.results_directory_path = results_directory
             self.error_label.hide()
-
-            self.update_settings()
         except AssertionError:
             self.error_label.setText("Please select an existing directory for results!")
             self.error_label.show()
@@ -233,8 +241,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.data_file_path = data_file_path
             self.working_directory_path = parent_folder
             self.results_directory_path = parent_folder
-
-            self.update_settings()
         except AssertionError:
             self.error_label.setText("Please select a valid file path!")
             self.error_label.show()
@@ -287,8 +293,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.error_label.hide()
 
             self.num_channels = number_of_channels
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid input!\nNo. of channels must be an integer!")
             self.error_label.show()
@@ -309,8 +313,6 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             self.time_range_min = time_range_low
             self.time_range_max = time_range_high
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid inputs!\nTime range values must be floats!"
                                      "\n(`inf` accepted as upper limit)")
@@ -326,8 +328,6 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             self.min_firing_rate = min_firing_rate
             self.error_label.hide()
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid input!\nMin. firing rate value must be a float!")
             self.error_label.show()
@@ -344,8 +344,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.threshold_upper = threshold_upper
             self.threshold_lower = threshold_lower
             self.error_label.hide()
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid inputs!\nThreshold values must be floats!")
             self.error_label.show()
@@ -360,8 +358,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.error_label.hide()
 
             self.lambda_value = lambda_value
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid input!\nLambda value must be a float!")
             self.error_label.show()
@@ -376,8 +372,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.error_label.hide()
 
             self.auc_splits = auc_split
-
-            self.update_settings()
         except ValueError:
             self.error_label.setText("Invalid input!\nAUC split value must be a float!")
             self.error_label.show()

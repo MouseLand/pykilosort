@@ -26,6 +26,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         self.total_channels = None
         self.channel_map = None
         self.channel_map_dict = {}
+        self.good_channels = None
 
         self.configuration = {'active_channel': 'g',
                               'good_channel': 'b',
@@ -58,21 +59,22 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         else:
             self.active_channels = self.channel_map
 
-    def set_layout(self, probe_layout):
+    def set_layout(self, context):
         self.probe_view.clear()
-        self.set_active_layout(probe_layout)
+        self.set_active_layout(context)
 
         self.update_probe_view()
 
-    def set_active_layout(self, probe_layout):
-        self.active_layout = probe_layout
-        self.kcoords = probe_layout.kcoords
-        self.xc, self.yc = probe_layout.xc, probe_layout.yc
+    def set_active_layout(self, context):
+        self.active_layout = context.probe
+        self.kcoords = self.active_layout.kcoords
+        self.xc, self.yc = self.active_layout.xc, self.active_layout.yc
         self.channel_map_dict = {}
         for ind, (xc, yc) in enumerate(zip(self.xc, self.yc)):
             self.channel_map_dict[(xc, yc)] = ind
-        self.total_channels = probe_layout.NchanTOT
-        self.channel_map = probe_layout.chanMap
+        self.total_channels = self.active_layout.NchanTOT
+        self.channel_map = self.active_layout.chanMap
+        self.good_channels = context.intermediate.igood.ravel()
 
     def on_points_clicked(self, points):
         selected_point = points.ptsClicked[0]
@@ -101,13 +103,13 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         for ind, (x_pos, y_pos) in enumerate(zip(self.xc, self.yc)):
             pos = (x_pos, y_pos)
-            channel_quality = self.kcoords[ind]
+            good_channel = self.good_channels[ind]
             is_active = np.isin(ind, self.active_channels)
-            if channel_quality != 0:
+            if not good_channel:
                 color = self.configuration['bad_channel']
-            elif channel_quality == 0 and is_active:
+            elif good_channel and is_active:
                 color = self.configuration['active_channel']
-            elif channel_quality == 0 and not is_active:
+            elif good_channel and not is_active:
                 color = self.configuration['good_channel']
             else:
                 print("Logical error!")

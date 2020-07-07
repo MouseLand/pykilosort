@@ -1,16 +1,14 @@
 import os
 import sys
 import numpy as np
-import logging
 import pyqtgraph as pg
 from pathlib import Path
 # TODO: optimize imports before incorporating into codebase
-from phylib.io.traces import FlatEphysReader
+from phylib.io.traces import get_ephys_reader
 from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox
-from pykilosort.gui import DarkPalette
+from pykilosort.gui import DarkPalette, find_good_channels
 from pykilosort.default_params import default_params, set_dependent_params
 from pykilosort.utils import Context
-from pykilosort.main import default_probe
 from pykilosort.gui import probes
 from PyQt5 import QtGui, QtWidgets, QtCore
 
@@ -110,7 +108,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
             self.data_view_box.shift_primary_channel(shift)
 
     def toggle_view(self):
-        self.data_view_box.traces_view_button.toggle()
+        self.data_view_box.traces_button.toggle()
 
     def toggle_mode(self, mode):
         if mode == "raw":
@@ -142,6 +140,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.params = params
 
+        self.setup_context()
         self.update_probe_view()
         self.update_data_view()
 
@@ -155,24 +154,36 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context.load()
 
-    def update_data_view(self):
+        self.context = find_good_channels(self.context)
+        self.context.probe.Nchan = len(self.context.probe.chanMap)
 
+    def update_data_view(self):
+        if self.context is not None:
+            self.data_view_box.set_seek_range(self.context)
+            self.data_view_box.update_plot(self.context)
+
+    def setup_context(self):
         # TODO: account for these temporary hardcoded params
         n_channels = 385
         dtype = np.int16
-        sample_rate = 3e4
+        sample_rate = self.params.fs
 
-        raw_data = FlatEphysReader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
+        raw_data = get_ephys_reader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
         self.raw_data = raw_data
 
-        if self.context is None:
-            self.load_context()
-
-        self.data_view_box.set_seek_range(self.context)
-        self.data_view_box.update_plot(self.context)
+        self.load_context()
 
     def update_probe_view(self):
-        self.probe_view_box.set_layout(self.probe_layout)
+        self.probe_view_box.set_layout(self.context)
+
+    def get_context(self):
+        return self.context
+
+    def get_probe(self):
+        return self.probe_layout
+
+    def get_params(self):
+        return self.params
 
 
 if __name__ == "__main__":

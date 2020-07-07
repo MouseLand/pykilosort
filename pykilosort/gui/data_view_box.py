@@ -1,4 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
+from pykilosort.preprocess import get_whitening_matrix
+from pykilosort.gui.sorter import filter_and_whiten
 import pyqtgraph as pg
 import numpy as np
 
@@ -21,8 +23,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.time_seek = pg.InfiniteLine(pen=pg.mkPen((255, 0, 0, 128)), movable=True, name="indicator")
         self.time_label = pg.TextItem(color=(180, 180, 180))
 
-        self.traces_view_button = QtWidgets.QPushButton("Traces")
-        self.colormap_view_button = QtWidgets.QPushButton("Colormap")
+        self.traces_button = QtWidgets.QPushButton("Traces")
+        self.colormap_button = QtWidgets.QPushButton("Colormap")
         self.raw_button = QtWidgets.QPushButton("Raw")
         self.whitened_button = QtWidgets.QPushButton("Whitened")
         self.prediction_button = QtWidgets.QPushButton("Prediction")
@@ -31,13 +33,22 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons_group = QtWidgets.QButtonGroup(self)
         self.view_buttons_group = QtWidgets.QButtonGroup(self)
 
-        self.mode_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
-        self.view_buttons = [self.traces_view_button, self.colormap_view_button]
+        self.view_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
+        self.mode_buttons = [self.traces_button, self.colormap_button]
 
         self.primary_channel = 0
         self.current_time = 0
         self.plot_range = 0.1  # seconds
 
+        self.whitened_matrix = None
+        self.prediction_matrix = None
+        self.residual_matrix = None
+
+        # traces settings
+        self.good_channel_color = (255, 255, 255)
+        self.bad_channel_color = (100, 100, 100)
+        self.channels_displayed = 32
+        # colormap settings
         colors = [(240, 228, 66), (0, 0, 0), (86, 180, 233)]
         positions = np.linspace(0.0, 1.0, 3)
         color_map = pg.ColorMap(pos=positions, color=colors)
@@ -75,15 +86,15 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         data_controls_layout = QtWidgets.QHBoxLayout()
 
-        self.traces_view_button.setCheckable(True)
-        self.colormap_view_button.setCheckable(True)
-        self.traces_view_button.setChecked(True)
+        self.traces_button.setCheckable(True)
+        self.colormap_button.setCheckable(True)
+        self.traces_button.setChecked(True)
 
-        self.mode_buttons_group.addButton(self.traces_view_button)
-        self.mode_buttons_group.addButton(self.colormap_view_button)
+        for mode_button in self.mode_buttons:
+            self.mode_buttons_group.addButton(mode_button)
         self.mode_buttons_group.setExclusive(True)
 
-        self.traces_view_button.toggled.connect(self.toggle_view)
+        self.traces_button.toggled.connect(self.toggle_view)
 
         self.raw_button.setCheckable(True)
         self.raw_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
@@ -102,14 +113,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.residual_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
         self.residual_button.toggled.connect(self.on_residual_button_toggled)
 
-        self.view_buttons_group.addButton(self.raw_button)
-        self.view_buttons_group.addButton(self.whitened_button)
-        self.view_buttons_group.addButton(self.prediction_button)
-        self.view_buttons_group.addButton(self.residual_button)
+        for view_button in self.view_buttons:
+            self.view_buttons_group.addButton(view_button)
         self.view_buttons_group.setExclusive(False)
 
-        data_controls_layout.addWidget(self.traces_view_button)
-        data_controls_layout.addWidget(self.colormap_view_button)
+        data_controls_layout.addWidget(self.traces_button)
+        data_controls_layout.addWidget(self.colormap_button)
         data_controls_layout.addStretch(1)
         data_controls_layout.addWidget(self.raw_button)
         data_controls_layout.addWidget(self.whitened_button)
@@ -161,8 +170,14 @@ class DataViewBox(QtWidgets.QGroupBox):
     def toggle_view(self, toggled):
         if toggled:
             self.modeChanged.emit("traces")
+            self.view_buttons_group.setExclusive(False)
         else:
             self.modeChanged.emit("colormap")
+            for button in self.view_buttons:
+                if button.isChecked():
+                    button.setChecked(False)
+            self.view_buttons[0].setChecked(True)
+            self.view_buttons_group.setExclusive(True)
 
         self.update_plot()
 
@@ -205,15 +220,45 @@ class DataViewBox(QtWidgets.QGroupBox):
     def update_seek_position(self, seek):
         position = seek.pos()[0]
         self.current_time = position
+        self.reset_cache()
         self.update_plot()
+
+    def reset_cache(self):
+        self.whitened_matrix = None
+        self.residual_matrix = None
+        self.prediction_matrix = None
+
+    def add_curve_to_plot(self, trace, color, label):
+        curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
+                                 pen=pg.mkPen(color=color, width=1))
+
+        curve.label = label
+        curve.setData(trace + 200*label)
+        self.plot_item.addItem(curve)
+        curve.sigClicked.connect(self.trace_clicked)
+
+    def add_image_to_plot(self, raw_traces):
+        image_item = pg.ImageItem(setPxMode=False)
+        image_item.setImage(raw_traces, autoLevels=True, autoDownsample=True)
+        image_item.setLookupTable(self.lookup_table)
+        self.plot_item.addItem(image_item)
 
     def update_plot(self, context=None):
         if context is None:
             context = self.gui.context
 
         if context is not None:
-
+            params = context.params
+            probe = context.probe
             raw_data = context.raw_data
+            intermediate = context.intermediate
+
+            if 'Wrot' not in intermediate:
+                with context.time('whitening_matrix'):
+                    intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+                context.write(Wrot=intermediate.Wrot)
+
+            good_channels = intermediate.igood
             sample_rate = raw_data.sample_rate
 
             start_time = int(self.current_time * sample_rate)
@@ -222,31 +267,41 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             self.plot_item.clear()
 
-            if self.traces_view_button.isChecked():
-
+            if self.traces_button.isChecked():
+                raw_traces = raw_data[start_time:end_time]
                 if self.raw_button.isChecked():
-                    raw_traces = raw_data[start_time:end_time].T
-                    for i in range(self.primary_channel + 32, self.primary_channel, -1):
-                        curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
-                                                 pen=pg.mkPen(color='w', width=1))
-                        curve.label = i
+                    for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
+                        color = 'w' if good_channels[i] else self.bad_channel_color
                         try:
-                            curve.setData(raw_traces[i] + 200*i)
-                            self.plot_item.addItem(curve)
-                            curve.sigClicked.connect(self.trace_clicked)
-                            self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
-                            self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
+                            self.add_curve_to_plot(raw_traces.T[i], color, i)
                         except IndexError:
                             continue
 
-            if self.colormap_view_button.isChecked():
+                if self.whitened_button.isChecked():
+                    if self.whitened_matrix is None:
+                        whitened_traces = filter_and_whiten(raw_traces, params, probe, intermediate.Wrot)
+                        self.whitened_matrix = whitened_traces
+                    else:
+                        whitened_traces = self.whitened_matrix
+                    for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
+                        color = 'c' if good_channels[i] else self.bad_channel_color
+                        try:
+                            self.add_curve_to_plot(whitened_traces.T[i], color, i)
+                        except IndexError:
+                            print("IndexError at channel {}".format(i))
+                            continue
 
+            if self.colormap_button.isChecked():
+                raw_traces = raw_data[start_time:end_time]
                 if self.raw_button.isChecked():
-                    raw_traces = raw_data[start_time:end_time]
-                    image_item = pg.ImageItem(setPxMode=False)
+                    self.add_image_to_plot(raw_traces)
+                elif self.whitened_button.isChecked():
+                    if self.whitened_matrix is None:
+                        whitened_traces = filter_and_whiten(raw_traces, params, probe, intermediate.Wrot)
+                        self.whitened_matrix = whitened_traces
+                    else:
+                        whitened_traces = self.whitened_matrix
+                    self.add_image_to_plot(whitened_traces)
 
-                    image_item.setImage(raw_traces, autoLevels=True, autoDownsample=True)
-                    image_item.setLookupTable(self.lookup_table)
-                    self.plot_item.addItem(image_item)
-                    self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
-                    self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
+            self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
+            self.data_view_widget.setLimits(xMin=0, xMax=3000, minXRange=0, maxXRange=3000)
