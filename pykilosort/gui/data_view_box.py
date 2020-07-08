@@ -52,7 +52,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         colors = [(240, 228, 66), (0, 0, 0), (86, 180, 233)]
         positions = np.linspace(0.0, 1.0, 3)
         color_map = pg.ColorMap(pos=positions, color=colors)
-        self.lookup_table = color_map.getLookupTable(nPts=4196, alpha=True)
+        self.lookup_table = color_map.getLookupTable(nPts=8192)
 
         self.setup()
 
@@ -269,10 +269,11 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             if self.traces_button.isChecked():
                 raw_traces = raw_data[start_time:end_time]
+
                 if self.raw_button.isChecked():
                     for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
-                        color = 'w' if good_channels[i] else self.bad_channel_color
                         try:
+                            color = 'w' if good_channels[i] else self.bad_channel_color
                             self.add_curve_to_plot(raw_traces.T[i], color, i)
                         except IndexError:
                             continue
@@ -284,8 +285,8 @@ class DataViewBox(QtWidgets.QGroupBox):
                     else:
                         whitened_traces = self.whitened_matrix
                     for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
-                        color = 'c' if good_channels[i] else self.bad_channel_color
                         try:
+                            color = 'c' if good_channels[i] else self.bad_channel_color
                             self.add_curve_to_plot(whitened_traces.T[i], color, i)
                         except IndexError:
                             print("IndexError at channel {}".format(i))
@@ -293,8 +294,10 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             if self.colormap_button.isChecked():
                 raw_traces = raw_data[start_time:end_time]
+
                 if self.raw_button.isChecked():
                     self.add_image_to_plot(raw_traces)
+
                 elif self.whitened_button.isChecked():
                     if self.whitened_matrix is None:
                         whitened_traces = filter_and_whiten(raw_traces, params, probe, intermediate.Wrot)
