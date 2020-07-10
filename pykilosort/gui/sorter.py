@@ -68,7 +68,10 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
         whitened_arrays.append(datr)
 
-    whitened_array = cp.concatenate(tuple(whitened_arrays), axis=0) / 20
+    concatenated_array = cp.concatenate(tuple(whitened_arrays), axis=0)
+    array_means = cp.mean(concatenated_array, axis=0)
+    array_stds = cp.std(concatenated_array, axis=0)
+    whitened_array = (concatenated_array - array_means) / array_stds
     return whitened_array.get()
 
 
