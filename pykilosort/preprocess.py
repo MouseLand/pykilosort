@@ -252,7 +252,6 @@ def get_good_channels(raw_data=None, probe=None, params=None):
     minfr_goodchannels = params.minfr_goodchannels
 
     chanMap = probe.chanMap
-    # Nchan = probe.Nchan
     NchanTOT = len(chanMap)
 
     ich = []
