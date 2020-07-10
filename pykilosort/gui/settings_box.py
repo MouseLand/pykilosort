@@ -1,9 +1,11 @@
 import os
+import json
 from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe
 from pykilosort.default_params import default_params
+from pykilosort.gui.minor_gui_elements import ProbeBuilder
 
 
 class SettingsBox(QtWidgets.QGroupBox):
@@ -272,7 +274,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         advanced_options_dialog.exec_()
 
     def on_probe_layout_selected(self, name):
-        if name != "":
+        if name not in ["", "[new]", "other..."]:
             probe_path = Path(self.gui.probe_files_path).joinpath(name)
             try:
                 probe_layout = load_probe(probe_path)
@@ -285,6 +287,26 @@ class SettingsBox(QtWidgets.QGroupBox):
             except MatReadError:
                 self.error_label.setText("Invalid probe file!")
                 self.error_label.show()
+
+        elif name == "[new]":
+            probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
+
+            if okay:
+                probe_path = Path(self.gui.probe_files_path).joinpath(probe_name + ".prb")
+                with open(probe_path, 'w+') as probe_file:
+                    probe_dumps = json.dumps(probe_layout)
+                    probe_file.write(probe_dumps)
+                assert probe_path.exists()
+
+                self.populate_probe_selector()
+
+                self.probe_layout = probe_layout
+
+                total_channels = self.probe_layout.NchanTOT
+                self.num_channels_input.setText(str(total_channels))
+                self.error_label.hide()
+            else:
+                self.probe_layout_selector.setCurrentIndex(0)
 
     def on_number_of_channels_changed(self):
         try:
@@ -380,9 +402,11 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.error_label.show()
 
     def populate_probe_selector(self):
+        self.probe_layout_selector.clear()
+
         probe_folder = self.gui.probe_files_path
         probes = os.listdir(probe_folder)
         probes = [probe for probe in probes if probe.endswith(".mat") or probe.endswith(".prb")]
 
-        self.probe_layout_selector.addItems([""] + probes)
+        self.probe_layout_selector.addItems([""] + probes + ["[new]", "other..."])
         self._probes = probes

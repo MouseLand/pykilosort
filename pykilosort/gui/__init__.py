@@ -9,4 +9,5 @@ from .run_box import RunBox
 from .header_box import HeaderBox
 from .palettes import DarkPalette
 from .sorter import find_good_channels, filter_and_whiten
+from .minor_gui_elements import ProbeBuilder
 from . import probes
