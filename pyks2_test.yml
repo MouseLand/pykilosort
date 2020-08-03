@@ -11,6 +11,7 @@ dependencies:
  - matplotlib=3.*
  - tqdm=4.45.*
  - click=7.*
+ - pydantic=1.*
  - pytest==5.4.*
  - pytest-cov=2.*
  - mock==4.*

@@ -1,6 +1,11 @@
 import logging
 import os
 
+# TODO: move this to config
+# TODO: setting to true not yet implemented
+ENABLE_STABLEMODE = False #True
+ENSURE_DETERM = False 
+
 if os.getenv('MOCK_CUPY', False):
     from pykilosort.testing.mock_cupy import cupy 
     from pykilosort.testing.mock_cupyx import cupyx
