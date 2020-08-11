@@ -1,1 +1,4 @@
 git+https://github.com/cortex-lab/phylib.git
+matlab
+jupyter
+h5py
