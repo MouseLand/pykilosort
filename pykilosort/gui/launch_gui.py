@@ -60,6 +60,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
                 self.change_channel(shift=1)
             elif event.key() == QtCore.Qt.Key_Down:
                 self.change_channel(shift=-1)
+            elif event.key() == QtCore.Qt.Key_Left:
+                self.shift_data(time_shift=-0.1)
+            elif event.key() == QtCore.Qt.Key_Right:
+                self.shift_data(time_shift=0.1)
             elif event.key() == QtCore.Qt.Key_C:
                 self.toggle_view()
             elif event.key() == QtCore.Qt.Key_1:
@@ -106,6 +110,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def change_channel(self, shift):
         if self.context is not None:
             self.data_view_box.shift_primary_channel(shift)
+
+    def shift_data(self, time_shift):
+        if self.context is not None:
+            self.data_view_box.shift_current_time(time_shift)
 
     def toggle_view(self):
         self.data_view_box.traces_button.toggle()
@@ -155,16 +163,14 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.context.load()
 
         self.context = find_good_channels(self.context)
-        self.context.probe.Nchan = len(self.context.probe.chanMap)
 
     def update_data_view(self):
-        if self.context is not None:
-            self.data_view_box.set_seek_range(self.context)
-            self.data_view_box.update_plot(self.context)
+        self.data_view_box.setup_seek(self.context)
+        self.data_view_box.update_plot(self.context)
 
     def setup_context(self):
         # TODO: account for these temporary hardcoded params
-        n_channels = 385
+        n_channels = self.num_channels
         dtype = np.int16
         sample_rate = self.params.fs
 

@@ -9,15 +9,24 @@ def find_good_channels(context):
     params = context.params
     probe = context.probe
     raw_data = context.raw_data
+    intermediate = context.intermediate
 
     if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-        if 'igood' not in context.intermediate:
+        if 'igood' not in intermediate:
             # determine bad channels
             with context.time('good_channels'):
-                context.intermediate.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)
+                intermediate.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)
             # Cache the result.
-            context.write(igood=context.intermediate.igood)
+            context.write(igood=intermediate.igood)
 
+    intermediate.igood = intermediate.igood.ravel()
+    # probe.chanMap = probe.chanMap[intermediate.igood]
+    # probe.xc = probe.xc[intermediate.igood]
+    # probe.yc = probe.yc[intermediate.igood]
+    # probe.kcoords = probe.kcoords[intermediate.igood]
+    # probe.Nchan = len(probe.chanMap)
+    #
+    context.probe = probe
     return context
 
 
@@ -83,5 +92,12 @@ class KiloSortWorker(QtCore.QThread):
         self.context = self.parent.get_context()
 
     def run(self):
-        filter_and_whiten(self.context)
+        params = self.context.params
+        raw_data = self.context.raw_data
+        probe = self.context.probe
+        intermediate = self.context.intermediate
+
+        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+
+        whitened_array = filter_and_whiten(raw_traces=raw_data, probe=probe, params=params)
 

@@ -194,19 +194,18 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.data_file_path_input.setText(data_file_name)
 
     def on_select_working_dir_clicked(self):
-        working_dir_name, _ = QtWidgets.QFileDialog.getExistingDirectory(parent=self,
+        working_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose working directory...",
-                                                                         directory=os.getcwd())
+                                                                         directory=QtCore.QUrl(os.getcwd()))
         if working_dir_name:
-            self.working_directory_input.setText(working_dir_name)
+            self.working_directory_input.setText(working_dir_name.toLocalFile())
 
     def on_select_results_dir_clicked(self):
-        results_dir_name, _ = QtWidgets.QFileDialog.getExistingDirectory(parent=self,
+        results_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose results directory...",
-                                                                         directory=os.getcwd())
-
+                                                                         directory=QtCore.QUrl(os.getcwd()))
         if results_dir_name:
-            self.results_directory_input.setText(results_dir_name)
+            self.results_directory_input.setText(results_dir_name.toLocalFile())
 
     def on_working_directory_changed(self):
         working_directory = Path(self.working_directory_input.text())
