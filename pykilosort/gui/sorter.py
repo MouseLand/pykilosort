@@ -24,7 +24,7 @@ def find_good_channels(context):
     # probe.xc = probe.xc[intermediate.igood]
     # probe.yc = probe.yc[intermediate.igood]
     # probe.kcoords = probe.kcoords[intermediate.igood]
-    # probe.Nchan = len(probe.chanMap)
+    probe.Nchan = len(probe.chanMap)
     #
     context.probe = probe
     return context

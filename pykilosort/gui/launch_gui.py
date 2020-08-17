@@ -148,11 +148,25 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.params = params
 
+        self.load_raw_data()
         self.setup_context()
         self.update_probe_view()
         self.update_data_view()
 
-    def load_context(self):
+    def load_raw_data(self):
+        # TODO: account for these temporary hardcoded params
+        n_channels = self.num_channels
+        dtype = np.int16
+        sample_rate = self.params.fs
+
+        raw_data = get_ephys_reader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
+        self.raw_data = raw_data
+
+    def update_data_view(self):
+        self.data_view_box.setup_seek(self.context)
+        self.data_view_box.update_plot(self.context)
+
+    def setup_context(self):
         context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))
 
         self.context = Context(context_path=context_path)
@@ -163,21 +177,6 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.context.load()
 
         self.context = find_good_channels(self.context)
-
-    def update_data_view(self):
-        self.data_view_box.setup_seek(self.context)
-        self.data_view_box.update_plot(self.context)
-
-    def setup_context(self):
-        # TODO: account for these temporary hardcoded params
-        n_channels = self.num_channels
-        dtype = np.int16
-        sample_rate = self.params.fs
-
-        raw_data = get_ephys_reader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
-        self.raw_data = raw_data
-
-        self.load_context()
 
     def update_probe_view(self):
         self.probe_view_box.set_layout(self.context)
