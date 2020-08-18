@@ -285,3 +285,193 @@ def run(
     ctx.write(timer=ctx.timer)
 
     return ctx
+
+
+def run_preprocess(ctx):
+    params = ctx.params
+    raw_data = ctx.raw_data
+    probe = ctx.probe
+    ir = ctx.intermediate
+
+    ir.Nbatch = get_Nbatch(raw_data, params)
+
+    if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
+        # determine bad channels
+        with ctx.time("good_channels"):
+            ir.igood = get_good_channels(
+                raw_data=raw_data, probe=probe, params=params
+            )
+        # Cache the result.
+        ctx.write(igood=ir.igood)
+
+        # it's enough to remove bad channels from the channel map, which treats them
+        # as if they are dead
+        ir.igood = ir.igood.ravel()
+        probe.chanMap = probe.chanMap[ir.igood]
+        probe.xc = probe.xc[ir.igood]  # removes coordinates of bad channels
+        probe.yc = probe.yc[ir.igood]
+        probe.kcoords = probe.kcoords[ir.igood]
+
+    probe.Nchan = len(probe.chanMap)  # total number of good channels that we will spike sort
+    assert probe.Nchan > 0
+
+    # upper bound on the number of templates we can have
+    params.Nfilt = params.nfilt_factor * probe.Nchan
+
+    # -------------------------------------------------------------------------
+    # Find the whitening matrix.
+    with ctx.time("whitening_matrix"):
+        ir.Wrot = get_whitening_matrix(
+            raw_data=raw_data, probe=probe, params=params
+        )
+    # Cache the result.
+    ctx.write(Wrot=ir.Wrot)
+
+    # -------------------------------------------------------------------------
+    # Preprocess data to create proc.dat
+    ir.proc_path = ctx.path("proc", ".dat")
+    if not ir.proc_path.exists():
+        # Do not preprocess again if the proc.dat file already exists.
+        with ctx.time("preprocess"):
+            preprocess(ctx)
+
+    # Show timing information.
+    ctx.show_timer()
+    ctx.write(timer=ctx.timer)
+
+    return ctx
+
+
+def run_spikesort(ctx):
+    raw_data = ctx.raw_data
+    ir = ctx.intermediate
+
+    assert ir.proc_path.exists()
+    ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
+
+    # -------------------------------------------------------------------------
+    # Time-reordering as a function of drift.
+    #
+    # This function saves:
+    #
+    #       iorig, ccb0, ccbsort
+    #
+    if "iorig" not in ir:
+        with ctx.time("reorder"):
+            out = clusterSingleBatches(ctx)
+        ctx.save(**out)
+
+    # -------------------------------------------------------------------------
+    #  Main tracking and template matching algorithm.
+    #
+    # This function uses:
+    #
+    #         procfile
+    #         iorig
+    #
+    # This function saves:
+    #
+    #         wPCA, wTEMP
+    #         st3, simScore,
+    #         cProj, cProjPC,
+    #         iNeigh, iNeighPC,
+    #         WA, UA, W, U, dWU, mu,
+    #         W_a, W_b, U_a, U_b
+    #
+    if "st3" not in ir:
+        with ctx.time("learn"):
+            out = learnAndSolve8b(ctx)
+        logger.info("%d spikes.", ir.st3.shape[0])
+        ctx.save(**out)
+    # Special care for cProj and cProjPC which are memmapped .dat files.
+    ir.cProj = memmap_large_array(ctx.path("fW", ext=".dat")).T
+    ir.cProjPC = memmap_large_array(ctx.path("fWpc", ext=".dat")).T  # transpose
+
+    # -------------------------------------------------------------------------
+    # Final merges.
+    #
+    # This function uses:
+    #
+    #       st3, simScore
+    #
+    # This function saves:
+    #
+    #         st3_m,
+    #         R_CCG, Q_CCG, K_CCG [optional]
+    #
+    if "st3_m" not in ir:
+        with ctx.time("merge"):
+            out = find_merges(ctx, True)
+        ctx.save(**out)
+
+    # -------------------------------------------------------------------------
+    # Final splits.
+    #
+    # This function uses:
+    #
+    #       st3_m
+    #       W, dWU, cProjPC,
+    #       iNeigh, simScore
+    #       wPCA
+    #
+    # This function saves:
+    #
+    #       st3_s
+    #       W_s, U_s, mu_s, simScore_s
+    #       iNeigh_s, iNeighPC_s,
+    #       Wphy, iList, isplit
+    #
+    if "st3_s1" not in ir:
+        # final splits by SVD
+        with ctx.time("split_1"):
+            out = splitAllClusters(ctx, True)
+        # Use a different name for both splitting steps.
+        out["st3_s1"] = out.pop("st3_s")
+        ctx.save(**out)
+
+    if "st3_s0" not in ir:
+        # final splits by amplitudes
+        with ctx.time("split_2"):
+            out = splitAllClusters(ctx, False)
+        out["st3_s0"] = out.pop("st3_s")
+        ctx.save(**out)
+
+    # -------------------------------------------------------------------------
+    # Decide on cutoff.
+    #
+    # This function uses:
+    #
+    #       st3_s
+    #       dWU, cProj, cProjPC
+    #       wPCA
+    #
+    # This function saves:
+    #
+    #       st3_c, spikes_to_remove,
+    #       est_contam_rate, Ths, good
+    #
+    if "st3_c" not in ir:
+        with ctx.time("cutoff"):
+            out = set_cutoff(ctx)
+        ctx.save(**out)
+
+    logger.info("%d spikes after cutoff.", ir.st3_c.shape[0])
+    logger.info("Found %d good units.", np.sum(ir.good > 0))
+
+    # Show timing information.
+    ctx.show_timer()
+    ctx.write(timer=ctx.timer)
+
+    return ctx
+
+
+def run_export(ctx, dat_path, output_dir):
+    # write to Phy
+    logger.info("Saving results to phy.")
+    output_dir = output_dir
+    with ctx.time("output"):
+        rezToPhy(ctx, dat_path=dat_path, output_dir=output_dir)
+
+    # Show timing information.
+    ctx.show_timer()
+    ctx.write(timer=ctx.timer)

@@ -1,7 +1,8 @@
 import numpy as np
 import cupy as cp
 
-from pykilosort.preprocess import get_good_channels, get_whitening_matrix, get_Nbatch, gpufilter
+from pykilosort.preprocess import get_good_channels, get_Nbatch, gpufilter
+from pykilosort.main import run_preprocess, run_spikesort, run_export
 from PyQt5 import QtCore
 
 
@@ -85,19 +86,33 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
 
 class KiloSortWorker(QtCore.QThread):
+    finishedPreprocess = QtCore.pyqtSignal(object)
+    finishedSpikesort = QtCore.pyqtSignal(object)
+    finishedAll = QtCore.pyqtSignal(object)
 
-    def __init__(self, gui, *args, **kwargs):
+    def __init__(self, context, data_path, output_directory, steps, *args, **kwargs):
         super(KiloSortWorker, self).__init__(*args, **kwargs)
-        self.parent = gui
-        self.context = self.parent.get_context()
+        self.context = context
+        self.data_path = data_path
+        self.output_directory = output_directory
+
+        assert isinstance(steps, list) or isinstance(steps, str)
+        self.steps = steps if isinstance(steps, list) else [steps]
+
+    def __del__(self):
+        self.wait()
 
     def run(self):
-        params = self.context.params
-        raw_data = self.context.raw_data
-        probe = self.context.probe
-        intermediate = self.context.intermediate
+        if "preprocess" in self.steps:
+            self.context = run_preprocess(self.context)
+            self.finishedPreprocess.emit(self.context)
 
-        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+        if "spikesort" in self.steps:
+            self.context = run_spikesort(self.context)
+            self.finishedSpikesort.emit(self.context)
 
-        whitened_array = filter_and_whiten(raw_traces=raw_data, probe=probe, params=params)
+        if "export" in self.steps:
+            run_export(self.context, self.data_path, self.output_directory)
+            self.finishedAll.emit(self.context)
+
 

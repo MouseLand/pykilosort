@@ -107,6 +107,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.probe_view_box.channelSelected.connect(self.data_view_box.change_primary_channel)
 
+        self.run_box.updateContext.connect(self.update_context)
+
     def change_channel(self, shift):
         if self.context is not None:
             self.data_view_box.shift_primary_channel(shift)
@@ -152,6 +154,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.setup_context()
         self.update_probe_view()
         self.update_data_view()
+        self.update_run_box()
 
     def load_raw_data(self):
         # TODO: account for these temporary hardcoded params
@@ -178,8 +181,17 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context = find_good_channels(self.context)
 
+    @QtCore.pyqtSlot(object)
+    def update_context(self, context):
+        self.context = context
+
     def update_probe_view(self):
         self.probe_view_box.set_layout(self.context)
+
+    def update_run_box(self):
+        self.run_box.set_data_path(self.data_path)
+        self.run_box.set_working_directory(self.working_directory)
+        self.run_box.set_results_directory(self.results_directory)
 
     def get_context(self):
         return self.context
