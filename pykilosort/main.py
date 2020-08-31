@@ -3,15 +3,16 @@ import shutil
 from pathlib import Path
 from phylib.io.traces import get_ephys_reader
 
-from pprint import pprint
 import numpy as np
+from pprint import pprint
+from pydantic import BaseModel
 
 from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch
 from .cluster import clusterSingleBatches
 from .learn import learnAndSolve8b
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
 from .utils import Bunch, Context, memmap_large_array, load_probe
-from .default_params import default_params, set_dependent_params
+from .params import KilosortParams
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +62,8 @@ def run(
     assert probe
 
     # Get params.
-    user_params = params or {}
-    params = default_params.copy()
-    set_dependent_params(params)
-    params.update(user_params)
+    if not isinstance(params, BaseModel):
+        params = KilosortParams(**params or {})
     assert params
 
     # dir path
