@@ -45,7 +45,8 @@ class KilosortParams(BaseModel):
     # options for determining PCs
     spkTh: float = Field(-6, description="spike threshold in standard deviations")
     reorder: int = Field(1, description="whether to reorder batches for drift correction.")
-    nskip: int = Field(25, description="how many batches to skip for determining spike PCs")
+    nskip: int = Field(5, description="how many batches to skip for determining spike PCs")
+    nSkipCov: int = Field(25, description="compute whitening matrix from every nth batch")
 
     # GPU = 1  # has to be 1, no CPU version yet, sorry
     # Nfilt = 1024 # max number of clusters
