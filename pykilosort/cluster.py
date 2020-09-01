@@ -12,6 +12,34 @@ from .utils import Bunch, get_cuda
 logger = logging.getLogger(__name__)
 
 
+def getClosestChannels2(ycup, xcup, yc, xc, NchanClosest):
+    # this function outputs the closest channels to each channel,
+    # as well as a Gaussian-decaying mask as a function of pairwise distances
+    # sigma is the standard deviation of this Gaussian-mask
+
+    # compute distances between all pairs of channels
+    xc = cp.asarray(probe.xc, dtype=np.float32, order='F')
+    yc = cp.asarray(probe.yc, dtype=np.float32, order='F')
+    xcup = cp.asarray(xcup, dtype=np.float32, order='F')
+    ycup = cp.asarray(ycup, dtype=np.float32, order='F')
+    C2C = (xc[:] - xcup[:].T)^2 + (yc[:] - ycup[:].T).^2
+    C2C = cp.sqrt(C2C)
+    Nchan, NchanUp C2C.shape
+
+    # sort distances
+    isort = cp.argsort(C2C, axis=0)
+
+    # take NchanCLosest neighbors for each primary channel
+    iC = isort[:NchanClosest, :]
+
+    # in some cases we want a mask that decays as a function of distance between pairs of channels
+    # this is an awkward indexing to get the corresponding distances
+    ix = iC + cp.arange(0, Nchan * NchanUp, Nchan)
+    dist = C2C[ix]
+    
+    return iC, dist
+
+
 def getClosestChannels(probe, sigma, NchanClosest):
     # this function outputs the closest channels to each channel,
     # as well as a Gaussian-decaying mask as a function of pairwise distances
