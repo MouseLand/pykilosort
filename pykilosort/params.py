@@ -1,15 +1,36 @@
 import typing as t
 from math import ceil
 
-from pydantic import BaseModel, Field
+import numpy as np
+from pydantic import BaseModel, Field, validator
 
 from .utils import Bunch
 # TODO: design - Let's move all of this to a yaml file with sections so that its easier to read.
 #              - We can then just parse the yaml file to generate this.
 
 
+class Probe(BaseModel):
+    NchanTOT: int
+    Nchan: t.Optional[int] = Field(None, description="Nchan < NchanTOT if some channels should not be used.")
+
+    chanMap: np.ndarray # TODO: add constraints
+    kcoords: np.ndarray # TODO: add constraints
+    xc: np.ndarray
+    yc: np.ndarray
+
+    @validator('yc')
+    def coords_same_length(cls, v, values):
+        assert len(values['xc']) == len(v)
+        return v
+
+    class Config:
+        arbitrary_types_allowed=True
+
+
 class KilosortParams(BaseModel):
     fs: float = Field(30000., description="sample rate")
+
+    probe: Probe = Field(..., description="recording probe metadata")
 
     fshigh: float = Field(150., description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")

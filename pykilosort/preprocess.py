@@ -162,7 +162,7 @@ def whiteningLocal(CC, yc, xc, nRange):
         # take the closest channels to the primary channel.
         # First channel in this list will always be the primary channel.
         ilocal = ilocal[:nRange]
-
+        
         wrot0 = cp.asnumpy(whiteningFromCovariance(CC[np.ix_(ilocal, ilocal)]))
         # the first column of wrot0 is the whitening filter for the primary channel
         Wrot[ilocal, j] = wrot0[:, 0]
