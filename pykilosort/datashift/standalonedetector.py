@@ -1,20 +1,21 @@
 import cupy as cu
 import numpy as np
 
-from pykilosort.cluster import getClosestChannels2
+from pykilosort import cluster
 from pykilosort.learn import extractTemplatesfromSnippets
+
 
 # TODO: lets just make the data object "batch iterable" everywhere in the codebase
 def get_batch(params, ibatch, Nbatch) -> cu.ndarray:
     batchstart = np.arange(0, params.NT * Nbatch + 1, params.NT).astype(np.int64)
 
-    offset = Nchan * batchstart[ibatch]
-    dat = proc.flat[offset : offset + params.NT * params.Nchan].reshape(
-        (-1, params.Nchan), order="F"
+    offset = params.probe.Nchan * batchstart[ibatch]
+    dat = proc.flat[offset : offset + params.NT * params.probe.Nchan].reshape(
+        (-1, params.probe.Nchan), order="F"
     )
 
     # move data to GPU and scale it back to unit variance
-    dataRAW = cp.asarray(dat, dtype=np.float32) / params.scaleproc
+    dataRAW = cu.asarray(dat, dtype=np.float32) / params.scaleproc
     return dataRAW
 
 
@@ -44,32 +45,32 @@ def standalone_detector(yup, xup, Nbatch, proc, probe, params):
     # Get nearest channels for every template center.
     # Template products will only be computed on these channels.
     NchanNear = 10
-    iC, dist = getClosestChannels2(ycup, xcup, rez.yc, rez.xc, NchanNear)
+    iC, dist = cluster.getClosestChannels2(ycup, xcup, probe.yc, probe.xc, NchanNear)
 
     # Templates with centers that are far from an active site are discarded
     dNearActiveSite = 30
-    igood = dist[1, :] < dNearActiveSite
+    igood = dist[0, :] < dNearActiveSite
     iC = iC[:, igood]
     dist = dist[:, igood]
-    ycup = ycup[igood]
-    xcup = xcup[igood]
+    ycup = cu.array(ycup).ravel()[igood]
+    xcup = cu.array(xcup).ravel()[igood]
 
     # number of nearby templates to compare for local template maximum
     NchanNearUp = 10 * NchanNear
-    iC2, dist2 = getClosestChannels2(ycup, xcup, ycup, xcup, NchanNearUp)
+    iC2, dist2 = cluster.getClosestChannels2(ycup, xcup, ycup, xcup, NchanNearUp)
 
     # pregenerate the Gaussian weights used for spatial components
     nsizes = 5
-    v2 = cu.zeros(5, size(dist, 2), np.dtype("f"))
-    for k in range(nsizes):
-        v2[k, :] = np.sum(exp(-2 * dist ^ 2 / (sig * k) ^ 2), 1)
-    end
+    v2 = cu.zeros((5, dist.shape[1]), dtype=np.float32)
+    for k in range(0, nsizes):
+        v2[k, :] = np.sum(np.exp(-2 * dist ** 2 / (sig * k+1) ** 2), 0)
 
     # build up Params
+    import ipdb; ipdb.set_trace()
     NchanUp = iC.shape[1]
     Params = (
         params.NT,
-        params.Nchan,
+        params.probe.Nchan,
         params.nt0,
         NchanNear,
         NrankPC,
@@ -81,7 +82,7 @@ def standalone_detector(yup, xup, Nbatch, proc, probe, params):
     )
 
     # preallocate the results
-    st3 = np.zeros(1000000, 5)
+    st3 = np.zeros((1000000, 5))
     t0 = 0
     nsp = 0  # counter for total number of spikes
 
@@ -126,3 +127,5 @@ def standalone_detector(yup, xup, Nbatch, proc, probe, params):
 
         if rem(k, 100) == 1 | k == ops.Nbatch:
             print(f"{toc} sec, {k} batches, {nsp} spikes")
+
+standalone_detector(yup, xup, Nbatch, ir.proc, params.probe, params)

@@ -100,20 +100,21 @@ from pykilosort.cluster import clusterSingleBatches
 from pykilosort.learn import learnAndSolve8b
 from pykilosort.postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
 from pykilosort.utils import Bunch, Context, memmap_large_array, load_probe
-from pykilosort.params import KilosortParams
+from pykilosort.params import KilosortParams, Probe
 # -
 
-probe = pykilosort.Bunch()
-probe.NchanTOT = int(opts['NchanTOT'])
-probe.chanMap = np.load(f'{rootZ}/channel_map.npy').flatten().astype(int)
-probe.kcoords = np.ones(int(opts['NchanTOT']))
-probe.xc = np.load(rootZ+'/channel_positions.npy')[:,0]
-probe.yc = np.load(rootZ+'/channel_positions.npy')[:,1]
+
+probe = params.Probe( 
+    NchanTOT = int(opts['NchanTOT']),
+    chanMap = np.load(f'{rootZ}/channel_map.npy').flatten().astype(int),
+    kcoords = np.ones(int(opts['NchanTOT'])),
+    xc = np.load(rootZ+'/channel_positions.npy')[:,0],
+    yc = np.load(rootZ+'/channel_positions.npy')[:,1]
+)
 
 dat_path = opts['fbinary']
 dir_path = Path(rootZ)
 output_dir = Path(rootZ+'/py')
-probe = probe
 dtype = np.int16
 n_channels = int(opts['NchanTOT'])
 sample_rate = opts['fs']
@@ -123,8 +124,8 @@ clear_context = False #Operations.pykilosort_sorting in FORCE_RUN
 ### Setup
 
 # +
-params = pykilosort.params.KilosortParams(**opts)
-raw_data = get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=n_channels)
+params = pykilosort.params.KilosortParams(**opts, probe=probe)
+raw_data = get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=params.probe.NchanTOT)
 dir_path = dir_path or Path(dat_path).parent
 n_samples, n_channels = raw_data.shape
 logger.info("Loaded raw data with %d channels, %d samples.", n_channels, n_samples)
@@ -136,26 +137,24 @@ if clear_context:
     shutil.rmtree(ctx_path, ignore_errors=True)
 ctx = Context(ctx_path)
 ctx.params = params
-ctx.probe = probe
+ctx.probe = params.probe
 ctx.raw_data = raw_data    
 ctx.load()
 ir = ctx.intermediate
-ir.Nbatch = get_Nbatch(raw_data, params)
-probe.Nchan = probe.NchanTOT
-params.Nfilt = params.nfilt_factor * probe.Nchan
+ir.Nbatch = Nbatch = get_Nbatch(raw_data, params)
+params.probe.Nchan = params.probe.NchanTOT
+params.Nfilt = params.nfilt_factor * params.probe.Nchan
 
 # +
 ### Preprocess
 # -
-
-from pykilosort.preprocess import get_whitening_matrix
 
 from importlib import reload
 reload(pykilosort.preprocess)
 from pykilosort.preprocess import get_whitening_matrix
 
 ir.Wrot = pykilosort.preprocess.get_whitening_matrix(
-    raw_data=raw_data, probe=probe, params=params
+    raw_data=raw_data, probe=params.probe, params=params
 )
 ctx.write(Wrot=ir.Wrot)
 
@@ -165,15 +164,10 @@ preprocess(ctx)
 ir.proc_path
 ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
 
-# +
-### Run datashift
-# -
-
 import math
 
 # +
-ir.xc, ir.yc = probe.xc, probe.yc
-ir.ops = Bunch()
+ir.xc, ir.yc = params.probe.xc, params.probe.yc
 
 # The min and max of the y and x ranges of the channels
 ymin = min(ir.yc)
@@ -185,41 +179,18 @@ xmax = max(ir.xc)
 # Usually all the vertical spacings are the same, i.e. on Neuropixels probes. 
 dmin = np.median(np.diff(np.unique(ir.yc)))
 print(f"pitch is {dmin} um\n")
-ir.ops.yup = np.arange(start=ymin, step=dmin/2, stop=ymax) # centers of the upsampled y positions
+yup = np.arange(start=ymin, step=dmin/2, stop=ymax+(dmin/2)) # centers of the upsampled y positions
 
 # Determine the template spacings along the x dimension
 x_range = xmax - xmin
 npt = math.floor(x_range/16) # this would come out as 16um for Neuropixels probes, which aligns with the geometry. 
-ir.ops.xup = np.linspace(xmin, xmax, npt+1) # centers of the upsampled x positions
-
-spkTh = 10 # same as the usual "template amplitude", but for the generic templates
-
-# +
-ir.xc, ir.yc = probe.xc, probe.yc
-ir.ops = Bunch()
-
-# The min and max of the y and x ranges of the channels
-ymin = min(ir.yc)
-ymax = max(ir.yc)
-xmin = min(ir.xc)
-xmax = max(ir.xc)
-
-# Determine the average vertical spacing between channels. 
-# Usually all the vertical spacings are the same, i.e. on Neuropixels probes. 
-dmin = np.median(np.diff(np.unique(ir.yc)))
-print(f"pitch is {dmin} um\n")
-ir.ops.yup = np.arange(start=ymin, step=dmin/2, stop=ymax) # centers of the upsampled y positions
-
-# Determine the template spacings along the x dimension
-x_range = xmax - xmin
-npt = math.floor(x_range/16) # this would come out as 16um for Neuropixels probes, which aligns with the geometry. 
-ir.ops.xup = np.linspace(xmin, xmax, npt+1) # centers of the upsampled x positions
+xup = np.linspace(xmin, xmax, npt+1) # centers of the upsampled x positions
 
 spkTh = 10 # same as the usual "template amplitude", but for the generic templates
 
 # Extract all the spikes across the recording that are captured by the
 # generic templates. Very few real spikes are missed in this way. 
-st3 = standalone_detector(ir, spkTh)
+st3 = standalone_detector(yup, xup, Nbatch, ir.proc, params.probe, params)
 
 # binning width across Y (um)
 dd = 5
