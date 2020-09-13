@@ -36,6 +36,9 @@ class KilosortParams(BaseModel):
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
     minfr_goodchannels: float = Field(0.1, description="minimum firing rate on a 'good' channel (0 to skip)")
 
+    genericSpkTh: float = Field(10.0, description="threshold for crossings with generic templates")
+    nblocks: int = Field(1, description="number of blocks used to segment the probe when tracking drift, 0 == don't track, 1 == rigid, > 1 == non-rigid")
+
     Th: t.List[float] = Field([10, 4], description="""
         threshold on projections (like in Kilosort1, can be different for last pass like [10 4])
     """)
@@ -98,7 +101,7 @@ class KilosortParams(BaseModel):
     # Computed properties
     @property
     def NT(self) -> int:
-        return 64 * 1024 + self.ntbuff
+        return 64 * 512 + self.ntbuff
 
     @property
     def NTbuff(self) -> int:

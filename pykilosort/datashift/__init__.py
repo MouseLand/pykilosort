@@ -1,0 +1,1 @@
+from .standalonedetector import standalone_detector
