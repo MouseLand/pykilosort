@@ -16,7 +16,6 @@ def getClosestChannels2(ycup, xcup, yc, xc, NchanClosest):
     # this function outputs the closest channels to each channel,
     # as well as a Gaussian-decaying mask as a function of pairwise distances
     # sigma is the standard deviation of this Gaussian-mask
-
     # compute distances between all pairs of channels
     xc = cp.asarray(xc, dtype=np.float32, order='F')
     yc = cp.asarray(yc, dtype=np.float32, order='F')
@@ -35,7 +34,7 @@ def getClosestChannels2(ycup, xcup, yc, xc, NchanClosest):
     # in some cases we want a mask that decays as a function of distance between pairs of channels
     # this is an awkward indexing to get the corresponding distances
     ix = iC + cp.arange(0, Nchan * NchanUp, Nchan)
-    dist = C2C.ravel()[ix]
+    dist = C2C.T.ravel()[ix]
     
     return iC, dist
 

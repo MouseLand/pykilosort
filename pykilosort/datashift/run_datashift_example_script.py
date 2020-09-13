@@ -1,23 +1,25 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: ipynb,py:light
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.5.2
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
-# ---
-
-# +
 import enum
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+import logging
+import shutil
+from pathlib import Path
+from phylib.io.traces import get_ephys_reader
+
+import numpy as np
+from pprint import pprint
+from pydantic import BaseModel
+
+import pykilosort
+from pykilosort import params
+from pykilosort.preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch
+from pykilosort.cluster import clusterSingleBatches
+from pykilosort.learn import learnAndSolve8b, extractTemplatesfromSnippets
+from pykilosort.postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
+from pykilosort.utils import Bunch, Context, memmap_large_array, load_probe
+from pykilosort.params import KilosortParams, Probe
 
 import logging
 logger = logging.getLogger()
@@ -27,7 +29,6 @@ logger.setLevel(logging.INFO)
 
 PYKILOSORT_DIR = os.environ.get('PYKILOSORT_DIR', None)
 if PYKILOSORT_DIR is None:
-    import pykilosort
     PYKILOSORT_DIR = os.path.dirname(os.path.dirname(pykilosort.__file__))
 KILOSORT2_DIR = os.environ.get('KILOSORT2_DIR', f'{PYKILOSORT_DIR}/../Kilosort2')
 
@@ -40,40 +41,7 @@ chanMapFile = 'NP2_kilosortChanMap.mat';
 
 opts = {
     'chanMap': f'{rootZ}/{chanMapFile}',
-    'fs': 30000.,
-    'fshigh': 150.,
-    'minfr_goodchannels': 0.1000,
-    'Th': [6.0, 2.0],
-    'lam': 10.,
-    'AUCsplit': 0.9000,
-    'minFR': 0.0200,
-    'momentum': [20., 400],
-    'sigmaMask': 30.,
-    'ThPre': 8.,
-    'reorder': 1,
-    'nskip': 25.,
-    'spkTh': -6.,
-    'GPU': 1,
-    'nfilt_factor': 4.,
-    'ntbuff': 64.0,
-    'NT': 65600.,
-    'whiteningRange': 32.,
-    'nSkipCov': 25.0,
-    'scaleproc': 200.,
-    'nPCs': 3.,
-    'useRAM': 0,
-    'sorting': 2,
-    #'NchanTOT': float(simulation_opts['NchanTOT']),
-    'trange': [0., float('inf')],
-    'fproc': '/tmp/temp_wh.dat',
-    'rootZ': rootZ,
-    'fbinary': f'{rootZ}/data_cropped.bin',
-    'fig': False
-}
-
-opts= {
-    'chanMap': f'{rootZ}/{chanMapFile}',
-    'trange': [0., float('inf')],
+    'trange': [0., 20000.0 * 60], #float('inf')],
     'NchanTOT': float(384),
     'minfr_goodchannels': 0.,
     'sig': 20,
@@ -83,26 +51,8 @@ opts= {
     'datashift': 1,
     'fbinary': f'{rootZ}/data_cropped.bin',
     'fs': 30000.,
+    'nPCs': 6.,
 }
-
-# +
-import logging
-import shutil
-from pathlib import Path
-from phylib.io.traces import get_ephys_reader
-
-import numpy as np
-from pprint import pprint
-from pydantic import BaseModel
-
-from pykilosort.preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch
-from pykilosort.cluster import clusterSingleBatches
-from pykilosort.learn import learnAndSolve8b
-from pykilosort.postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
-from pykilosort.utils import Bunch, Context, memmap_large_array, load_probe
-from pykilosort.params import KilosortParams, Probe
-# -
-
 
 probe = params.Probe( 
     NchanTOT = int(opts['NchanTOT']),
@@ -120,17 +70,15 @@ n_channels = int(opts['NchanTOT'])
 sample_rate = opts['fs']
 clear_context = False #Operations.pykilosort_sorting in FORCE_RUN
 
-# +
 ### Setup
+params = pykilosort.params.KilosortParams(**opts, probe=probe, genericSpkTh=10.)
+raw_data = get_ephys_reader(get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=params.probe.NchanTOT)[:20000*60,:], sample_rate=sample_rate)
 
-# +
-params = pykilosort.params.KilosortParams(**opts, probe=probe)
-raw_data = get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=params.probe.NchanTOT)
 dir_path = dir_path or Path(dat_path).parent
 n_samples, n_channels = raw_data.shape
 logger.info("Loaded raw data with %d channels, %d samples.", n_channels, n_samples)
 
-# Create the context.
+### Create the context.
 ctx_path = dir_path / ".kilosort" / raw_data.name
 if clear_context:
     logger.info(f"Clearing context at {ctx_path} ...")
@@ -144,6 +92,7 @@ ir = ctx.intermediate
 ir.Nbatch = Nbatch = get_Nbatch(raw_data, params)
 params.probe.Nchan = params.probe.NchanTOT
 params.Nfilt = params.nfilt_factor * params.probe.Nchan
+NrankPC = params.nPCs
 
 # +
 ### Preprocess
@@ -153,16 +102,17 @@ from importlib import reload
 reload(pykilosort.preprocess)
 from pykilosort.preprocess import get_whitening_matrix
 
-ir.Wrot = pykilosort.preprocess.get_whitening_matrix(
-    raw_data=raw_data, probe=params.probe, params=params
-)
-ctx.write(Wrot=ir.Wrot)
+if not 'proc' in ir:
+    ir.Wrot = pykilosort.preprocess.get_whitening_matrix(
+        raw_data=raw_data, probe=params.probe, params=params
+    )
+    ctx.write(Wrot=ir.Wrot)
 
-ir.proc_path = ctx.path("proc", ".dat")
-preprocess(ctx)
+    ir.proc_path = ctx.path("proc", ".dat")
+    preprocess(ctx)
 
-ir.proc_path
-ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
+    ir.proc_path
+    ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
 
 import math
 
@@ -186,51 +136,57 @@ x_range = xmax - xmin
 npt = math.floor(x_range/16) # this would come out as 16um for Neuropixels probes, which aligns with the geometry. 
 xup = np.linspace(xmin, xmax, npt+1) # centers of the upsampled x positions
 
-spkTh = 10 # same as the usual "template amplitude", but for the generic templates
+
+# determine prototypical timecourses by clustering of simple threshold crossings.
+wTEMP, wPCA = extractTemplatesfromSnippets(
+    proc=ir.proc, probe=params.probe, params=params, Nbatch=Nbatch
+)
 
 # Extract all the spikes across the recording that are captured by the
 # generic templates. Very few real spikes are missed in this way. 
-st3 = standalone_detector(yup, xup, Nbatch, ir.proc, params.probe, params)
+from pykilosort import datashift
+reload(datashift)
+st3 = datashift.standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, ir.proc, params.probe, params)
 
 # binning width across Y (um)
 dd = 5
 
 # detected depths
-dep = st3[:,2]
+dep = st3[:,1]
 
 # min and max for the range of depths
-dmin = ymin - 1
+dmin = ymin 
 dep = dep - dmin
 
-dmax  = 1 + ceil(max(dep)/dd)
-Nbatches      = ir.temp.Nbatch
+dmax  = int(1 + np.ceil(max(dep)/dd))
+Nbatches = Nbatch
 
 # which batch each spike is coming from
-batch_id = st3[:,5] #ceil[st3[:,1]/dt]
+batch_id = st3[:,4] #ceil[st3[:,1]/dt]
 
 # preallocate matrix of counts with 20 bins, spaced logarithmically
-F = zeros(dmax, 20, Nbatches)
-for t = 1:Nbatches
+F = np.zeros((dmax, 20, Nbatches))
+for t in range(Nbatches):
     # find spikes in this batch
-    ix = np.where(batch_id==t)
+    ix = np.where(batch_id==t)[0]
     
     # subtract offset
-    dep = st3(ix,2) - dmin
+    dep = st3[ix,1] - dmin
     
     # amplitude bin relative to the minimum possible value
-    amp = log10(min(99, st3(ix,3))) - log10(spkTh)
-    
+    amp = np.log10(np.clip(st3[ix,2],None,99)) - np.log10(params.genericSpkTh)
     # normalization by maximum possible value
-    amp = amp / (log10(100) - log10(spkTh))
+    amp = amp / (np.log10(100) - np.log10(params.genericSpkTh))
     
     # multiply by 20 to distribute a [0,1] variable into 20 bins
     # sparse is very useful here to do this binning quickly
-    M = sparse(ceil(dep/dd), ceil(1e-5 + amp * 20), ones(numel(ix), 1), dmax, 20)    
-    
+    i,j,v,m,n = (np.ceil(dep/dd).astype('int'), np.ceil(1e-5 + amp * 20).astype('int'), np.ones((len(ix), 1)), dmax, 20)
+    M = np.zeros((m,n))
+    M[i-1,j-1] += 1 
+
     # the counts themselves are taken on a logarithmic scale (some neurons
     # fire too much!)
-    F[:, :, t] = log2(1+M)
-end
+    F[:, :, t] = np.log2(1+M)
 
 ##
 # the 'midpoint' branch is for chronic recordings that have been
@@ -247,9 +203,10 @@ end
 #    imin = imin - mean(imin)
 #    ops.datashift = 1
 #else
-#    # determine registration offsets 
-#    ysamp = dmin + dd * [1:dmax] - dd/2
-#    [imin,yblk, F0] = align_block2(F, ysamp, ops.nblocks)
+# determine registration offsets 
+from pykilosort.datashift.align_block import align_block2
+ysamp = dmin + dd * np.arange(1,dmax) - dd/2
+imin,yblk, F0 = align_block2(F, ysamp, params.nblocks)
 #end
 
 ##
@@ -257,16 +214,16 @@ if opts.get('fig', True):
     ax = plt.subplot()
     # plot the shift trace in um
     ax.plot(imin * dd)
-    
     ax = plt.subplot()
     # raster plot of all spikes at their original depths
-    st_shift = st3(:,2) #+ imin(batch_id)' * dd
-    for j = spkTh:100
+    st_shift = st3[:,2] #+ imin(batch_id)' * dd
+    for j in range(params.genericSpkTh, 100):
         # for each amplitude bin, plot all the spikes of that size in the
         # same shade of gray
-        ix = st3(:, 3)==j # the amplitudes are rounded to integers
-        ax.plot(st3(ix, 1), st_shift(ix), '.', 'color', [1 1 1] * max(0, 1-j/40)) # the marker color here has been carefully tuned
+        ix = st3[:, 3]==j # the amplitudes are rounded to integers
+        ax.plot(st3[ix, 1], st_shift[ix], '.', 'color', [1, 1, 1] * max(0, 1-j/40)) # the marker color here has been carefully tuned
     plt.tight_layout()
+    plt.show()
 
 # if we're creating a registered binary file for visualization in Phy
 if opts.get('fbinaryproc', False):
@@ -285,7 +242,7 @@ sig = ir.ops.sig
 for ibatch in range(Nbatches):
     shift_batch_on_disk2(ir, ibatch, dshift[ibatch, :], yblk, sig)
 end
-fprintf('time #2.2f, Shifted up/down #d batches. \n', toc, Nbatches)
+print(f'Shifted up/down {Nbatches} batches')
 
 # keep track of dshift 
 ir.dshift = dshift
