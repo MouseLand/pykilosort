@@ -22,7 +22,6 @@ WORKDIR /root/pykilosort
 COPY pyks2.yml ./
 COPY test_requirements.txt ./
 
-
 # Be great to do better at caching this.
 RUN eval "$(/root/miniconda/bin/conda shell.bash hook)" && conda init && \
     conda env create -f pyks2.yml && \

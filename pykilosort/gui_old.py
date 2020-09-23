@@ -17,7 +17,7 @@ from phy.gui import create_app, run_app, GUI, IPythonView, KeyValueWidget
 from phy.gui.qt import QSlider, Qt, QLabel, QScrollArea, QVBoxLayout, QWidget
 from phy.gui import Actions
 
-from .default_params import default_params
+from .params import KilosortParams
 from .main import run
 
 logger = logging.getLogger(__name__)
@@ -168,7 +168,7 @@ class KilosortGUICreator(object):
     def create_params_widget(self, gui):
         """Create the widget that allows to enter parameters for KS2."""
         widget = KeyValueWidget(gui)
-        for name, default in default_params.items():
+        for name, default in KilosortParams().dict().items():
             # HACK: None default params in KS2 are floats
             vtype = 'float' if default is None else None
             widget.add_pair(name, default, vtype=vtype)
