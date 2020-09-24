@@ -4,7 +4,7 @@ from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe
-from pykilosort.default_params import default_params
+from pykilosort.params import KilosortParams
 from pykilosort.gui.minor_gui_elements import ProbeBuilder
 
 
@@ -75,6 +75,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.setup()
 
         # set default parameters to trigger an update on settings
+        default_params = KilosortParams()
+
         self.num_channels_input.setText(str(1))
         self.time_range_min_input.setText(str(0))
         self.time_range_max_input.setText("inf")

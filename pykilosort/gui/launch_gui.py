@@ -7,7 +7,7 @@ from pathlib import Path
 from phylib.io.traces import get_ephys_reader
 from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox
 from pykilosort.gui import DarkPalette, find_good_channels
-from pykilosort.default_params import default_params, set_dependent_params
+from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
 from pykilosort.gui import probes
 from PyQt5 import QtGui, QtWidgets, QtCore
@@ -142,9 +142,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.time_range = settings.pop('time_range')
         self.num_channels = settings.pop('num_channels')
 
-        params = default_params.copy()
-        set_dependent_params(params)
-        params.update(settings)
+        params = KilosortParams()
+        params = params.parse_obj(settings)
 
         assert params
 
@@ -179,7 +178,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context.load()
 
-        self.context = find_good_channels(self.context)
+        self.context = find_good_channels(self.context, force=True)
 
     @QtCore.pyqtSlot(object)
     def update_context(self, context):

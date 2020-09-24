@@ -276,7 +276,12 @@ def ccg(st1, st2, nbins, tbin):
     #                      - vary for different setups.
     st1 = cp.asnumpy(st1)
     st2 = cp.asnumpy(st2)
-    return _ccg(st1, st2, nbins, tbin)
+    try:
+        return _ccg(st1, st2, nbins, tbin)
+    except ValueError:
+        print(st1.shape)
+        print(st2.shape)
+        return 0
 
 
 def clusterAverage(clu, spikeQuantity):
@@ -1131,4 +1136,4 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
                 f.write('offset = 0\n')
                 f.write('hp_filtered = False\n')
                 f.write('sample_rate = %i\n' % params.fs)
-                f.write('template_scaling = %.1f\n' % params.get('templateScaling', 1.0))
+                f.write('template_scaling = %.1f\n' % params.templateScaling)

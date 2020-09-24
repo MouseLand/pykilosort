@@ -95,6 +95,9 @@ class RunBox(QtWidgets.QGroupBox):
 
     @QtCore.pyqtSlot()
     def preprocess(self):
+        self.preprocess_done = False
+        self.spikesort_done = False
+        self.reenable_buttons()
         if self.get_current_context() is not None:
             self.run_steps("preprocess")
 
@@ -112,6 +115,10 @@ class RunBox(QtWidgets.QGroupBox):
     def run_all(self):
         if self.get_current_context() is not None:
             self.run_steps(["preprocess", "spikesort", "export"])
+
+        self.preprocess_done = False
+        self.spikesort_done = False
+        self.reenable_buttons()
 
     def run_steps(self, steps):
         worker = KiloSortWorker(self.get_current_context(), self.data_path, self.results_directory, steps)
