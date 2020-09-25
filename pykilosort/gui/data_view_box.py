@@ -16,7 +16,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.controls_button = QtWidgets.QPushButton("Controls")
 
-        self.data_view_widget = pg.PlotWidget(useOpenGL=True)
+        self.data_view_widget = KSPlotWidget(useOpenGL=True)
         self.data_x_axis = self.data_view_widget.getAxis("bottom")
         self.plot_item = self.data_view_widget.getPlotItem()
         self.colormap_image = None
@@ -55,110 +55,110 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.seek_range = (0, 100)
 
         # colormap settings
-        colors = np.array([[103,     0,    31],
-                           [112,     0,    31],
-                           [121,     1,    32],
-                           [130,     3,    33],
-                           [138,     5,    34],
-                           [146,     8,    35],
-                           [154,    10,    36],
-                           [161,    14,    38],
-                           [167,    17,    40],
-                           [173,    20,    41],
-                           [178,    24,    43],
-                           [183,    28,    45],
-                           [187,    34,    47],
-                           [191,    40,    50],
-                           [195,    48,    54],
-                           [198,    56,    57],
-                           [201,    64,    61],
-                           [204,    72,    65],
-                           [208,    81,    69],
-                           [211,    89,    73],
-                           [214,    96,    77],
-                           [217,   103,    81],
-                           [221,   110,    86],
-                           [224,   117,    91],
-                           [228,   125,    96],
-                           [231,   132,   101],
-                           [235,   139,   107],
-                           [238,   146,   112],
-                           [240,   152,   118],
-                           [242,   159,   124],
-                           [244,   165,   130],
-                           [245,   171,   136],
-                           [247,   177,   143],
-                           [248,   183,   150],
-                           [249,   189,   157],
-                           [250,   194,   164],
-                           [251,   200,   172],
-                           [251,   205,   179],
-                           [252,   210,   186],
-                           [253,   215,   193],
-                           [253,   219,   199],
-                           [253,   224,   206],
-                           [254,   228,   213],
-                           [254,   233,   220],
-                           [254,   238,   228],
-                           [254,   242,   235],
-                           [255,   246,   241],
-                           [255,   250,   247],
-                           [255,   253,   251],
-                           [255,   254,   254],
-                           [255,   255,   255],
-                           [254,   254,   254],
-                           [252,   252,   252],
-                           [249,   249,   249],
-                           [246,   246,   246],
-                           [241,   241,   241],
-                           [237,   237,   237],
-                           [232,   232,   232],
-                           [228,   228,   228],
-                           [224,   224,   224],
-                           [220,   220,   220],
-                           [217,   217,   217],
-                           [213,   213,   213],
-                           [210,   210,   210],
-                           [206,   206,   206],
-                           [202,   202,   202],
-                           [198,   198,   198],
-                           [194,   194,   194],
-                           [190,   190,   190],
-                           [186,   186,   186],
-                           [182,   182,   182],
-                           [177,   177,   177],
-                           [172,   172,   172],
-                           [167,   167,   167],
-                           [162,   162,   162],
-                           [157,   157,   157],
-                           [151,   151,   151],
-                           [146,   146,   146],
-                           [140,   140,   140],
-                           [135,   135,   135],
-                           [129,   129,   129],
-                           [124,   124,   124],
-                           [118,   118,   118],
-                           [112,   112,   112],
-                           [106,   106,   106],
-                           [100,   100,   100],
-                           [94,    94,    94],
-                           [88,    88,    88],
-                           [83,    83,    83],
-                           [77,    77,    77],
-                           [72,    72,    72],
-                           [66,    66,    66],
-                           [61,    61,    61],
-                           [56,    56,    56],
-                           [51,    51,    51],
-                           [46,    46,    46],
-                           [41,    41,    41],
-                           [36,    36,    36],
-                           [31,    31,    31],
-                           [26,    26,    26]])
+        self._colors = np.array([[103, 0, 31],
+                                 [112, 0, 31],
+                                 [121, 1, 32],
+                                 [130, 3, 33],
+                                 [138, 5, 34],
+                                 [146, 8, 35],
+                                 [154, 10, 36],
+                                 [161, 14, 38],
+                                 [167, 17, 40],
+                                 [173, 20, 41],
+                                 [178, 24, 43],
+                                 [183, 28, 45],
+                                 [187, 34, 47],
+                                 [191, 40, 50],
+                                 [195, 48, 54],
+                                 [198, 56, 57],
+                                 [201, 64, 61],
+                                 [204, 72, 65],
+                                 [208, 81, 69],
+                                 [211, 89, 73],
+                                 [214, 96, 77],
+                                 [217, 103, 81],
+                                 [221, 110, 86],
+                                 [224, 117, 91],
+                                 [228, 125, 96],
+                                 [231, 132, 101],
+                                 [235, 139, 107],
+                                 [238, 146, 112],
+                                 [240, 152, 118],
+                                 [242, 159, 124],
+                                 [244, 165, 130],
+                                 [245, 171, 136],
+                                 [247, 177, 143],
+                                 [248, 183, 150],
+                                 [249, 189, 157],
+                                 [250, 194, 164],
+                                 [251, 200, 172],
+                                 [251, 205, 179],
+                                 [252, 210, 186],
+                                 [253, 215, 193],
+                                 [253, 219, 199],
+                                 [253, 224, 206],
+                                 [254, 228, 213],
+                                 [254, 233, 220],
+                                 [254, 238, 228],
+                                 [254, 242, 235],
+                                 [255, 246, 241],
+                                 [255, 250, 247],
+                                 [255, 253, 251],
+                                 [255, 254, 254],
+                                 [255, 255, 255],
+                                 [254, 254, 254],
+                                 [252, 252, 252],
+                                 [249, 249, 249],
+                                 [246, 246, 246],
+                                 [241, 241, 241],
+                                 [237, 237, 237],
+                                 [232, 232, 232],
+                                 [228, 228, 228],
+                                 [224, 224, 224],
+                                 [220, 220, 220],
+                                 [217, 217, 217],
+                                 [213, 213, 213],
+                                 [210, 210, 210],
+                                 [206, 206, 206],
+                                 [202, 202, 202],
+                                 [198, 198, 198],
+                                 [194, 194, 194],
+                                 [190, 190, 190],
+                                 [186, 186, 186],
+                                 [182, 182, 182],
+                                 [177, 177, 177],
+                                 [172, 172, 172],
+                                 [167, 167, 167],
+                                 [162, 162, 162],
+                                 [157, 157, 157],
+                                 [151, 151, 151],
+                                 [146, 146, 146],
+                                 [140, 140, 140],
+                                 [135, 135, 135],
+                                 [129, 129, 129],
+                                 [124, 124, 124],
+                                 [118, 118, 118],
+                                 [112, 112, 112],
+                                 [106, 106, 106],
+                                 [100, 100, 100],
+                                 [94, 94, 94],
+                                 [88, 88, 88],
+                                 [83, 83, 83],
+                                 [77, 77, 77],
+                                 [72, 72, 72],
+                                 [66, 66, 66],
+                                 [61, 61, 61],
+                                 [56, 56, 56],
+                                 [51, 51, 51],
+                                 [46, 46, 46],
+                                 [41, 41, 41],
+                                 [36, 36, 36],
+                                 [31, 31, 31],
+                                 [26, 26, 26]])
 
-        positions = np.linspace(0.0, 1.0, len(colors))
-        color_map = pg.ColorMap(pos=positions, color=colors)
-        self.lookup_table = color_map.getLookupTable(nPts=8192)
+        self.colormap_min = 0.0
+        self.colormap_max = 1.0
+        self.lookup_table = self.generate_lookup_table(self.colormap_min, self.colormap_max)
 
         self.setup()
 
@@ -183,9 +183,15 @@ class DataViewBox(QtWidgets.QGroupBox):
         # self.time_seek.sigPositionChangeFinished.connect(self.update_seek_position)
 
         self.data_view_widget.setMenuEnabled(False)
-        self.data_view_widget.setMouseEnabled(False, True)
+        self.data_view_widget.setMouseEnabled(True)
+        self.data_view_widget.mouseEnabled = True
         self.data_view_widget.hideAxis("left")
         self.data_view_widget.sceneObj.sigMouseClicked.connect(self.scene_clicked)
+
+        self.data_view_widget.signalChangeChannel.connect(self.on_wheel_scroll_plus_control)
+        self.data_view_widget.signalChangeTimeRange.connect(self.on_wheel_scroll_plus_shift)
+        self.data_view_widget.signalChangeScaling.connect(self.on_wheel_scroll_plus_alt)
+        self.data_view_widget.signalChangeTimePoint.connect(self.on_wheel_scroll)
 
         self.data_seek_widget.setMenuEnabled(False)
         self.data_seek_widget.setMouseEnabled(False, False)
@@ -275,6 +281,42 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.update_plot()
 
+    @QtCore.pyqtSlot(int)
+    def on_wheel_scroll(self, direction):
+        time_shift = direction * 0.1  # seconds
+        if self.gui.context is not None:
+            self.shift_current_time(time_shift)
+
+    @QtCore.pyqtSlot(int)
+    def on_wheel_scroll_plus_control(self, direction):
+        if self.gui.context is not None:
+            if self.traces_button.isChecked():
+                self.shift_primary_channel(direction)
+
+    @QtCore.pyqtSlot(int)
+    def on_wheel_scroll_plus_shift(self, direction):
+        if self.gui.context is not None:
+            plot_range = self.plot_range + 0.1 * direction  # half or double current plot range
+            if 0.0 < plot_range < 5.0:
+                self.change_plot_range(plot_range)
+
+    @QtCore.pyqtSlot(int)
+    def on_wheel_scroll_plus_alt(self, direction):
+        if self.gui.context is not None:
+            if self.traces_button.isChecked():
+                y_scale = 1.001 ** (120 * direction)  # mimics zooming behaviour of pyqtgraph
+                self.data_view_widget.scale(1, y_scale)
+
+            if self.colormap_button.isChecked():
+                colormap_min = self.colormap_min + (direction * 0.05)
+                colormap_max = self.colormap_max - (direction * 0.05)
+                if 0.0 <= colormap_min < colormap_max <= 1.0:
+                    self.colormap_min = colormap_min
+                    self.colormap_max = colormap_max
+                    self.lookup_table = self.generate_lookup_table(self.colormap_min, self.colormap_max)
+
+            self.update_plot()
+
     def toggle_view(self, toggled):
         if toggled:
             self.modeChanged.emit("traces")
@@ -311,6 +353,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         if seek_range_min <= new_time <= seek_range_max:
             self.time_seek.setPos(new_time)
 
+    def change_plot_range(self, new_plot_range):
+        self.plot_range = new_plot_range
+        self.update_plot()
+
     def scene_clicked(self, ev):
         if self.colormap_image is not None:
             x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
@@ -318,11 +364,11 @@ class DataViewBox(QtWidgets.QGroupBox):
             x_pos = ev.pos().x()
         range_min = self.data_range[0]
         range_max = self.data_range[1]
-        fraction = (x_pos - range_min)/range_max
+        fraction = (x_pos - range_min) / range_max
         if fraction > 0.5:
-            self.shift_current_time(time_shift=self.plot_range/2)
+            self.shift_current_time(time_shift=self.plot_range / 2)
         else:
-            self.shift_current_time(time_shift=-self.plot_range/2)
+            self.shift_current_time(time_shift=-self.plot_range / 2)
 
     def seek_clicked(self, ev):
         if self.gui.context is not None:
@@ -337,7 +383,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         sample_rate = raw_data.sample_rate
 
         timepoints = raw_data.shape[0]
-        max_time = timepoints/sample_rate
+        max_time = timepoints / sample_rate
 
         self.data_seek_widget.setXRange(min=0, max=max_time, padding=0.02)
         self.time_seek.setPos(0)
@@ -359,12 +405,18 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.residual_matrix = None
         self.prediction_matrix = None
 
+    def generate_lookup_table(self, colormap_min, colormap_max, num_points=8192):
+        assert colormap_min >= 0.0 and colormap_max <= 1.0
+        positions = np.linspace(colormap_min, colormap_max, len(self._colors))
+        color_map = pg.ColorMap(pos=positions, color=self._colors)
+        return color_map.getLookupTable(nPts=num_points)
+
     def add_curve_to_plot(self, trace, color, label):
         curve = pg.PlotCurveItem(parent=self.plot_item, clickable=True,
                                  pen=pg.mkPen(color=color, width=1))
 
         curve.label = label
-        curve.setData(trace + 200*label)
+        curve.setData(trace + 200 * label)
         self.plot_item.addItem(curve)
 
     def add_image_to_plot(self, raw_traces, level_min, level_max):
@@ -374,7 +426,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def update_plot(self, context=None):
+    def update_plot(self, context=None, recalculate_whitening=False):
         if context is None:
             context = self.gui.context
 
@@ -390,11 +442,11 @@ class DataViewBox(QtWidgets.QGroupBox):
                     data_mean = np.mean(raw_data[:])
                     data_std = np.std(raw_data[:])
                     intermediate.colormap_limits = (
-                        data_mean - 4*data_std,
-                        data_mean + 4*data_std
+                        data_mean - 4 * data_std,
+                        data_mean + 4 * data_std
                     )
 
-            if 'Wrot' not in intermediate:
+            if 'Wrot' not in intermediate or recalculate_whitening:
                 with context.time('whitening_matrix'):
                     intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
                 context.write(Wrot=intermediate.Wrot)
@@ -450,5 +502,44 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
             self.data_view_widget.setLimits(xMin=0, xMax=time_range, minXRange=0, maxXRange=time_range)
-            self.data_x_axis.setTicks([[(pos, f"{(start_time + pos)/sample_rate:.3f}")
+            self.data_x_axis.setTicks([[(pos, f"{(start_time + pos) / sample_rate:.3f}")
                                         for pos in np.linspace(0, time_range, 20)]])
+
+
+class KSPlotWidget(pg.PlotWidget):
+    signalChangeTimePoint = QtCore.pyqtSignal(int)
+    signalChangeChannel = QtCore.pyqtSignal(int)
+    signalChangeTimeRange = QtCore.pyqtSignal(int)
+    signalChangeScaling = QtCore.pyqtSignal(int)
+
+    def __init__(self, *args, **kwargs):
+        super(KSPlotWidget, self).__init__(*args, **kwargs)
+
+    def wheelEvent(self, ev):
+        # QtWidgets.QGraphicsView.wheelEvent(self, ev)
+        # if not self.mouseEnabled:
+        #     ev.ignore()
+        #     return
+
+        delta = ev.angleDelta().y()
+        direction = delta / np.abs(delta)
+        modifiers = QtWidgets.QApplication.keyboardModifiers()
+
+        if modifiers == QtCore.Qt.ControlModifier:
+            # control pressed while scrolling
+            self.signalChangeChannel.emit(direction)
+
+        elif modifiers == QtCore.Qt.AltModifier:
+            # alt pressed while scrolling
+            self.signalChangeScaling.emit(direction)
+
+        elif modifiers == QtCore.Qt.ShiftModifier:
+            # shift pressed while scrolling
+            self.signalChangeTimeRange.emit(direction)
+
+        else:
+            # other key / no key pressed while scrolling
+            self.signalChangeTimePoint.emit(direction)
+
+        ev.accept()
+        return
