@@ -9,7 +9,6 @@ from pykilosort.gui.minor_gui_elements import ProbeBuilder
 
 
 class SettingsBox(QtWidgets.QGroupBox):
-
     settingsUpdated = QtCore.pyqtSignal()
 
     def __init__(self, parent):
@@ -191,21 +190,21 @@ class SettingsBox(QtWidgets.QGroupBox):
     def on_select_data_file_clicked(self):
         data_file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
                                                                   caption="Choose data file to load...",
-                                                                  directory=os.getcwd())
+                                                                  directory=os.path.expanduser("~"))
         if data_file_name:
             self.data_file_path_input.setText(data_file_name)
 
     def on_select_working_dir_clicked(self):
         working_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose working directory...",
-                                                                         directory=QtCore.QUrl(os.getcwd()))
+                                                                         directory=QtCore.QUrl(os.path.expanduser("~")))
         if working_dir_name:
             self.working_directory_input.setText(working_dir_name.toLocalFile())
 
     def on_select_results_dir_clicked(self):
         results_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose results directory...",
-                                                                         directory=QtCore.QUrl(os.getcwd()))
+                                                                         directory=QtCore.QUrl(os.path.expanduser("~")))
         if results_dir_name:
             self.results_directory_input.setText(results_dir_name.toLocalFile())
 
@@ -293,7 +292,7 @@ class SettingsBox(QtWidgets.QGroupBox):
             probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
 
             if okay:
-                probe_path = Path(self.gui.probe_files_path).joinpath(probe_name + ".prb")
+                probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name + ".prb")
                 with open(probe_path, 'w+') as probe_file:
                     probe_dumps = json.dumps(probe_layout)
                     probe_file.write(probe_dumps)
@@ -306,6 +305,52 @@ class SettingsBox(QtWidgets.QGroupBox):
                 total_channels = self.probe_layout.NchanTOT
                 self.num_channels_input.setText(str(total_channels))
                 self.error_label.hide()
+            else:
+                self.probe_layout_selector.setCurrentIndex(0)
+
+        elif name == "other...":
+            probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
+                                                                  caption="Choose probe file...",
+                                                                  filter="Probe Files (*.mat *.prb)",
+                                                                  directory=os.path.expanduser("~")
+                                                                  )
+            if probe_path:
+                try:
+                    probe_path = Path(probe_path)
+                    assert probe_path.exists()
+
+                    probe_layout = load_probe(probe_path)
+
+                    save_probe_file = QtWidgets.QMessageBox.question(
+                        self, "Save probe layout?",
+                        "Would you like this probe layout to appear in the list of probe layouts next time?",
+                        QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes,
+                        QtWidgets.QMessageBox.Yes)
+
+                    if save_probe_file == QtWidgets.QMessageBox.Yes:
+                        probe_name = probe_path.name
+                        def_probe_path = Path(self.gui.probe_files_path) / probe_name
+                        new_probe_path = Path(self.gui.new_probe_files_path) / probe_name
+
+                        if not new_probe_path.exists() and not def_probe_path.exists():
+                            with open(new_probe_path, "r+") as new_probe_file:
+                                probe_dumps = json.dumps(probe_layout)
+                                new_probe_file.write(probe_dumps)
+
+                            self.populate_probe_selector()
+                            self.probe_layout_selector.setCurrentText(probe_name)
+
+                        else:
+                            self.error_label.setText("Probe with the same name already exists.")
+
+                    self.probe_layout = probe_layout
+
+                    total_channels = self.probe_layout.NchanTOT
+                    self.num_channels_input.setText(str(total_channels))
+                    self.error_label.hide()
+
+                except AssertionError:
+                    self.error_label.setText("Please select a valid probe file (accepted types: *.prb, *.mat)!")
             else:
                 self.probe_layout_selector.setCurrentIndex(0)
 
@@ -405,9 +450,13 @@ class SettingsBox(QtWidgets.QGroupBox):
     def populate_probe_selector(self):
         self.probe_layout_selector.clear()
 
-        probe_folder = self.gui.probe_files_path
-        probes = os.listdir(probe_folder)
-        probes = [probe for probe in probes if probe.endswith(".mat") or probe.endswith(".prb")]
+        probe_folders = [self.gui.probe_files_path, self.gui.new_probe_files_path]
 
-        self.probe_layout_selector.addItems([""] + probes + ["[new]", "other..."])
-        self._probes = probes
+        probes_list = []
+        for probe_folder in probe_folders:
+            probes = os.listdir(probe_folder)
+            probes = [probe for probe in probes if probe.endswith(".mat") or probe.endswith(".prb")]
+            probes_list.extend(probes)
+
+        self.probe_layout_selector.addItems([""] + probes_list + ["[new]", "other..."])
+        self._probes = probes_list

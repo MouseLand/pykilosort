@@ -29,6 +29,12 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.probe_files_path = Path(probes.__file__).parent
         assert self.probe_files_path.exists()
 
+        self.local_config_path = Path.home() / ".pykilosort"
+        self.local_config_path.mkdir(exist_ok=True)
+
+        self.new_probe_files_path = self.local_config_path / "probes"
+        self.new_probe_files_path.mkdir(exist_ok=True)
+
         self.time_range = None
         self.num_channels = None
 
