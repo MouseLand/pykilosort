@@ -140,6 +140,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def set_parameters(self):
         settings = self.settings_box.settings
+        advanced_options = self.settings_box.advanced_options
 
         self.data_path = settings.pop('data_file_path')
         self.working_directory = settings.pop('working_directory')
@@ -149,6 +150,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.num_channels = settings.pop('num_channels')
 
         params = KilosortParams()
+        params = params.parse_obj(advanced_options)
         params = params.parse_obj(settings)
 
         assert params

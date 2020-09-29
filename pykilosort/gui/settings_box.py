@@ -5,7 +5,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe
 from pykilosort.params import KilosortParams
-from pykilosort.gui.minor_gui_elements import ProbeBuilder
+from pykilosort.gui.minor_gui_elements import ProbeBuilder, AdvancedOptionsEditor
 
 
 class SettingsBox(QtWidgets.QGroupBox):
@@ -54,7 +54,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.error_label.setText("Invalid inputs!")
         self.error_label.setWordWrap(True)
 
-        self.advanced_options_button = QtWidgets.QPushButton("Advanced Options")
+        self.advanced_options_button = QtWidgets.QPushButton("Advanced Options...")
 
         self.load_settings_button = QtWidgets.QPushButton("Load")
 
@@ -86,6 +86,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.auc_splits_input.setText(str(default_params.AUCsplit))
 
         self.settings = {}
+        self.advanced_options = default_params.parse_obj(self.get_default_advanced_options()).dict()
 
         self.update_settings()
 
@@ -187,6 +188,27 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.setLayout(layout)
 
+    def get_default_advanced_options(self):
+        advanced_options_path = self.gui.local_config_path / "advanced_options.json"
+        default_advanced_options_path = self.gui.local_config_path / "default_advanced_options.json"
+
+        if advanced_options_path.exists():
+            with open(advanced_options_path, "r") as advanced_options_file:
+                advanced_options = json.load(advanced_options_file)
+
+        elif default_advanced_options_path.exists():
+            with open(default_advanced_options_path, "r") as default_advanced_options_file:
+                advanced_options = json.load(default_advanced_options_file)
+
+        else:
+            advanced_options = KilosortParams().dict()
+
+            with open(default_advanced_options_path, "w+") as default_advanced_options_file:
+                advanced_options_dump = json.dumps(advanced_options)
+                default_advanced_options_file.write(advanced_options_dump)
+
+        return advanced_options
+
     def on_select_data_file_clicked(self):
         data_file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
                                                                   caption="Choose data file to load...",
@@ -264,15 +286,28 @@ class SettingsBox(QtWidgets.QGroupBox):
         if None not in self.settings.values():
             self.settingsUpdated.emit()
 
+    @QtCore.pyqtSlot()
     def on_advanced_options_clicked(self):
-        advanced_options_dialog = QtWidgets.QMessageBox(self)
-        advanced_options_dialog.setIcon(QtWidgets.QMessageBox.Information)
+        advanced_options, okay = AdvancedOptionsEditor(parent=self).exec_()
 
-        advanced_options_dialog.setText("This information will be updated soon!")
-        advanced_options_dialog.setWindowTitle("Setting advanced options")
-        advanced_options_dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        advanced_options_dialog.exec_()
+        if okay:
+            self.advanced_options = advanced_options
 
+            save_advanced_options = QtWidgets.QMessageBox.question(
+                self, "Save as defaults?",
+                "Would you like to save these as the default advanced options?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No
+            )
+
+            if save_advanced_options:
+                advanced_options_dumps = json.dumps(self.advanced_options, indent=4)
+                advanced_options_path = self.gui.local_config_path / "advanced_options.json"
+
+                with open(advanced_options_path, 'w+') as advanced_options_file:
+                    advanced_options_file.write(advanced_options_dumps)
+
+    @QtCore.pyqtSlot(str)
     def on_probe_layout_selected(self, name):
         if name not in ["", "[new]", "other..."]:
             probe_path = Path(self.gui.probe_files_path).joinpath(name)

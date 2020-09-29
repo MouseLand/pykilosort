@@ -1,6 +1,8 @@
 import numpy as np
+import json
 from pykilosort.utils import Bunch
-from PyQt5 import QtWidgets, QtGui
+from pykilosort.params import KilosortParams
+from PyQt5 import QtWidgets, QtGui, QtCore
 
 
 class ProbeBuilder(QtWidgets.QDialog):
@@ -173,3 +175,100 @@ class ProbeBuilder(QtWidgets.QDialog):
     def exec_(self):
         QtWidgets.QDialog.exec_(self)
         return self.probe, self.map_name, self.values_checked
+
+
+class AdvancedOptionsEditor(QtWidgets.QDialog):
+
+    def __init__(self, parent):
+        super(AdvancedOptionsEditor, self).__init__(parent=parent)
+        self.parent = parent
+
+        self._default_parameters = KilosortParams().parse_obj(self.parent.get_default_advanced_options())
+        self.current_parameters = self._default_parameters.dict()
+
+        self.parameter_edit_box = QtWidgets.QPlainTextEdit()
+        self.parameter_edit_box.setFont(QtGui.QFont("Monospace"))
+
+        self.error_label = QtWidgets.QLabel()
+        self.error_label.setText("Please check json syntax!")
+        self.error_label.setWordWrap(True)
+
+        self.save_button = QtWidgets.QPushButton("Save", parent=self)
+        self.cancel_button = QtWidgets.QPushButton("Cancel", parent=self)
+        self.check_button = QtWidgets.QPushButton("Check", parent=self)
+
+        self.values_checked = False
+
+        self.setup()
+
+    def setup(self):
+        layout = QtWidgets.QVBoxLayout()
+
+        self.parameter_edit_box.textChanged.connect(self.set_values_as_unchecked)
+
+        parameter_edit_label = QtWidgets.QLabel("Modify the advanced parameters by changing this json file:")
+
+        self.cancel_button.clicked.connect(self.reject)
+        self.save_button.clicked.connect(self.accept)
+        self.check_button.clicked.connect(self.check_json)
+
+        buttons = [self.check_button, self.save_button, self.cancel_button]
+
+        error_label_size_policy = self.error_label.sizePolicy()
+        error_label_size_policy.setVerticalPolicy(QtWidgets.QSizePolicy.Maximum)
+        error_label_size_policy.setRetainSizeWhenHidden(True)
+        self.error_label.setSizePolicy(error_label_size_policy)
+        error_label_palette = self.error_label.palette()
+        error_label_palette.setColor(QtGui.QPalette.Foreground, QtGui.QColor("red"))
+        self.error_label.setPalette(error_label_palette)
+        self.error_label.hide()
+
+        button_layout = QtWidgets.QHBoxLayout()
+        for button in buttons:
+            button_layout.addWidget(button)
+
+        self.save_button.setDisabled(True)
+
+        layout.addWidget(parameter_edit_label, 1)
+        layout.addWidget(self.error_label, 1)
+        layout.addWidget(self.parameter_edit_box, 7)
+        layout.addLayout(button_layout, 1)
+
+        self.setLayout(layout)
+
+        self.set_json_text()
+
+    @QtCore.pyqtSlot()
+    def set_values_as_unchecked(self):
+        self.values_checked = False
+        self.save_button.setDisabled(True)
+
+    @QtCore.pyqtSlot()
+    def set_values_as_checked(self):
+        self.values_checked = True
+        self.save_button.setDisabled(False)
+
+    @QtCore.pyqtSlot()
+    def check_json(self):
+        try:
+            param_dict = json.loads(self.parameter_edit_box.toPlainText())
+            self.current_parameters = self._default_parameters.parse_obj(param_dict).dict()
+
+            self.set_values_as_checked()
+
+            self.error_label.setText("")
+            self.error_label.hide()
+
+            self.save_button.setDisabled(False)
+        except Exception as e:
+            self.error_label.setText("Invalid syntax! Refer to terminal for error message.")
+            self.error_label.show()
+            print(e)
+
+    def set_json_text(self):
+        json_dump = json.dumps(self.current_parameters, indent=4)
+        self.parameter_edit_box.setPlainText(json_dump)
+
+    def exec_(self):
+        QtWidgets.QDialog.exec_(self)
+        return self.current_parameters, self.values_checked
