@@ -10,6 +10,7 @@ from pykilosort.gui import DarkPalette, find_good_channels
 from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
 from pykilosort.gui import probes
+from pykilosort import __version__
 from PyQt5 import QtGui, QtWidgets, QtCore
 
 
@@ -87,7 +88,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
             event.ignore()
 
     def setup(self):
-        self.setWindowTitle("KiloSort2 GUI")
+        self.setWindowTitle(f"Kilosort{__version__}")
 
         self.content_layout.addWidget(self.header_box, 3)
 
