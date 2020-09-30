@@ -64,9 +64,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         if type(event) == QtGui.QKeyEvent:
             if event.key() == QtCore.Qt.Key_Up:
-                self.change_channel(shift=1)
+                self.change_displayed_channel_count(shift=1)
             elif event.key() == QtCore.Qt.Key_Down:
-                self.change_channel(shift=-1)
+                self.change_displayed_channel_count(shift=-1)
             elif event.key() == QtCore.Qt.Key_Left:
                 self.shift_data(time_shift=-0.1)
             elif event.key() == QtCore.Qt.Key_Right:
@@ -123,6 +123,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def shift_data(self, time_shift):
         if self.context is not None:
             self.data_view_box.shift_current_time(time_shift)
+
+    def change_displayed_channel_count(self, shift):
+        if self.context is not None:
+            self.data_view_box.change_displayed_channel_count(shift)
 
     def toggle_view(self):
         self.data_view_box.traces_button.toggle()

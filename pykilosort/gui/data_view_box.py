@@ -1,12 +1,13 @@
 from PyQt5 import QtWidgets, QtCore
 from pykilosort.preprocess import get_whitening_matrix
 from pykilosort.gui.sorter import filter_and_whiten
+from pykilosort.gui.minor_gui_elements import controls_popup_text
 import pyqtgraph as pg
 import numpy as np
 
 
 class DataViewBox(QtWidgets.QGroupBox):
-    channelChanged = QtCore.pyqtSignal(int)
+    channelChanged = QtCore.pyqtSignal()
     modeChanged = QtCore.pyqtSignal(str)
 
     def __init__(self, parent):
@@ -50,7 +51,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         # traces settings
         self.good_channel_color = (255, 255, 255)
         self.bad_channel_color = (100, 100, 100)
-        self.channels_displayed = 32
+        self.channels_displayed_traces = 32
+        self.channels_displayed_colormap = None
         self.data_range = (0, 3000)
         self.seek_range = (0, 100)
 
@@ -170,6 +172,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         controls_button_layout = QtWidgets.QHBoxLayout()
         self.controls_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         controls_button_layout.addWidget(self.controls_button)
+        self.controls_button.clicked.connect(self.show_controls_popup)
 
         data_view_layout = QtWidgets.QHBoxLayout()
         data_view_layout.addWidget(self.data_view_widget)
@@ -292,6 +295,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.gui.context is not None:
             if self.traces_button.isChecked():
                 self.shift_primary_channel(direction)
+            else:
+                self.change_displayed_channel_count(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_shift(self, direction):
@@ -315,7 +320,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                     self.colormap_max = colormap_max
                     self.lookup_table = self.generate_lookup_table(self.colormap_min, self.colormap_max)
 
-            self.update_plot()
+                    self.update_plot()
 
     def toggle_view(self, toggled):
         if toggled:
@@ -333,7 +338,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def change_primary_channel(self, channel):
         self.primary_channel = channel
-        self.channelChanged.emit(channel)
+        self.channelChanged.emit()
         self.update_plot()
 
     def shift_primary_channel(self, shift):
@@ -342,8 +347,28 @@ class DataViewBox(QtWidgets.QGroupBox):
         total_channels = self.gui.probe_view_box.total_channels
         if (0 <= primary_channel < total_channels) and total_channels is not None:
             self.primary_channel = primary_channel
-            self.channelChanged.emit(self.primary_channel)
+            self.channelChanged.emit()
             self.update_plot()
+
+    def change_displayed_channel_count(self, shift):
+        total_channels = self.gui.probe_view_box.total_channels
+        if self.traces_button.isChecked():
+            current_count = self.channels_displayed_traces
+            new_count = current_count + shift
+            if 0 < new_count <= total_channels:
+                self.channels_displayed_traces = new_count
+                self.channelChanged.emit()
+                self.update_plot()
+
+        else:
+            current_count = self.channels_displayed_colormap
+            if current_count is None:
+                current_count = total_channels
+            new_count = current_count + shift
+            if 0 < new_count <= total_channels:
+                self.channels_displayed_colormap = new_count
+                self.channelChanged.emit()
+                self.update_plot()
 
     def shift_current_time(self, time_shift):
         current_time = self.current_time
@@ -399,6 +424,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.current_time = position
         self.reset_cache()
         self.update_plot()
+
+    def show_controls_popup(self):
+        QtWidgets.QMessageBox.information(self, "Controls", controls_popup_text,
+                                          QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
 
     def reset_cache(self):
         self.whitened_matrix = None
@@ -466,7 +495,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 raw_traces = raw_data[start_time:end_time]
 
                 if self.raw_button.isChecked():
-                    for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
+                    for i in range(self.primary_channel + self.channels_displayed_traces, self.primary_channel, -1):
                         try:
                             color = 'w' if good_channels[i] else self.bad_channel_color
                             self.add_curve_to_plot(raw_traces.T[i], color, i)
@@ -479,7 +508,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                         self.whitened_matrix = whitened_traces
                     else:
                         whitened_traces = self.whitened_matrix
-                    for i in range(self.primary_channel + self.channels_displayed, self.primary_channel, -1):
+                    for i in range(self.primary_channel + self.channels_displayed_traces, self.primary_channel, -1):
                         try:
                             color = 'c' if good_channels[i] else self.bad_channel_color
                             self.add_curve_to_plot(whitened_traces.T[i], color, i)
@@ -488,9 +517,14 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             if self.colormap_button.isChecked():
                 raw_traces = raw_data[start_time:end_time]
+                start_channel = self.primary_channel
+                displayed_channels = self.channels_displayed_colormap
+                if displayed_channels is None:
+                    displayed_channels = self.gui.probe_view_box.total_channels
+                end_channel = start_channel + displayed_channels
 
                 if self.raw_button.isChecked():
-                    self.add_image_to_plot(raw_traces, colormap_min, colormap_max)
+                    self.add_image_to_plot(raw_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
                 elif self.whitened_button.isChecked():
                     if self.whitened_matrix is None:
@@ -498,10 +532,10 @@ class DataViewBox(QtWidgets.QGroupBox):
                         self.whitened_matrix = whitened_traces
                     else:
                         whitened_traces = self.whitened_matrix
-                    self.add_image_to_plot(whitened_traces, colormap_min, colormap_max)
+                    self.add_image_to_plot(whitened_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
-            self.data_view_widget.setXRange(start_time, end_time, padding=0.0)
-            self.data_view_widget.setLimits(xMin=0, xMax=time_range, minXRange=0, maxXRange=time_range)
+            self.data_view_widget.setXRange(0, time_range, padding=0.0)
+            self.data_view_widget.setLimits(xMin=0, xMax=time_range)
             self.data_x_axis.setTicks([[(pos, f"{(start_time + pos) / sample_rate:.3f}")
                                         for pos in np.linspace(0, time_range, 20)]])
 
@@ -543,3 +577,6 @@ class KSPlotWidget(pg.PlotWidget):
 
         ev.accept()
         return
+
+    def mouseMoveEvent(self, ev):
+        pass

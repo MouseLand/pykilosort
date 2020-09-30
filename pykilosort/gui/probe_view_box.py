@@ -51,13 +51,22 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def set_active_channels(self):
         if self.active_data_view_mode == "traces":
-            primary_channel = self.primary_channel
-            channel_map = np.array(self.channel_map)
-
-            primary_channel_position = int(np.where(channel_map == primary_channel)[0])
-            self.active_channels = channel_map[primary_channel_position:primary_channel_position+32].tolist()
+            displayed_channels = self.gui.data_view_box.channels_displayed_traces
         else:
-            self.active_channels = self.channel_map
+            displayed_channels = self.gui.data_view_box.channels_displayed_colormap
+            if displayed_channels is None:
+                displayed_channels = self.total_channels
+
+        primary_channel = self.primary_channel
+        channel_map = np.array(self.channel_map)
+
+        primary_channel_position = int(np.where(channel_map == primary_channel)[0])
+        end_channel_position = np.where(channel_map == primary_channel + displayed_channels)[0]
+        if end_channel_position.size == 0:
+            end_channel_position = np.argmax(channel_map)
+        else:
+            end_channel_position = int(end_channel_position)
+        self.active_channels = channel_map[primary_channel_position:end_channel_position].tolist()
 
     def set_layout(self, context):
         self.probe_view.clear()
@@ -119,7 +128,8 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         return spots
 
-    def update_probe_view(self, channel=None):
+    @QtCore.pyqtSlot()
+    def update_probe_view(self):
         self.synchronize_primary_channel()
         self.set_active_channels()
 
