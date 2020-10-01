@@ -99,9 +99,6 @@ class KiloSortWorker(QtCore.QThread):
         assert isinstance(steps, list) or isinstance(steps, str)
         self.steps = steps if isinstance(steps, list) else [steps]
 
-    def __del__(self):
-        self.wait()
-
     def run(self):
         if "preprocess" in self.steps:
             self.context = run_preprocess(self.context)
