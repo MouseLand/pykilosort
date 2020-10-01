@@ -162,8 +162,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.load_raw_data()
         self.setup_context()
-        self.update_probe_view()
-        self.update_data_view()
+        self.setup_probe_view()
+        self.setup_data_view()
         self.update_run_box()
 
     def load_raw_data(self):
@@ -175,7 +175,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         raw_data = get_ephys_reader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
         self.raw_data = raw_data
 
-    def update_data_view(self):
+    def setup_data_view(self):
         self.data_view_box.setup_seek(self.context)
         self.data_view_box.update_plot(self.context)
 
@@ -195,7 +195,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def update_context(self, context):
         self.context = context
 
-    def update_probe_view(self):
+    def setup_probe_view(self):
         self.probe_view_box.set_layout(self.context)
 
     def update_run_box(self):
