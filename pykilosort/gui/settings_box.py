@@ -1,6 +1,7 @@
 import os
 import json
 from pathlib import Path
+import numpy as np
 from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe
@@ -318,6 +319,8 @@ class SettingsBox(QtWidgets.QGroupBox):
                 self.probe_layout = probe_layout
                 total_channels = self.probe_layout.NchanTOT
 
+                total_channels = self.estimate_total_channels(total_channels)
+
                 self.num_channels_input.setText(str(total_channels))
             except MatReadError:
                 self.error_label.setText("Invalid probe file!")
@@ -338,6 +341,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                 self.probe_layout = probe_layout
 
                 total_channels = self.probe_layout.NchanTOT
+                total_channels = self.estimate_total_channels(total_channels)
                 self.num_channels_input.setText(str(total_channels))
                 self.error_label.hide()
             else:
@@ -381,6 +385,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                     self.probe_layout = probe_layout
 
                     total_channels = self.probe_layout.NchanTOT
+                    total_channels = self.estimate_total_channels(total_channels)
                     self.num_channels_input.setText(str(total_channels))
                     self.error_label.hide()
 
@@ -495,3 +500,29 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         self.probe_layout_selector.addItems([""] + probes_list + ["[new]", "other..."])
         self._probes = probes_list
+
+    def estimate_total_channels(self, num_channels):
+        if self.data_file_path is not None:
+            memmap_data = np.memmap(self.data_file_path, dtype=np.int16)
+            data_size = memmap_data.size
+
+            test_n_channels = np.arange(num_channels, num_channels+31)
+            remainders = np.remainder(data_size, test_n_channels)
+
+            possible_results = test_n_channels[np.where(remainders == 0)]
+
+            del memmap_data
+
+            if possible_results.size == 0:
+                return num_channels
+
+            else:
+                result = possible_results[0]
+                print(f"The correct number of channels has been estimated to be {possible_results[0]}.")
+                if possible_results.size > 1:
+                    print(f"Other possibilities could be {possible_results[1:]}")
+
+                return result
+
+        else:
+            return num_channels
