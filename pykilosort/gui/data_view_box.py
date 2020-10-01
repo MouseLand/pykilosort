@@ -204,7 +204,7 @@ class DataViewBox(QtWidgets.QGroupBox):
     def on_wheel_scroll_plus_shift(self, direction):
         if self.gui.context is not None:
             plot_range = self.plot_range + 0.1 * direction  # half or double current plot range
-            if 0.0 < plot_range < 5.0:
+            if 0.0 < plot_range < 2.0:
                 self.change_plot_range(plot_range)
 
     @QtCore.pyqtSlot(int)
@@ -282,6 +282,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def change_plot_range(self, new_plot_range):
         self.plot_range = new_plot_range
+        self.reset_cache()
         self.update_plot()
 
     def scene_clicked(self, ev):
