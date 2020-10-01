@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtCore
-from pykilosort.gui import COLORMAP_COLORS
+from pykilosort.gui.palettes import COLORMAP_COLORS
 from pykilosort.preprocess import get_whitening_matrix
 from pykilosort.gui.sorter import filter_and_whiten
 from pykilosort.gui.minor_gui_elements import controls_popup_text
