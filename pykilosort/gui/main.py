@@ -166,6 +166,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.setup_data_view()
         self.update_run_box()
 
+        self.settings_box.reenable_all_buttons()
+        QtWidgets.QApplication.restoreOverrideCursor()
+
     def load_raw_data(self):
         # TODO: account for these temporary hardcoded params
         n_channels = self.num_channels

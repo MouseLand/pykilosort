@@ -270,6 +270,14 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.error_label.setText("Please select a valid file path!")
             self.error_label.show()
 
+    def disable_all_buttons(self):
+        self.load_settings_button.setDisabled(True)
+        self.advanced_options_button.setDisabled(True)
+
+    def reenable_all_buttons(self):
+        self.load_settings_button.setDisabled(False)
+        self.advanced_options_button.setDisabled(False)
+
     def update_settings(self):
         self.settings = {
             'data_file_path': self.data_file_path,
@@ -285,6 +293,8 @@ class SettingsBox(QtWidgets.QGroupBox):
         }
 
         if None not in self.settings.values():
+            self.disable_all_buttons()
+            QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
             self.settingsUpdated.emit()
 
     @QtCore.pyqtSlot()
