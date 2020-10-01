@@ -23,6 +23,9 @@ class DarkPalette(QtGui.QPalette):
         self.setColor(QtGui.QPalette.Link, QtGui.QColor(42, 130, 218))
         self.setColor(QtGui.QPalette.Highlight, QtGui.QColor(42, 130, 218))
         self.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(0, 0, 0))
+        self.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor(128, 128, 128))
+        self.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, QtGui.QColor(128, 128, 128))
+        self.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, QtGui.QColor(128, 128, 128))
 
 
 COLORMAP_COLORS = np.array([[103, 0, 31],
