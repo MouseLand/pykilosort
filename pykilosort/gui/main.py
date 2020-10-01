@@ -1,12 +1,10 @@
 import os
-import sys
 import numpy as np
-import pyqtgraph as pg
 from pathlib import Path
 # TODO: optimize imports before incorporating into codebase
 from phylib.io.traces import get_ephys_reader
 from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox
-from pykilosort.gui import DarkPalette, find_good_channels
+from pykilosort.gui import find_good_channels
 from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
 from pykilosort.gui import probes
@@ -213,22 +211,3 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def get_params(self):
         return self.params
-
-
-if __name__ == "__main__":
-    kilosort_application = QtWidgets.QApplication(sys.argv)
-    kilosort_application.setStyle("Fusion")
-    kilosort_application.setPalette(DarkPalette())
-    kilosort_application.setStyleSheet("QToolTip { color: #aeadac;"
-                                       "background-color: #35322f;"
-                                       "border: 1px solid #aeadac; }")
-
-    pg.setConfigOption('background', 'k')
-    pg.setConfigOption('foreground', 'w')
-    pg.setConfigOption('useOpenGL', True)
-
-    kilosort_gui = KiloSortGUI(kilosort_application)
-    # kilosort_gui.showMaximized()
-    kilosort_gui.show()
-
-    sys.exit(kilosort_application.exec_())

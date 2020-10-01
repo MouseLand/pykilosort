@@ -11,3 +11,6 @@ from .palettes import DarkPalette
 from .sorter import find_good_channels, filter_and_whiten, KiloSortWorker
 from .minor_gui_elements import ProbeBuilder
 from . import probes
+
+from .main import KiloSortGUI
+from .launch import launcher
