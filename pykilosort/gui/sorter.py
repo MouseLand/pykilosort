@@ -6,14 +6,14 @@ from pykilosort.main import run_preprocess, run_spikesort, run_export
 from PyQt5 import QtCore
 
 
-def find_good_channels(context, force=False):
+def find_good_channels(context):
     params = context.params
     probe = context.probe
     raw_data = context.raw_data
     intermediate = context.intermediate
 
     if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-        if 'igood' not in intermediate or force:
+        if 'igood' not in intermediate:
             # determine bad channels
             with context.time('good_channels'):
                 intermediate.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)

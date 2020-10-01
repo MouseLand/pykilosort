@@ -177,7 +177,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def update_data_view(self):
         self.data_view_box.setup_seek(self.context)
-        self.data_view_box.update_plot(self.context, recalculate_whitening=True)
+        self.data_view_box.update_plot(self.context)
 
     def setup_context(self):
         context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))
@@ -189,7 +189,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context.load()
 
-        self.context = find_good_channels(self.context, force=True)
+        self.context = find_good_channels(self.context)
 
     @QtCore.pyqtSlot(object)
     def update_context(self, context):
