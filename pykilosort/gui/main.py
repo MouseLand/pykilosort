@@ -180,7 +180,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def setup_data_view(self):
         self.data_view_box.setup_seek(self.context)
-        self.data_view_box.update_plot(self.context)
+        self.data_view_box.update_plot(self.context, recalculate_whitening=True)
 
     def setup_context(self):
         context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))

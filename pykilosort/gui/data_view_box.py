@@ -358,7 +358,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def update_plot(self, context=None):
+    def update_plot(self, context=None, recalculate_whitening=False):
         if context is None:
             context = self.gui.context
 
@@ -378,7 +378,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                         data_mean + 4 * data_std
                     )
 
-            if 'Wrot' not in intermediate:
+            if 'Wrot' not in intermediate or recalculate_whitening:
                 with context.time('whitening_matrix'):
                     intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
                 context.write(Wrot=intermediate.Wrot)
