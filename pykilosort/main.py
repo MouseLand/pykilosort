@@ -110,7 +110,7 @@ def run(
 
         # it's enough to remove bad channels from the channel map, which treats them
         # as if they are dead
-        ir.igood = ir.igood.ravel()
+        ir.igood = ir.igood.ravel().astype('bool')
         probe.chanMap = probe.chanMap[ir.igood]
         probe.xc = probe.xc[ir.igood]  # removes coordinates of bad channels
         probe.yc = probe.yc[ir.igood]

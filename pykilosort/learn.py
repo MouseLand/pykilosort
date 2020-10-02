@@ -519,7 +519,7 @@ def getMeWtW(W, U0, Nnearest=None):
         for j in range(Nrank):
             # the dot product factorizes into separable products for each spatio-temporal component
             utu0 = cp.dot(U0[:, :, i].T, U0[:, :, j])  # spatial products
-            # temporal convolutions get multiplied wit hthe spatial products
+            # temporal convolutions get multiplied with the spatial products
             wtw0 = mexWtW2(Params, W[:, :, i], W[:, :, j], utu0)
             # add it to the full correlation array
             WtW = WtW + wtw0
