@@ -1,4 +1,4 @@
-const int  Nthreads = 512,  NrankMax = 6, maxFR = 10000, nt0max=81, NchanMax = 17, nsizes = 5;
+const int  Nthreads = 1024,  NrankMax = 6, maxFR = 10000, nt0max=81, NchanMax = 17, nsizes = 5;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
