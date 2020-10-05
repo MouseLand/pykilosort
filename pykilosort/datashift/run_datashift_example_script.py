@@ -41,7 +41,7 @@ chanMapFile = 'NP2_kilosortChanMap.mat';
 
 opts = {
     'chanMap': f'{rootZ}/{chanMapFile}',
-    'trange': [0., 20000.0 * 60], #float('inf')],
+    'trange': [0., 20000.0 * 20], #float('inf')],
     'NchanTOT': float(384),
     'minfr_goodchannels': 0.,
     'sig': 20,
@@ -72,7 +72,7 @@ clear_context = False #Operations.pykilosort_sorting in FORCE_RUN
 
 ### Setup
 params = pykilosort.params.KilosortParams(**opts, probe=probe, genericSpkTh=10.)
-raw_data = get_ephys_reader(get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=params.probe.NchanTOT)[:20000*60,:], sample_rate=sample_rate)
+raw_data = get_ephys_reader(get_ephys_reader(dat_path, dtype=dtype, sample_rate=sample_rate, n_channels=params.probe.NchanTOT)[:20000*20,:], sample_rate=sample_rate)
 
 dir_path = dir_path or Path(dat_path).parent
 n_samples, n_channels = raw_data.shape
@@ -210,6 +210,9 @@ imin,yblk, F0 = align_block2(F, ysamp, params.nblocks)
 #end
 
 ##
+st3_orig = st3
+
+st3 = st3[:np.where(st3[:,1])[0][-1]+1,:]
 if opts.get('fig', True):  
     ax = plt.subplot()
     # plot the shift trace in um
@@ -217,11 +220,11 @@ if opts.get('fig', True):
     ax = plt.subplot()
     # raster plot of all spikes at their original depths
     st_shift = st3[:,2] #+ imin(batch_id)' * dd
-    for j in range(params.genericSpkTh, 100):
+    for j in range(int(params.genericSpkTh), 100):
         # for each amplitude bin, plot all the spikes of that size in the
         # same shade of gray
         ix = st3[:, 3]==j # the amplitudes are rounded to integers
-        ax.plot(st3[ix, 1], st_shift[ix], '.', 'color', [1, 1, 1] * max(0, 1-j/40)) # the marker color here has been carefully tuned
+        ax.plot(st3[ix, 1], st_shift[ix], marker=".", color=[max(0, 1-j/40) for _ in range(3)]) # the marker color here has been carefully tuned
     plt.tight_layout()
     plt.show()
 
@@ -251,129 +254,3 @@ ir.st0 = st3
 
 
 # next, we can just run a normal spike sorter, like Kilosort1, and forget about the transformation that has happened in here 
-
-##
-
-# +
-Nbatch = ctx.intermediate.Nbatch
-proc = ir.proc
-
-NT = params.NT
-nPCs = params.nPCs
-Nchan = probe.Nchan
-
-batchstart = np.arange(0, NT * Nbatch + 1, NT).astype(np.int64)
-
-# extract the PCA projections
-# initialize the covariance of single-channel spike waveforms
-CC = cp.zeros(params.nt0, dtype=np.float32)
-
-# from every 100th batch
-for ibatch in range(0, Nbatch, 100):
-    offset = Nchan * batchstart[ibatch]
-    dat = proc.flat[offset:offset + NT * Nchan].reshape((-1, Nchan),
-                                                        order='F')
-    if dat.shape[0] == 0:
-        continue
-dat
-
-# +
-if "st3" not in ir:
-    with ctx.time("learn"):
-        out = learnAndSolve8b(ctx)
-    logger.info("%d spikes.", ir.st3.shape[0])
-    ctx.save(**out)
-if stop_after == "learn":
-    return ctx
-# Special care for cProj and cProjPC which are memmapped .dat files.
-ir.cProj = memmap_large_array(ctx.path("fW", ext=".dat")).T
-ir.cProjPC = memmap_large_array(ctx.path("fWpc", ext=".dat")).T  # transpose
-
-# -------------------------------------------------------------------------
-# Final merges.
-#
-# This function uses:
-#
-#       st3, simScore
-#
-# This function saves:
-#
-#         st3_m,
-#         R_CCG, Q_CCG, K_CCG [optional]
-#
-if "st3_m" not in ir:
-    with ctx.time("merge"):
-        out = find_merges(ctx, True)
-    ctx.save(**out)
-if stop_after == "merge":
-    return ctx
-
-# -------------------------------------------------------------------------
-# Final splits.
-#
-# This function uses:
-#
-#       st3_m
-#       W, dWU, cProjPC,
-#       iNeigh, simScore
-#       wPCA
-#
-# This function saves:
-#
-#       st3_s
-#       W_s, U_s, mu_s, simScore_s
-#       iNeigh_s, iNeighPC_s,
-#       Wphy, iList, isplit
-#
-if "st3_s1" not in ir:
-    # final splits by SVD
-    with ctx.time("split_1"):
-        out = splitAllClusters(ctx, True)
-    # Use a different name for both splitting steps.
-    out["st3_s1"] = out.pop("st3_s")
-    ctx.save(**out)
-if stop_after == "split_1":
-    return ctx
-
-if "st3_s0" not in ir:
-    # final splits by amplitudes
-    with ctx.time("split_2"):
-        out = splitAllClusters(ctx, False)
-    out["st3_s0"] = out.pop("st3_s")
-    ctx.save(**out)
-if stop_after == "split_2":
-    return ctx
-
-# -------------------------------------------------------------------------
-# Decide on cutoff.
-#
-# This function uses:
-#
-#       st3_s
-#       dWU, cProj, cProjPC
-#       wPCA
-#
-# This function saves:
-#
-#       st3_c, spikes_to_remove,
-#       est_contam_rate, Ths, good
-#
-if "st3_c" not in ir:
-    with ctx.time("cutoff"):
-        out = set_cutoff(ctx)
-    ctx.save(**out)
-if stop_after == "cutoff":
-    return ctx
-
-logger.info("%d spikes after cutoff.", ir.st3_c.shape[0])
-logger.info("Found %d good units.", np.sum(ir.good > 0))
-
-# write to Phy
-logger.info("Saving results to phy.")
-output_dir = output_dir or f"{dir_path}/output"
-with ctx.time("output"):
-    rezToPhy(ctx, dat_path=dat_path, output_dir=output_dir)
-
-# Show timing information.
-ctx.show_timer()
-ctx.write(timer=ctx.timer)
