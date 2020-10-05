@@ -6,7 +6,11 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe
 from pykilosort.params import KilosortParams
+from pykilosort.gui.logger import setup_logger
 from pykilosort.gui.minor_gui_elements import ProbeBuilder, AdvancedOptionsEditor
+
+
+logger = setup_logger(__name__)
 
 
 class SettingsBox(QtWidgets.QGroupBox):
@@ -51,13 +55,9 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.auc_splits_text = QtWidgets.QLabel("AUC for Splits")
         self.auc_splits_input = QtWidgets.QLineEdit()
 
-        self.error_label = QtWidgets.QLabel("")
-        self.error_label.setText("Invalid inputs!")
-        self.error_label.setWordWrap(True)
-
         self.advanced_options_button = QtWidgets.QPushButton("Advanced Options...")
 
-        self.load_settings_button = QtWidgets.QPushButton("Load")
+        self.load_settings_button = QtWidgets.QPushButton("LOAD")
 
         self.data_file_path = None
         self.working_directory_path = None
@@ -95,6 +95,12 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.setTitle("Settings")
 
         layout = QtWidgets.QVBoxLayout()
+
+        font = self.load_settings_button.font()
+        font.setPointSize(20)
+        self.load_settings_button.setFont(font)
+        self.load_settings_button.setDisabled(True)
+        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
 
         select_data_file_layout = QtWidgets.QHBoxLayout()
         select_data_file_layout.addWidget(self.select_data_file, 70)
@@ -157,24 +163,9 @@ class SettingsBox(QtWidgets.QGroupBox):
         auc_splits_layout.addWidget(self.auc_splits_input, 30)
         self.auc_splits_input.textChanged.connect(self.on_auc_splits_changed)
 
-        error_label_layout = QtWidgets.QHBoxLayout()
-        error_label_size_policy = self.error_label.sizePolicy()
-        error_label_size_policy.setVerticalPolicy(QtWidgets.QSizePolicy.Maximum)
-        error_label_size_policy.setRetainSizeWhenHidden(True)
-        self.error_label.setSizePolicy(error_label_size_policy)
-        error_label_palette = self.error_label.palette()
-        error_label_palette.setColor(QtGui.QPalette.Foreground, QtGui.QColor("red"))
-        self.error_label.setPalette(error_label_palette)
-        error_label_layout.addWidget(self.error_label)
-        self.error_label.hide()
-
-        buttons_layout = QtWidgets.QHBoxLayout()
-        buttons_layout.addWidget(self.advanced_options_button)
-        buttons_layout.addStretch(0)
-        buttons_layout.addWidget(self.load_settings_button)
-        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
         self.load_settings_button.clicked.connect(self.update_settings)
 
+        layout.addWidget(self.load_settings_button)
         layout.addLayout(select_data_file_layout)
         layout.addLayout(select_working_directory_layout)
         layout.addLayout(select_results_directory_layout)
@@ -184,8 +175,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         layout.addLayout(min_firing_rate_layout)
         layout.addLayout(threshold_layout)
         layout.addLayout(auc_splits_layout)
-        layout.addLayout(error_label_layout)
-        layout.addLayout(buttons_layout)
+        layout.addWidget(self.advanced_options_button)
 
         self.setLayout(layout)
 
@@ -237,10 +227,11 @@ class SettingsBox(QtWidgets.QGroupBox):
             assert working_directory.exists()
 
             self.working_directory_path = working_directory
-            self.error_label.hide()
+            if self.check_settings():
+                self.enable_load()
         except AssertionError:
-            self.error_label.setText("Please select an existing working directory!")
-            self.error_label.show()
+            logger.exception("Please select an existing working directory!")
+            self.disable_load()
 
     def on_results_directory_changed(self):
         results_directory = Path(self.results_directory_input.text())
@@ -248,10 +239,11 @@ class SettingsBox(QtWidgets.QGroupBox):
             assert results_directory.exists()
 
             self.results_directory_path = results_directory
-            self.error_label.hide()
+            if self.check_settings():
+                self.enable_load()
         except AssertionError:
-            self.error_label.setText("Please select an existing directory for results!")
-            self.error_label.show()
+            logger.exception("Please select an existing directory for results!")
+            self.disable_load()
 
     def on_data_file_path_changed(self):
         data_file_path = Path(self.data_file_path_input.text())
@@ -261,14 +253,16 @@ class SettingsBox(QtWidgets.QGroupBox):
             parent_folder = data_file_path.parent
             self.working_directory_input.setText(parent_folder.as_posix())
             self.results_directory_input.setText(parent_folder.as_posix())
-            self.error_label.hide()
 
             self.data_file_path = data_file_path
             self.working_directory_path = parent_folder
             self.results_directory_path = parent_folder
+
+            if self.check_settings():
+                self.enable_load()
         except AssertionError:
-            self.error_label.setText("Please select a valid file path!")
-            self.error_label.show()
+            logger.exception("Please select a valid file path!")
+            self.disable_load()
 
     def disable_all_buttons(self):
         self.load_settings_button.setDisabled(True)
@@ -278,7 +272,13 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.load_settings_button.setDisabled(False)
         self.advanced_options_button.setDisabled(False)
 
-    def update_settings(self):
+    def enable_load(self):
+        self.load_settings_button.setEnabled(True)
+
+    def disable_load(self):
+        self.load_settings_button.setDisabled(True)
+
+    def check_settings(self):
         self.settings = {
             'data_file_path': self.data_file_path,
             'working_directory': self.working_directory_path,
@@ -292,7 +292,11 @@ class SettingsBox(QtWidgets.QGroupBox):
             'AUCsplit': self.auc_splits
         }
 
-        if None not in self.settings.values():
+        return None not in self.settings.values()
+
+    @QtCore.pyqtSlot()
+    def update_settings(self):
+        if self.check_settings():
             self.disable_all_buttons()
             QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
             self.settingsUpdated.emit()
@@ -324,7 +328,6 @@ class SettingsBox(QtWidgets.QGroupBox):
             probe_path = Path(self.gui.probe_files_path).joinpath(name)
             try:
                 probe_layout = load_probe(probe_path)
-                self.error_label.hide()
 
                 self.probe_layout = probe_layout
                 total_channels = self.probe_layout.NchanTOT
@@ -332,9 +335,12 @@ class SettingsBox(QtWidgets.QGroupBox):
                 total_channels = self.estimate_total_channels(total_channels)
 
                 self.num_channels_input.setText(str(total_channels))
+
+                if self.check_settings():
+                    self.enable_load()
             except MatReadError:
-                self.error_label.setText("Invalid probe file!")
-                self.error_label.show()
+                logger.exception("Invalid probe file!")
+                self.disable_load()
 
         elif name == "[new]":
             probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
@@ -353,9 +359,12 @@ class SettingsBox(QtWidgets.QGroupBox):
                 total_channels = self.probe_layout.NchanTOT
                 total_channels = self.estimate_total_channels(total_channels)
                 self.num_channels_input.setText(str(total_channels))
-                self.error_label.hide()
+
+                if self.check_settings():
+                    self.enable_load()
             else:
                 self.probe_layout_selector.setCurrentIndex(0)
+                self.disable_load()
 
         elif name == "other...":
             probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
@@ -390,33 +399,39 @@ class SettingsBox(QtWidgets.QGroupBox):
                             self.probe_layout_selector.setCurrentText(probe_name)
 
                         else:
-                            self.error_label.setText("Probe with the same name already exists.")
+                            logger.exception("Probe with the same name already exists.")
 
                     self.probe_layout = probe_layout
 
                     total_channels = self.probe_layout.NchanTOT
                     total_channels = self.estimate_total_channels(total_channels)
                     self.num_channels_input.setText(str(total_channels))
-                    self.error_label.hide()
+
+                    if self.check_settings():
+                        self.enable_load()
 
                 except AssertionError:
-                    self.error_label.setText("Please select a valid probe file (accepted types: *.prb, *.mat)!")
+                    logger.exception("Please select a valid probe file (accepted types: *.prb, *.mat)!")
+                    self.disable_load()
             else:
                 self.probe_layout_selector.setCurrentIndex(0)
+                self.disable_load()
 
     def on_number_of_channels_changed(self):
         try:
             number_of_channels = int(self.num_channels_input.text())
             assert number_of_channels > 0
-            self.error_label.hide()
 
             self.num_channels = number_of_channels
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid input!\nNo. of channels must be an integer!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nNo. of channels must be an integer!")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid input!\nNo. of channels must be > 0!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nNo. of channels must be > 0!")
+            self.disable_load()
 
     def on_time_range_changed(self):
         try:
@@ -427,17 +442,19 @@ class SettingsBox(QtWidgets.QGroupBox):
                 assert 0 <= time_range_low < time_range_high
             else:
                 assert 0 <= time_range_low
-            self.error_label.hide()
 
             self.time_range_min = time_range_low
             self.time_range_max = time_range_high
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid inputs!\nTime range values must be floats!"
-                                     "\n(`inf` accepted as upper limit)")
-            self.error_label.show()
+            logger.exception("Invalid inputs!\nTime range values must be floats!"
+                             "\n(`inf` accepted as upper limit)")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid inputs!\nCheck that 0 <= lower limit < upper limit!")
-            self.error_label.show()
+            logger.exception("Invalid inputs!\nCheck that 0 <= lower limit < upper limit!")
+            self.disable_load()
 
     def on_min_firing_rate_changed(self):
         try:
@@ -445,13 +462,15 @@ class SettingsBox(QtWidgets.QGroupBox):
             assert min_firing_rate >= 0
 
             self.min_firing_rate = min_firing_rate
-            self.error_label.hide()
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid input!\nMin. firing rate value must be a float!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nMin. firing rate value must be a float!")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid input!\nMin. firing rate must be >= 0.0 Hz!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nMin. firing rate must be >= 0.0 Hz!")
+            self.disable_load()
 
     def on_thresholds_changed(self):
         try:
@@ -461,41 +480,47 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             self.threshold_upper = threshold_upper
             self.threshold_lower = threshold_lower
-            self.error_label.hide()
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid inputs!\nThreshold values must be floats!")
-            self.error_label.show()
+            logger.exception("Invalid inputs!\nThreshold values must be floats!")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid inputs!\nCheck that 0 < lower threshold < upper threshold!")
-            self.error_label.show()
+            logger.exception("Invalid inputs!\nCheck that 0 < lower threshold < upper threshold!")
+            self.disable_load()
 
     def on_lambda_changed(self):
         try:
             lambda_value = float(self.lambda_value_input.text())
             assert 0 < lambda_value
-            self.error_label.hide()
 
             self.lambda_value = lambda_value
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid input!\nLambda value must be a float!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nLambda value must be a float!")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid input!\nLambda value must be > 0!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nLambda value must be > 0!")
+            self.disable_load()
 
     def on_auc_splits_changed(self):
         try:
             auc_split = float(self.auc_splits_input.text())
             assert 0 <= auc_split <= 1
-            self.error_label.hide()
 
             self.auc_splits = auc_split
+
+            if self.check_settings():
+                self.enable_load()
         except ValueError:
-            self.error_label.setText("Invalid input!\nAUC split value must be a float!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nAUC split value must be a float!")
+            self.disable_load()
         except AssertionError:
-            self.error_label.setText("Invalid input!\nCheck that 0 <= AUC split <= 1!")
-            self.error_label.show()
+            logger.exception("Invalid input!\nCheck that 0 <= AUC split <= 1!")
+            self.disable_load()
 
     def populate_probe_selector(self):
         self.probe_layout_selector.clear()
@@ -528,9 +553,11 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             else:
                 result = possible_results[0]
-                print(f"The correct number of channels has been estimated to be {possible_results[0]}.")
+                text_message = f"The correct number of channels has been estimated to be {possible_results[0]}."
                 if possible_results.size > 1:
-                    print(f"Other possibilities could be {possible_results[1:]}")
+                    text_message += f" Other possibilities could be {possible_results[1:]}"
+
+                logger.info(text_message)
 
                 return result
 
