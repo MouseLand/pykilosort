@@ -1,7 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
 from pykilosort.gui.palettes import COLORMAP_COLORS
-from pykilosort.preprocess import get_whitening_matrix
-from pykilosort.gui.sorter import filter_and_whiten
+from pykilosort.gui.sorter import get_whitened_traces
 from pykilosort.gui.minor_gui_elements import controls_popup_text
 import pyqtgraph as pg
 import numpy as np
@@ -45,9 +44,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.current_time = 0
         self.plot_range = 0.1  # seconds
 
-        self.whitened_matrix = None
-        self.prediction_matrix = None
-        self.residual_matrix = None
+        self.whitening_matrix = None
+        self.whitened_traces = None
+        self.prediction_traces = None
+        self.residual_traces = None
 
         # traces settings
         self.good_channel_color = (255, 255, 255)
@@ -333,9 +333,10 @@ class DataViewBox(QtWidgets.QGroupBox):
                                           QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
 
     def reset_cache(self):
-        self.whitened_matrix = None
-        self.residual_matrix = None
-        self.prediction_matrix = None
+        self.whitening_matrix = None
+        self.whitened_traces = None
+        self.residual_traces = None
+        self.prediction_traces = None
 
     def generate_lookup_table(self, colormap_min, colormap_max, num_points=8192):
         assert colormap_min >= 0.0 and colormap_max <= 1.0
@@ -358,7 +359,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def update_plot(self, context=None, recalculate_whitening=False):
+    def update_plot(self, context=None):
         if context is None:
             context = self.gui.context
 
@@ -378,10 +379,10 @@ class DataViewBox(QtWidgets.QGroupBox):
                         data_mean + 4 * data_std
                     )
 
-            if 'Wrot' not in intermediate or recalculate_whitening:
-                with context.time('whitening_matrix'):
-                    intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
-                context.write(Wrot=intermediate.Wrot)
+            # if 'Wrot' not in intermediate or recalculate_whitening:
+            #     with context.time('whitening_matrix'):
+            #         intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+            #     context.write(Wrot=intermediate.Wrot)
 
             sample_rate = raw_data.sample_rate
 
@@ -406,11 +407,11 @@ class DataViewBox(QtWidgets.QGroupBox):
                             continue
 
                 if self.whitened_button.isChecked():
-                    if self.whitened_matrix is None:
-                        whitened_traces = filter_and_whiten(raw_traces, params, probe, intermediate.Wrot)
-                        self.whitened_matrix = whitened_traces
+                    if self.whitened_traces is None:
+                        whitened_traces = get_whitened_traces(raw_data=raw_traces, probe=probe, params=params)
+                        self.whitened_traces = whitened_traces
                     else:
-                        whitened_traces = self.whitened_matrix
+                        whitened_traces = self.whitened_traces
                     for i in range(self.primary_channel + self.channels_displayed_traces, self.primary_channel, -1):
                         try:
                             color = 'c' if good_channels[i] else self.bad_channel_color
@@ -430,11 +431,11 @@ class DataViewBox(QtWidgets.QGroupBox):
                     self.add_image_to_plot(raw_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
                 elif self.whitened_button.isChecked():
-                    if self.whitened_matrix is None:
-                        whitened_traces = filter_and_whiten(raw_traces, params, probe, intermediate.Wrot)
-                        self.whitened_matrix = whitened_traces
+                    if self.whitened_traces is None:
+                        whitened_traces = get_whitened_traces(raw_data=raw_traces, probe=probe, params=params)
+                        self.whitened_traces = whitened_traces
                     else:
-                        whitened_traces = self.whitened_matrix
+                        whitened_traces = self.whitened_traces
                     self.add_image_to_plot(whitened_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
