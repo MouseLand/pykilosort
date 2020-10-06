@@ -48,6 +48,7 @@ class ProbeBuilder(QtWidgets.QDialog):
         self.bad_channels = None
 
         self.probe = None
+        self.probe_prb = None
 
         self.values_checked = False
 
@@ -159,6 +160,7 @@ class ProbeBuilder(QtWidgets.QDialog):
             self.error_label.hide()
 
             self.construct_probe()
+            self.create_prb()
 
     def construct_probe(self):
         probe = Bunch()
@@ -172,9 +174,36 @@ class ProbeBuilder(QtWidgets.QDialog):
 
         self.probe = probe
 
+    def create_prb(self):
+        probe = self.probe
+        chan_map = np.array(probe.chanMap, dtype=int)
+        xc, yc = np.array(probe.xc, dtype=int), np.array(probe.yc, dtype=int)
+        bad_channels = np.array(probe.bad_channels, dtype=int)
+        probe_prb = {}
+        unique_channel_groups = np.unique(np.array(probe.kcoords, dtype=int))
+
+        for channel_group in unique_channel_groups:
+            probe_prb[channel_group] = {}
+
+            channel_group_pos = np.where(probe.kcoords == channel_group)
+            group_channels = chan_map[channel_group_pos]
+            group_xc = xc[channel_group_pos]
+            group_yc = yc[channel_group_pos]
+
+            probe_prb[channel_group]['channels'] = np.setdiff1d(group_channels, bad_channels).tolist()
+            geometry = {}
+
+            for c, channel in enumerate(group_channels):
+                geometry[channel] = (group_xc[c], group_yc[c])
+
+            probe_prb[channel_group]['geometry'] = geometry
+            probe_prb[channel_group]['graph'] = []
+
+        self.probe_prb = probe_prb
+
     def exec_(self):
         QtWidgets.QDialog.exec_(self)
-        return self.probe, self.map_name, self.values_checked
+        return self.probe, self.probe_prb, self.map_name, self.values_checked
 
 
 class AdvancedOptionsEditor(QtWidgets.QDialog):

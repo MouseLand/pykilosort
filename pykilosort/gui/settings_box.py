@@ -1,5 +1,6 @@
 import os
 import json
+import pprint
 from pathlib import Path
 import numpy as np
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -326,6 +327,8 @@ class SettingsBox(QtWidgets.QGroupBox):
     def on_probe_layout_selected(self, name):
         if name not in ["", "[new]", "other..."]:
             probe_path = Path(self.gui.probe_files_path).joinpath(name)
+            if not probe_path.exists():
+                probe_path = Path(self.gui.new_probe_files_path).joinpath(name)
             try:
                 probe_layout = load_probe(probe_path)
 
@@ -343,13 +346,14 @@ class SettingsBox(QtWidgets.QGroupBox):
                 self.disable_load()
 
         elif name == "[new]":
-            probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
+            probe_layout, probe_prb, probe_name, okay = ProbeBuilder(parent=self).exec_()
 
             if okay:
                 probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name + ".prb")
                 with open(probe_path, 'w+') as probe_file:
-                    probe_dumps = json.dumps(probe_layout)
-                    probe_file.write(probe_dumps)
+                    str_dict = pprint.pformat(probe_prb, indent=4, compact=True)
+                    str_prb = f"""channel_groups = {str_dict}"""
+                    probe_file.write(str_prb)
                 assert probe_path.exists()
 
                 self.populate_probe_selector()
