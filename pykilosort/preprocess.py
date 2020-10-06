@@ -213,7 +213,7 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None):
 
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
-    CC = CC / ceil((Nbatch - 1) / nSkipCov)
+    CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
 
     if whiteningRange < np.inf:
         #  if there are too many channels, a finite whiteningRange is more robust to noise
