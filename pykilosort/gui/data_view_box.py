@@ -107,7 +107,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.traces_button.setCheckable(True)
         self.colormap_button.setCheckable(True)
-        self.traces_button.setChecked(True)
+        self.colormap_button.setChecked(True)
 
         for mode_button in self.mode_buttons:
             self.mode_buttons_group.addButton(mode_button)
