@@ -390,14 +390,17 @@ class SettingsBox(QtWidgets.QGroupBox):
                         QtWidgets.QMessageBox.Yes)
 
                     if save_probe_file == QtWidgets.QMessageBox.Yes:
-                        probe_name = probe_path.name
+                        probe_prb = create_prb(probe_layout)
+
+                        probe_name = probe_path.with_suffix(".prb").name
                         def_probe_path = Path(self.gui.probe_files_path) / probe_name
                         new_probe_path = Path(self.gui.new_probe_files_path) / probe_name
 
                         if not new_probe_path.exists() and not def_probe_path.exists():
-                            with open(new_probe_path, "r+") as new_probe_file:
-                                probe_dumps = json.dumps(probe_layout)
-                                new_probe_file.write(probe_dumps)
+                            with open(new_probe_path, 'w+') as probe_file:
+                                str_dict = pprint.pformat(probe_prb, indent=4, compact=False)
+                                str_prb = f"""channel_groups = {str_dict}"""
+                                probe_file.write(str_prb)
 
                             self.populate_probe_selector()
                             self.probe_layout_selector.setCurrentText(probe_name)
@@ -405,11 +408,12 @@ class SettingsBox(QtWidgets.QGroupBox):
                         else:
                             logger.exception("Probe with the same name already exists.")
 
-                    self.probe_layout = probe_layout
+                    else:
+                        self.probe_layout = probe_layout
 
-                    total_channels = self.probe_layout.NchanTOT
-                    total_channels = self.estimate_total_channels(total_channels)
-                    self.num_channels_input.setText(str(total_channels))
+                        total_channels = self.probe_layout.NchanTOT
+                        total_channels = self.estimate_total_channels(total_channels)
+                        self.num_channels_input.setText(str(total_channels))
 
                     if self.check_settings():
                         self.enable_load()
