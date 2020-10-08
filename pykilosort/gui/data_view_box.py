@@ -134,7 +134,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         for view_button in self.view_buttons:
             self.view_buttons_group.addButton(view_button)
-        self.view_buttons_group.setExclusive(False)
+        self.view_buttons_group.setExclusive(True)
 
         data_controls_layout.addWidget(self.traces_button)
         data_controls_layout.addWidget(self.colormap_button)

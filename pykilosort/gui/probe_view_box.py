@@ -32,7 +32,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
                               'good_channel': 'b',
                               'bad_channel': 'r'}
 
-        self.active_data_view_mode = "traces"
+        self.active_data_view_mode = "colormap"
         self.primary_channel = None
         self.active_channels = []
 
