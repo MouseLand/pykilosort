@@ -70,12 +70,12 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def set_layout(self, context):
         self.probe_view.clear()
-        self.set_active_layout(context)
+        self.set_active_layout(context.probe, context.intermediate.igood.ravel())
 
         self.update_probe_view()
 
-    def set_active_layout(self, context):
-        self.active_layout = context.probe
+    def set_active_layout(self, probe, good_channels=None):
+        self.active_layout = probe
         self.kcoords = self.active_layout.kcoords
         self.xc, self.yc = self.active_layout.xc, self.active_layout.yc
         self.channel_map_dict = {}
@@ -83,7 +83,10 @@ class ProbeViewBox(QtWidgets.QGroupBox):
             self.channel_map_dict[(xc, yc)] = ind
         self.total_channels = self.active_layout.NchanTOT
         self.channel_map = self.active_layout.chanMap
-        self.good_channels = context.intermediate.igood.ravel()
+        if good_channels is None:
+            self.good_channels = np.ones_like(self.channel_map, dtype=bool)
+        else:
+            self.good_channels = good_channels
 
     def on_points_clicked(self, points):
         selected_point = points.ptsClicked[0]
@@ -132,9 +135,18 @@ class ProbeViewBox(QtWidgets.QGroupBox):
     def update_probe_view(self):
         self.synchronize_primary_channel()
         self.set_active_channels()
+        self.create_plot()
 
+    @QtCore.pyqtSlot(object)
+    def preview_probe(self, probe):
+        self.probe_view.clear()
+        self.set_active_layout(probe)
+        self.create_plot(connect=False)
+
+    def create_plot(self, connect=True):
         spots = self.generate_spots_list()
 
         scatter_plot = pg.ScatterPlotItem(spots)
-        scatter_plot.sigClicked.connect(self.on_points_clicked)
+        if connect:
+            scatter_plot.sigClicked.connect(self.on_points_clicked)
         self.probe_view.addItem(scatter_plot)

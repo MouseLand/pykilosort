@@ -16,6 +16,7 @@ logger = setup_logger(__name__)
 
 class SettingsBox(QtWidgets.QGroupBox):
     settingsUpdated = QtCore.pyqtSignal()
+    previewProbe = QtCore.pyqtSignal(object)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -59,6 +60,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.advanced_options_button = QtWidgets.QPushButton("Advanced Options...")
 
         self.load_settings_button = QtWidgets.QPushButton("LOAD")
+        self.probe_preview_button = QtWidgets.QPushButton("Preview Probe")
 
         self.data_file_path = None
         self.working_directory_path = None
@@ -101,7 +103,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         font.setPointSize(20)
         self.load_settings_button.setFont(font)
         self.load_settings_button.setDisabled(True)
-        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
+        self.load_settings_button.clicked.connect(self.update_settings)
 
         select_data_file_layout = QtWidgets.QHBoxLayout()
         select_data_file_layout.addWidget(self.select_data_file, 70)
@@ -129,6 +131,11 @@ class SettingsBox(QtWidgets.QGroupBox):
         probe_layout_layout.addWidget(self.probe_layout_selector, 30)
         self.probe_layout_selector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
         self.probe_layout_selector.currentTextChanged.connect(self.on_probe_layout_selected)
+
+        probe_preview_layout = QtWidgets.QHBoxLayout()
+        self.probe_preview_button.setDisabled(True)
+        self.probe_preview_button.clicked.connect(self.show_probe_layout)
+        probe_preview_layout.addWidget(self.probe_preview_button, 30, alignment=QtCore.Qt.AlignRight)
 
         num_channels_layout = QtWidgets.QHBoxLayout()
         num_channels_layout.addWidget(self.num_channels_text, 70)
@@ -164,13 +171,14 @@ class SettingsBox(QtWidgets.QGroupBox):
         auc_splits_layout.addWidget(self.auc_splits_input, 30)
         self.auc_splits_input.textChanged.connect(self.on_auc_splits_changed)
 
-        self.load_settings_button.clicked.connect(self.update_settings)
+        self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
 
         layout.addWidget(self.load_settings_button)
         layout.addLayout(select_data_file_layout)
         layout.addLayout(select_working_directory_layout)
         layout.addLayout(select_results_directory_layout)
         layout.addLayout(probe_layout_layout)
+        layout.addLayout(probe_preview_layout)
         layout.addLayout(num_channels_layout)
         layout.addLayout(time_range_layout)
         layout.addLayout(min_firing_rate_layout)
@@ -267,10 +275,12 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def disable_all_buttons(self):
         self.load_settings_button.setDisabled(True)
+        self.probe_preview_button.setDisabled(True)
         self.advanced_options_button.setDisabled(True)
 
     def reenable_all_buttons(self):
         self.load_settings_button.setDisabled(False)
+        self.probe_preview_button.setDisabled(False)
         self.advanced_options_button.setDisabled(False)
 
     def enable_load(self):
@@ -278,6 +288,12 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def disable_load(self):
         self.load_settings_button.setDisabled(True)
+
+    def enable_preview_probe(self):
+        self.probe_preview_button.setEnabled(True)
+
+    def disable_preview_probe(self):
+        self.probe_preview_button.setDisabled(True)
 
     def check_settings(self):
         self.settings = {
@@ -301,6 +317,10 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.disable_all_buttons()
             QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
             self.settingsUpdated.emit()
+
+    @QtCore.pyqtSlot()
+    def show_probe_layout(self):
+        self.previewProbe.emit(self.probe_layout)
 
     @QtCore.pyqtSlot()
     def on_advanced_options_clicked(self):
@@ -339,36 +359,35 @@ class SettingsBox(QtWidgets.QGroupBox):
 
                 self.num_channels_input.setText(str(total_channels))
 
+                self.enable_preview_probe()
+
                 if self.check_settings():
                     self.enable_load()
             except MatReadError:
                 logger.exception("Invalid probe file!")
                 self.disable_load()
+                self.disable_preview_probe()
 
         elif name == "[new]":
-            probe_layout, probe_prb, probe_name, okay = ProbeBuilder(parent=self).exec_()
+            probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
+            probe_name = probe_name + ".prb"
 
             if okay:
-                probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name + ".prb")
+                probe_prb = create_prb(probe_layout)
+                probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name)
                 with open(probe_path, 'w+') as probe_file:
-                    str_dict = pprint.pformat(probe_prb, indent=4, compact=True)
-                    str_prb = f"""channel_groups = {str_dict}"""
+                    # TODO: pretty print output
+                    str_prb = f"""channel_groups = {probe_prb}"""
                     probe_file.write(str_prb)
                 assert probe_path.exists()
 
                 self.populate_probe_selector()
 
-                self.probe_layout = probe_layout
-
-                total_channels = self.probe_layout.NchanTOT
-                total_channels = self.estimate_total_channels(total_channels)
-                self.num_channels_input.setText(str(total_channels))
-
-                if self.check_settings():
-                    self.enable_load()
+                self.probe_layout_selector.setCurrentText(probe_name)
             else:
                 self.probe_layout_selector.setCurrentIndex(0)
                 self.disable_load()
+                self.disable_preview_probe()
 
         elif name == "other...":
             probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
@@ -415,15 +434,19 @@ class SettingsBox(QtWidgets.QGroupBox):
                         total_channels = self.estimate_total_channels(total_channels)
                         self.num_channels_input.setText(str(total_channels))
 
-                    if self.check_settings():
-                        self.enable_load()
+                        self.enable_preview_probe()
+
+                        if self.check_settings():
+                            self.enable_load()
 
                 except AssertionError:
                     logger.exception("Please select a valid probe file (accepted types: *.prb, *.mat)!")
                     self.disable_load()
+                    self.disable_preview_probe()
             else:
                 self.probe_layout_selector.setCurrentIndex(0)
                 self.disable_load()
+                self.disable_preview_probe()
 
     def on_number_of_channels_changed(self):
         try:

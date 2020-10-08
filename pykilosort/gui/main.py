@@ -106,6 +106,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.setCentralWidget(self.content)
 
         self.settings_box.settingsUpdated.connect(self.set_parameters)
+        self.settings_box.previewProbe.connect(self.probe_view_box.preview_probe)
 
         self.data_view_box.channelChanged.connect(self.probe_view_box.update_probe_view)
         self.data_view_box.modeChanged.connect(self.probe_view_box.synchronize_data_view_mode)
