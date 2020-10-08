@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from PyQt5 import QtWidgets, QtGui, QtCore
 from scipy.io.matlab.miobase import MatReadError
-from pykilosort.utils import load_probe
+from pykilosort.utils import load_probe, create_prb
 from pykilosort.params import KilosortParams
 from pykilosort.gui.logger import setup_logger
 from pykilosort.gui.minor_gui_elements import ProbeBuilder, AdvancedOptionsEditor
