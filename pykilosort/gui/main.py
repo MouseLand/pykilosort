@@ -55,6 +55,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box = RunBox(self)
         self.message_log_box = MessageLogBox(self)
 
+        self.message_log_dock = QtWidgets.QDockWidget("Message Log", self)
+
         self.setup()
 
     def keyPressEvent(self, event):
@@ -88,6 +90,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def setup(self):
         self.setWindowTitle(f"Kilosort{__version__}")
 
+        self.message_log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.message_log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFloatable | QtWidgets.QDockWidget.DockWidgetMovable)
+        self.message_log_dock.setWidget(self.message_log_box)
+
         self.content_layout.addWidget(self.header_box, 3)
 
         self.second_boxes_layout.addWidget(self.settings_box, 85)
@@ -99,11 +105,12 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.boxes.setLayout(self.boxes_layout)
         self.content_layout.addWidget(self.boxes, 90)
-        self.content_layout.addWidget(self.message_log_box, 7)
 
         self.content_layout.setContentsMargins(10, 10, 10, 10)
         self.content.setLayout(self.content_layout)
         self.setCentralWidget(self.content)
+
+        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.message_log_dock)
 
         self.settings_box.settingsUpdated.connect(self.set_parameters)
         self.settings_box.previewProbe.connect(self.probe_view_box.preview_probe)

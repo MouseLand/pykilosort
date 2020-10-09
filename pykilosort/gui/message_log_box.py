@@ -6,8 +6,6 @@ class MessageLogBox(QtWidgets.QGroupBox):
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
-        self.setTitle("Message Log")
-
         self.layout = QtWidgets.QHBoxLayout()
         self.log_box = QtWidgets.QPlainTextEdit()
         self.log_box.setReadOnly(True)
