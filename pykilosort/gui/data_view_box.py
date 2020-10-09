@@ -2,8 +2,11 @@ from PyQt5 import QtWidgets, QtCore
 from pykilosort.gui.palettes import COLORMAP_COLORS
 from pykilosort.gui.sorter import get_whitened_traces
 from pykilosort.gui.minor_gui_elements import controls_popup_text
+from pykilosort.gui.logger import setup_logger
 import pyqtgraph as pg
 import numpy as np
+
+logger = setup_logger(__name__)
 
 
 class DataViewBox(QtWidgets.QGroupBox):
