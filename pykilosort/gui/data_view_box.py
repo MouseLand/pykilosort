@@ -59,6 +59,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.channels_displayed_colormap = None
         self.data_range = (0, 3000)
         self.seek_range = (0, 100)
+        self.scale_factor = 1.0
 
         # colormap settings
         self._colors = COLORMAP_COLORS
@@ -214,8 +215,12 @@ class DataViewBox(QtWidgets.QGroupBox):
     def on_wheel_scroll_plus_alt(self, direction):
         if self.gui.context is not None:
             if self.traces_button.isChecked():
-                y_scale = 1.001 ** (120 * direction)  # mimics zooming behaviour of pyqtgraph
-                self.data_view_widget.scale(1, y_scale)
+                scale_factor = self.scale_factor * (1.1 ** direction)
+                if 0.1 < scale_factor < 10.0:
+                    logger.debug(scale_factor)
+                    self.scale_factor = scale_factor
+
+                    self.update_plot()
 
             if self.colormap_button.isChecked():
                 colormap_min = self.colormap_min + (direction * 0.05)
@@ -352,7 +357,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                                  pen=pg.mkPen(color=color, width=1))
 
         curve.label = label
-        curve.setData(trace + 200 * label)
+        curve.setData(trace * self.scale_factor + 200 * label)
         self.plot_item.addItem(curve)
 
     def add_image_to_plot(self, raw_traces, level_min, level_max):
@@ -463,6 +468,9 @@ class KSPlotWidget(pg.PlotWidget):
         #     return
 
         delta = ev.angleDelta().y()
+        if delta == 0:
+            delta = ev.angleDelta().x()
+
         direction = delta / np.abs(delta)
         modifiers = QtWidgets.QApplication.keyboardModifiers()
 
