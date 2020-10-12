@@ -8,8 +8,11 @@ from pykilosort.gui import find_good_channels
 from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
 from pykilosort.gui import probes
+from pykilosort.gui.logger import setup_logger
 from pykilosort import __version__
 from PyQt5 import QtGui, QtWidgets, QtCore
+
+logger = setup_logger(__name__)
 
 
 class KiloSortGUI(QtWidgets.QMainWindow):
