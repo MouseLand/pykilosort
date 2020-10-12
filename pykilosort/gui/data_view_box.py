@@ -192,9 +192,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll(self, direction):
-        time_shift = direction * 0.1  # seconds
         if self.gui.context is not None:
-            self.shift_current_time(time_shift)
+            self.shift_current_time(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_control(self, direction):
@@ -207,29 +206,12 @@ class DataViewBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_shift(self, direction):
         if self.gui.context is not None:
-            plot_range = self.plot_range + 0.1 * direction  # half or double current plot range
-            if 0.0 < plot_range < 2.0:
-                self.change_plot_range(plot_range)
+            self.change_plot_range(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_alt(self, direction):
         if self.gui.context is not None:
-            if self.traces_button.isChecked():
-                scale_factor = self.scale_factor * (1.1 ** direction)
-                if 0.1 < scale_factor < 10.0:
-                    self.scale_factor = scale_factor
-
-                    self.update_plot()
-
-            if self.colormap_button.isChecked():
-                colormap_min = self.colormap_min + (direction * 0.05)
-                colormap_max = self.colormap_max - (direction * 0.05)
-                if 0.0 <= colormap_min < colormap_max <= 1.0:
-                    self.colormap_min = colormap_min
-                    self.colormap_max = colormap_max
-                    self.lookup_table = self.generate_lookup_table(self.colormap_min, self.colormap_max)
-
-                    self.update_plot()
+            self.change_plot_scaling(direction)
 
     def toggle_view(self, toggled):
         if toggled:
@@ -263,7 +245,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.traces_button.isChecked():
             return self.channels_displayed_traces
         else:
-            return self.channels_displayed_colormap
+            count = self.channels_displayed_colormap
+            if count is None:
+                count = self.get_total_channels()
+            return count
 
     def set_currently_displayed_channel_count(self, count):
         if self.traces_button.isChecked():
@@ -274,11 +259,11 @@ class DataViewBox(QtWidgets.QGroupBox):
     def get_total_channels(self):
         return self.gui.probe_view_box.total_channels
 
-    def change_displayed_channel_count(self, shift):
+    def change_displayed_channel_count(self, direction):
         total_channels = self.get_total_channels()
         current_count = self.get_currently_displayed_channel_count()
 
-        new_count = current_count + (shift * 5)
+        new_count = current_count + (direction * 5)
         if 0 < new_count <= total_channels:
             self.set_currently_displayed_channel_count(new_count)
             self.channelChanged.emit()
@@ -292,7 +277,8 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.channelChanged.emit()
             self.update_plot()
 
-    def shift_current_time(self, time_shift):
+    def shift_current_time(self, direction):
+        time_shift = direction * self.plot_range / 2  # seconds
         current_time = self.current_time
         new_time = current_time + time_shift
         seek_range_min = self.seek_range[0]
@@ -300,23 +286,50 @@ class DataViewBox(QtWidgets.QGroupBox):
         if seek_range_min <= new_time <= seek_range_max:
             self.time_seek.setPos(new_time)
 
-    def change_plot_range(self, new_plot_range):
-        self.plot_range = new_plot_range
-        self.reset_cache()
-        self.update_plot()
+    def change_plot_range(self, direction):
+        plot_range = self.plot_range + 0.1 * direction
+        if 0.01 < plot_range < 2.0:
+            self.plot_range = plot_range
+            logger.debug(f"{plot_range}")
+            self.reset_cache()
+            self.update_plot()
+
+    def change_plot_scaling(self, direction):
+        if self.traces_button.isChecked():
+            scale_factor = self.scale_factor * (1.1 ** direction)
+            if 0.1 < scale_factor < 10.0:
+                self.scale_factor = scale_factor
+
+                self.update_plot()
+
+        if self.colormap_button.isChecked():
+            colormap_min = self.colormap_min + (direction * 0.05)
+            colormap_max = self.colormap_max - (direction * 0.05)
+            if 0.0 <= colormap_min < colormap_max <= 1.0:
+                self.colormap_min = colormap_min
+                self.colormap_max = colormap_max
+                self.lookup_table = self.generate_lookup_table(self.colormap_min, self.colormap_max)
+
+                self.update_plot()
+
+    def change_channel_display(self, direction):
+        if self.traces_button.isChecked():
+            self.shift_primary_channel(direction)
+        else:
+            self.change_displayed_channel_count(direction)
 
     def scene_clicked(self, ev):
-        if self.colormap_image is not None:
-            x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
-        else:
+        if self.traces_button.isChecked():
             x_pos = ev.pos().x()
+        else:
+            x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
         range_min = self.data_range[0]
         range_max = self.data_range[1]
         fraction = (x_pos - range_min) / range_max
         if fraction > 0.5:
-            self.shift_current_time(time_shift=self.plot_range / 2)
+            self.shift_current_time(direction=1)
         else:
-            self.shift_current_time(time_shift=-self.plot_range / 2)
+            self.shift_current_time(direction=-1)
 
     def seek_clicked(self, ev):
         if self.gui.context is not None:

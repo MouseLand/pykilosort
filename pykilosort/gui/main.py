@@ -66,14 +66,40 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         QtWidgets.QMainWindow.keyPressEvent(self, event)
 
         if type(event) == QtGui.QKeyEvent:
+            modifiers = event.modifiers()
+
             if event.key() == QtCore.Qt.Key_Up:
-                self.change_displayed_channel_count(shift=1)
+                if modifiers:
+                    if modifiers == QtCore.Qt.ControlModifier:
+                        # logger.debug("Ctrl+Up")
+                        self.change_channel_display(1)
+                    elif modifiers == QtCore.Qt.AltModifier:
+                        # logger.debug("Alt+Up")
+                        self.scale_data(1)
+                    elif modifiers == QtCore.Qt.ShiftModifier:
+                        # logger.debug("Shift+Up")
+                        self.zoom_data_view_in_time(1)
+                else:
+                    # logger.debug("Only Up")
+                    self.change_displayed_channel_count(shift=1)
             elif event.key() == QtCore.Qt.Key_Down:
-                self.change_displayed_channel_count(shift=-1)
+                if modifiers:
+                    if modifiers == QtCore.Qt.ControlModifier:
+                        # logger.debug("Ctrl+Down")
+                        self.change_channel_display(-1)
+                    elif modifiers == QtCore.Qt.AltModifier:
+                        # logger.debug("Alt+Down")
+                        self.scale_data(-1)
+                    elif modifiers == QtCore.Qt.ShiftModifier:
+                        # logger.debug("Shift+Down")
+                        self.zoom_data_view_in_time(-1)
+                else:
+                    # logger.debug("Only Down")
+                    self.change_displayed_channel_count(shift=-1)
             elif event.key() == QtCore.Qt.Key_Left:
-                self.shift_data(time_shift=-0.1)
+                self.shift_data(time_shift=-1)
             elif event.key() == QtCore.Qt.Key_Right:
-                self.shift_data(time_shift=0.1)
+                self.shift_data(time_shift=1)
             elif event.key() == QtCore.Qt.Key_C:
                 self.toggle_view()
             elif event.key() == QtCore.Qt.Key_1:
@@ -125,9 +151,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.run_box.updateContext.connect(self.update_context)
 
-    def change_channel(self, shift):
+    def change_channel_display(self, direction):
         if self.context is not None:
-            self.data_view_box.shift_primary_channel(shift)
+            self.data_view_box.change_channel_display(direction)
 
     def shift_data(self, time_shift):
         if self.context is not None:
@@ -136,6 +162,14 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def change_displayed_channel_count(self, shift):
         if self.context is not None:
             self.data_view_box.change_displayed_channel_count(shift)
+
+    def zoom_data_view_in_time(self, direction):
+        if self.context is not None:
+            self.data_view_box.change_plot_range(direction)
+
+    def scale_data(self, direction):
+        if self.context is not None:
+            self.data_view_box.change_plot_scaling(direction)
 
     def toggle_view(self):
         self.data_view_box.traces_button.toggle()
