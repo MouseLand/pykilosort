@@ -217,7 +217,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             if self.traces_button.isChecked():
                 scale_factor = self.scale_factor * (1.1 ** direction)
                 if 0.1 < scale_factor < 10.0:
-                    logger.debug(scale_factor)
                     self.scale_factor = scale_factor
 
                     self.update_plot()
