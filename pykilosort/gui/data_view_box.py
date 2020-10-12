@@ -253,32 +253,45 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def shift_primary_channel(self, shift):
         primary_channel = self.primary_channel
-        primary_channel += shift
-        total_channels = self.gui.probe_view_box.total_channels
+        primary_channel += shift * 5
+        total_channels = self.get_total_channels()
         if (0 <= primary_channel < total_channels) and total_channels is not None:
             self.primary_channel = primary_channel
             self.channelChanged.emit()
             self.update_plot()
 
-    def change_displayed_channel_count(self, shift):
-        total_channels = self.gui.probe_view_box.total_channels
+    def get_currently_displayed_channel_count(self):
         if self.traces_button.isChecked():
-            current_count = self.channels_displayed_traces
-            new_count = current_count + shift
-            if 0 < new_count <= total_channels:
-                self.channels_displayed_traces = new_count
-                self.channelChanged.emit()
-                self.update_plot()
-
+            return self.channels_displayed_traces
         else:
-            current_count = self.channels_displayed_colormap
-            if current_count is None:
-                current_count = total_channels
-            new_count = current_count + shift
-            if 0 < new_count <= total_channels:
-                self.channels_displayed_colormap = new_count
-                self.channelChanged.emit()
-                self.update_plot()
+            return self.channels_displayed_colormap
+
+    def set_currently_displayed_channel_count(self, count):
+        if self.traces_button.isChecked():
+            self.channels_displayed_traces = count
+        else:
+            self.channels_displayed_colormap = count
+
+    def get_total_channels(self):
+        return self.gui.probe_view_box.total_channels
+
+    def change_displayed_channel_count(self, shift):
+        total_channels = self.get_total_channels()
+        current_count = self.get_currently_displayed_channel_count()
+
+        new_count = current_count + (shift * 5)
+        if 0 < new_count <= total_channels:
+            self.set_currently_displayed_channel_count(new_count)
+            self.channelChanged.emit()
+            self.update_plot()
+        elif new_count <= 0 and current_count != 1:
+            self.set_currently_displayed_channel_count(1)
+            self.channelChanged.emit()
+            self.update_plot()
+        elif new_count > total_channels:
+            self.set_currently_displayed_channel_count(total_channels)
+            self.channelChanged.emit()
+            self.update_plot()
 
     def shift_current_time(self, time_shift):
         current_time = self.current_time
@@ -432,7 +445,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 start_channel = self.primary_channel
                 displayed_channels = self.channels_displayed_colormap
                 if displayed_channels is None:
-                    displayed_channels = self.gui.probe_view_box.total_channels
+                    displayed_channels = self.get_total_channels()
                 end_channel = start_channel + displayed_channels
 
                 if self.raw_button.isChecked():
