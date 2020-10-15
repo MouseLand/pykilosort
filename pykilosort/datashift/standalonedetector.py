@@ -81,18 +81,6 @@ def spikedetector3(Params, drez, wTEMP, iC, dist, v2, iC2, dist2):
         # take max across nearby channels
         tpP = (int(NT / Nthreads), NchanUp)
         maxChannels = cu.RawKernel(code, "maxChannels", backend="nvcc")
-        # print(tpP)
-        # print(d_Params)
-        # print(d_dout.shape)
-        # print(d_dmax.shape)
-        # print(d_iC.shape)
-        # print(d_iC2.shape)
-        # print(d_dist2.shape)
-        # print(d_kkmax.shape)
-        # print(d_dfilt.shape)
-        # print(d_st.shape)
-        # print(d_counter.shape)
-        # print(d_cF.shape)
         maxChannels(
             tpP,
             (Nthreads,),
@@ -206,7 +194,6 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, par
                 Params, dataRAW, wTEMP, iC, dist, v2, iC2, dist2
             )
 
-        # import pdb; pdb.set_trace()
         # upsample the y position using the center of mass of template products
         # coming out of the CUDA function.
         ys = probe.yc[cu.asnumpy(iC)]
