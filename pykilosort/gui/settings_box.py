@@ -370,9 +370,9 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         elif name == "[new]":
             probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
-            probe_name = probe_name + ".prb"
 
             if okay:
+                probe_name = probe_name + ".prb"
                 probe_prb = create_prb(probe_layout)
                 probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name)
                 with open(probe_path, 'w+') as probe_file:
