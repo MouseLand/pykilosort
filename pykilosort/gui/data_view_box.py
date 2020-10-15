@@ -403,27 +403,11 @@ class DataViewBox(QtWidgets.QGroupBox):
             intermediate = context.intermediate
             good_channels = intermediate.igood.ravel()
 
-            if 'colormap_limits' not in intermediate:
-                with context.time("colormap_min_max_calculations"):
-                    data_mean = np.mean(raw_data[:])
-                    data_std = np.std(raw_data[:])
-                    intermediate.colormap_limits = (
-                        data_mean - 4 * data_std,
-                        data_mean + 4 * data_std
-                    )
-
-            # if 'Wrot' not in intermediate or recalculate_whitening:
-            #     with context.time('whitening_matrix'):
-            #         intermediate.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
-            #     context.write(Wrot=intermediate.Wrot)
-
             sample_rate = raw_data.sample_rate
 
             start_time = int(self.current_time * sample_rate)
             time_range = int(self.plot_range * sample_rate)
             end_time = start_time + time_range
-
-            colormap_min, colormap_max = intermediate.colormap_limits
 
             self.plot_item.clear()
             self.colormap_image = None
@@ -461,6 +445,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 end_channel = start_channel + displayed_channels
 
                 if self.raw_button.isChecked():
+                    colormap_min, colormap_max = -32.0, 32.0
                     self.add_image_to_plot(raw_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
                 elif self.whitened_button.isChecked():
@@ -469,6 +454,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                         self.whitened_traces = whitened_traces
                     else:
                         whitened_traces = self.whitened_traces
+                    colormap_min, colormap_max = -16.0, 16.0
                     self.add_image_to_plot(whitened_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
