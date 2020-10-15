@@ -1,3 +1,4 @@
+import yaml
 from math import ceil
 from pathlib import Path
 from pytest import fixture
@@ -92,3 +93,4 @@ def dtype(request):
 @fixture(params=[0, 1])
 def axis(request):
     return request.param
+
