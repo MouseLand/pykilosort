@@ -27,6 +27,26 @@ class Probe(BaseModel):
         arbitrary_types_allowed=True
 
 
+
+class DatashiftParams(BaseModel):
+    sig: float = Field(20.0, description="sigma for the Gaussian process smoothing")
+    nblocks: int = Field(
+        5, description="blocks for registration. 1 does rigid registration."
+    )
+    output_filename: t.Optional[str] = Field(
+        None, description="optionally save registered data to a new binary file"
+    )
+    overwrite: bool = Field(True, description="overwrite proc file with shifted data")
+
+    @validator("nblocks")
+    def validate_nblocks(v):
+        if v < 1:
+            raise ValueError(
+                "datashift.nblocks must be >= 1, or datashift should be None"
+            )
+        return v
+
+
 class KilosortParams(BaseModel):
     fs: float = Field(30000., description="sample rate")
 
