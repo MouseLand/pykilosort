@@ -190,7 +190,7 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         self._default_parameters = KilosortParams().parse_obj(self.parent.get_default_advanced_options())
         self.current_parameters = self._default_parameters.dict()
 
-        self.parameter_edit_box = QtWidgets.QPlainTextEdit()
+        self.parameter_edit_box = JsonEditor(self)
         self.parameter_edit_box.setFont(QtGui.QFont("Monospace"))
 
         self.error_label = QtWidgets.QLabel()
@@ -208,6 +208,8 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         self.setup()
 
     def setup(self):
+        self.setMinimumSize(300, 600)
+
         layout = QtWidgets.QVBoxLayout()
 
         self.parameter_edit_box.textChanged.connect(self.set_values_as_unchecked)
@@ -297,6 +299,94 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
 
     def get_parameters(self):
         return self.current_parameters
+
+
+class QLineNumberArea(QtWidgets.QWidget):
+    """
+    Adapted from: https://stackoverflow.com/a/49790764/7126611
+    """
+    def __init__(self, editor):
+        super().__init__(editor)
+        self.codeEditor = editor
+
+    def sizeHint(self):
+        return QtCore.QSize(self.editor.line_number_area_width(), 0)
+
+    def paintEvent(self, event):
+        self.codeEditor.line_number_area_paint_event(event)
+
+
+class JsonEditor(QtWidgets.QPlainTextEdit):
+    """
+    Adapted from: https://stackoverflow.com/a/49790764/7126611
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.lineNumberArea = QLineNumberArea(self)
+        self.blockCountChanged.connect(self.update_line_number_area_width)
+        self.updateRequest.connect(self.update_line_number_area)
+        self.cursorPositionChanged.connect(self.highlight_current_line)
+        self.update_line_number_area_width(0)
+
+    def line_number_area_width(self):
+        digits = 1
+        max_value = max(1, self.blockCount())
+        while max_value >= 10:
+            max_value /= 10
+            digits += 1
+        space = 3 + self.fontMetrics().width('9') * digits + 5
+        return space
+
+    def update_line_number_area_width(self, null):
+        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+
+    def update_line_number_area(self, rect, dy):
+        if dy:
+            self.lineNumberArea.scroll(0, dy)
+        else:
+            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(), rect.height())
+        if rect.contains(self.viewport().rect()):
+            self.update_line_number_area_width(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        cr = self.contentsRect()
+        self.lineNumberArea.setGeometry(QtCore.QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height()))
+
+    def highlight_current_line(self):
+        extra_selections = []
+        if not self.isReadOnly():
+            selection = QtWidgets.QTextEdit.ExtraSelection()
+            line_color = QtGui.QColor(53, 50, 47)
+            selection.format.setBackground(line_color)
+            selection.format.setProperty(QtGui.QTextFormat.FullWidthSelection, True)
+            selection.cursor = self.textCursor()
+            selection.cursor.clearSelection()
+            extra_selections.append(selection)
+        self.setExtraSelections(extra_selections)
+
+    def line_number_area_paint_event(self, event):
+        painter = QtGui.QPainter(self.lineNumberArea)
+
+        painter.fillRect(event.rect(), QtGui.QColor(53, 50, 47))
+
+        block = self.firstVisibleBlock()
+        block_number = block.blockNumber()
+        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+        bottom = top + self.blockBoundingRect(block).height()
+
+        # Just to make sure I use the right font
+        height = self.fontMetrics().height()
+        while block.isValid() and (top <= event.rect().bottom()):
+            if block.isVisible() and (bottom >= event.rect().top()):
+                number = str(block_number + 1)
+                painter.setPen(QtCore.Qt.white)
+                painter.drawText(0, top, self.lineNumberArea.width(), height, QtCore.Qt.AlignRight, number)
+
+            block = block.next()
+            top = bottom
+            bottom = top + self.blockBoundingRect(block).height()
+            block_number += 1
 
 
 controls_popup_text = """
