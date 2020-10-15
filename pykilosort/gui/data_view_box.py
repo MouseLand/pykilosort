@@ -291,7 +291,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         if 0.01 < plot_range < 2.0:
             self.plot_range = plot_range
             logger.debug(f"{plot_range}")
-            self.reset_cache()
+            self.clear_cached_traces()
             self.update_plot()
 
     def change_plot_scaling(self, direction):
@@ -359,7 +359,7 @@ class DataViewBox(QtWidgets.QGroupBox):
     def update_seek_position(self, seek):
         position = seek.pos()[0]
         self.current_time = position
-        self.reset_cache()
+        self.clear_cached_traces()
         self.update_plot()
 
     def show_controls_popup(self):
@@ -368,6 +368,11 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def reset_cache(self):
         self.whitening_matrix = None
+        self.whitened_traces = None
+        self.residual_traces = None
+        self.prediction_traces = None
+
+    def clear_cached_traces(self):
         self.whitened_traces = None
         self.residual_traces = None
         self.prediction_traces = None
@@ -426,7 +431,13 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.whitened_button.isChecked():
                     if self.whitened_traces is None:
-                        whitened_traces = get_whitened_traces(raw_data=raw_traces, probe=probe, params=params)
+
+                        whitened_traces, self.whitening_matrix = get_whitened_traces(
+                            raw_data=raw_traces,
+                            probe=probe,
+                            params=params,
+                            whitening_matrix=self.whitening_matrix
+                        )
                         self.whitened_traces = whitened_traces
                     else:
                         whitened_traces = self.whitened_traces
@@ -451,7 +462,12 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 elif self.whitened_button.isChecked():
                     if self.whitened_traces is None:
-                        whitened_traces = get_whitened_traces(raw_data=raw_traces, probe=probe, params=params)
+                        whitened_traces, self.whitening_matrix = get_whitened_traces(
+                            raw_data=raw_traces,
+                            probe=probe,
+                            params=params,
+                            whitening_matrix=self.whitening_matrix
+                        )
                         self.whitened_traces = whitened_traces
                     else:
                         whitened_traces = self.whitened_traces

@@ -85,11 +85,12 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
     return whitened_array.get()
 
 
-def get_whitened_traces(raw_data, probe, params):
-    whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+def get_whitened_traces(raw_data, probe, params, whitening_matrix):
+    if whitening_matrix is None:
+        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
     whitened_traces = filter_and_whiten(raw_traces=raw_data, params=params,
                                         probe=probe, whitening_matrix=whitening_matrix)
-    return whitened_traces
+    return whitened_traces, whitening_matrix
 
 
 class KiloSortWorker(QtCore.QThread):
