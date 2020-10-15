@@ -1182,4 +1182,4 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
                 f.write('offset = 0\n')
                 f.write('hp_filtered = False\n')
                 f.write('sample_rate = %i\n' % params.fs)
-                f.write('template_scaling = %.1f\n' % params.get('templateScaling', 1.0))
+                f.write('template_scaling = %.1f\n' % params.templateScaling)
