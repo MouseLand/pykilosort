@@ -319,17 +319,18 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.change_displayed_channel_count(direction)
 
     def scene_clicked(self, ev):
-        if self.traces_button.isChecked():
-            x_pos = ev.pos().x()
-        else:
-            x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
-        range_min = self.data_range[0]
-        range_max = self.data_range[1]
-        fraction = (x_pos - range_min) / range_max
-        if fraction > 0.5:
-            self.shift_current_time(direction=1)
-        else:
-            self.shift_current_time(direction=-1)
+        if self.gui.context is not None:
+            if self.traces_button.isChecked():
+                x_pos = ev.pos().x()
+            else:
+                x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
+            range_min = self.data_range[0]
+            range_max = self.data_range[1]
+            fraction = (x_pos - range_min) / range_max
+            if fraction > 0.5:
+                self.shift_current_time(direction=1)
+            else:
+                self.shift_current_time(direction=-1)
 
     def seek_clicked(self, ev):
         if self.gui.context is not None:
