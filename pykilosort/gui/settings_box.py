@@ -324,10 +324,10 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     @QtCore.pyqtSlot()
     def on_advanced_options_clicked(self):
-        advanced_options, okay = AdvancedOptionsEditor(parent=self).exec_()
+        dialog = AdvancedOptionsEditor(parent=self)
 
-        if okay:
-            self.advanced_options = advanced_options
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
+            self.advanced_options = dialog.get_parameters()
 
             save_advanced_options = QtWidgets.QMessageBox.question(
                 self, "Save as defaults?",
@@ -369,9 +369,12 @@ class SettingsBox(QtWidgets.QGroupBox):
                 self.disable_preview_probe()
 
         elif name == "[new]":
-            probe_layout, probe_name, okay = ProbeBuilder(parent=self).exec_()
+            dialog = ProbeBuilder(parent=self)
 
-            if okay:
+            if dialog.exec() == QtWidgets.QDialog.Accepted:
+                probe_name = dialog.get_map_name()
+                probe_layout = dialog.get_probe()
+
                 probe_name = probe_name + ".prb"
                 probe_prb = create_prb(probe_layout)
                 probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name)

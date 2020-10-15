@@ -174,6 +174,12 @@ class ProbeBuilder(QtWidgets.QDialog):
 
         self.probe = probe
 
+    def get_map_name(self):
+        return self.map_name
+
+    def get_probe(self):
+        return self.probe
+
     def exec_(self):
         QtWidgets.QDialog.exec_(self)
         return self.probe, self.map_name, self.values_checked
@@ -293,9 +299,8 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         json_dump = json.dumps(self.current_parameters, indent=4)
         self.parameter_edit_box.setPlainText(json_dump)
 
-    def exec_(self):
-        QtWidgets.QDialog.exec_(self)
-        return self.current_parameters, self.values_checked
+    def get_parameters(self):
+        return self.current_parameters
 
 
 controls_popup_text = """
