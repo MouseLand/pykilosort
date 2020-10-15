@@ -180,10 +180,6 @@ class ProbeBuilder(QtWidgets.QDialog):
     def get_probe(self):
         return self.probe
 
-    def exec_(self):
-        QtWidgets.QDialog.exec_(self)
-        return self.probe, self.map_name, self.values_checked
-
 
 class AdvancedOptionsEditor(QtWidgets.QDialog):
 
