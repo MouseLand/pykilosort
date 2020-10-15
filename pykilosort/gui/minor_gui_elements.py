@@ -59,7 +59,9 @@ class ProbeBuilder(QtWidgets.QDialog):
         info_label = QtWidgets.QLabel("Valid inputs: lists, or numpy expressions (use np for numpy)")
 
         self.cancel_button.clicked.connect(self.reject)
+        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton))
         self.okay_button.clicked.connect(self.accept)
+        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton))
         self.check_button.clicked.connect(self.check_inputs)
 
         buttons = [self.check_button, self.okay_button, self.cancel_button]
@@ -193,9 +195,11 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         self.error_label.setText("Please check json syntax!")
         self.error_label.setWordWrap(True)
 
-        self.save_button = QtWidgets.QPushButton("Save", parent=self)
+        self.okay_button = QtWidgets.QPushButton("Ok", parent=self)
         self.cancel_button = QtWidgets.QPushButton("Cancel", parent=self)
         self.check_button = QtWidgets.QPushButton("Check", parent=self)
+        self.reset_to_original = QtWidgets.QPushButton("Reset to original", parent=self)
+        self.reset_to_saved = QtWidgets.QPushButton("Reset to last saved", parent=self)
 
         self.values_checked = False
 
@@ -209,10 +213,15 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         parameter_edit_label = QtWidgets.QLabel("Modify the advanced parameters by changing this json file:")
 
         self.cancel_button.clicked.connect(self.reject)
-        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton))
+        self.okay_button.clicked.connect(self.accept)
+        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton))
         self.check_button.clicked.connect(self.check_json)
+        self.reset_to_original.clicked.connect(self.reset_to_original_defaults)
+        self.reset_to_saved.clicked.connect(self.reset_to_saved_defaults)
 
-        buttons = [self.check_button, self.save_button, self.cancel_button]
+        main_buttons = [self.check_button, self.okay_button, self.cancel_button]
+        reset_buttons = [self.reset_to_saved, self.reset_to_original]
 
         error_label_size_policy = self.error_label.sizePolicy()
         error_label_size_policy.setVerticalPolicy(QtWidgets.QSizePolicy.Maximum)
@@ -223,16 +232,21 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
         self.error_label.setPalette(error_label_palette)
         self.error_label.hide()
 
-        button_layout = QtWidgets.QHBoxLayout()
-        for button in buttons:
-            button_layout.addWidget(button)
+        main_button_layout = QtWidgets.QHBoxLayout()
+        for button in main_buttons:
+            main_button_layout.addWidget(button)
 
-        self.save_button.setDisabled(True)
+        reset_button_layout = QtWidgets.QHBoxLayout()
+        for button in reset_buttons:
+            reset_button_layout.addWidget(button)
+
+        self.okay_button.setDisabled(True)
 
         layout.addWidget(parameter_edit_label, 1)
         layout.addWidget(self.error_label, 1)
-        layout.addWidget(self.parameter_edit_box, 7)
-        layout.addLayout(button_layout, 1)
+        layout.addWidget(self.parameter_edit_box, 6)
+        layout.addLayout(main_button_layout, 1)
+        layout.addLayout(reset_button_layout, 1)
 
         self.setLayout(layout)
 
@@ -241,12 +255,12 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
     @QtCore.pyqtSlot()
     def set_values_as_unchecked(self):
         self.values_checked = False
-        self.save_button.setDisabled(True)
+        self.okay_button.setDisabled(True)
 
     @QtCore.pyqtSlot()
     def set_values_as_checked(self):
         self.values_checked = True
-        self.save_button.setDisabled(False)
+        self.okay_button.setDisabled(False)
 
     @QtCore.pyqtSlot()
     def check_json(self):
@@ -259,11 +273,21 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
             self.error_label.setText("")
             self.error_label.hide()
 
-            self.save_button.setDisabled(False)
+            self.okay_button.setDisabled(False)
         except Exception as e:
             self.error_label.setText("Invalid syntax! Refer to terminal for error message.")
             self.error_label.show()
             print(e)
+
+    def reset_to_original_defaults(self):
+        self.current_parameters = KilosortParams().dict()
+        json_dump = json.dumps(self.current_parameters, indent=4)
+        self.parameter_edit_box.setPlainText(json_dump)
+
+    def reset_to_saved_defaults(self):
+        self.current_parameters = self._default_parameters.dict()
+        json_dump = json.dumps(self.current_parameters, indent=4)
+        self.parameter_edit_box.setPlainText(json_dump)
 
     def set_json_text(self):
         json_dump = json.dumps(self.current_parameters, indent=4)
