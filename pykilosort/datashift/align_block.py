@@ -104,7 +104,6 @@ def align_block2(F, ysamp, nblocks):
             Fs = np.roll(Fsub, dt[t], axis=0)
             dcs[t, :, j] = np.mean(np.mean(Fs * F0[isub, :, :], axis=0), axis=0)
 
-    # import pdb; pdb.set_trace()
     # to find sub-integer shifts for each block ,
     # we now use upsampling, based on kriging interpolation
     dtup = np.linspace(-n, n, (2 * n * 10) + 1)
