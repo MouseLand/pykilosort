@@ -293,3 +293,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.data_view_box.reset()
         self.settings_box.reset()
         self.message_log_box.reset()
+
+    def closeEvent(self, event: QtGui.QCloseEvent):
+        self.message_log_box.save_log_file()
+        event.accept()
