@@ -286,16 +286,19 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
     def reset_to_original_defaults(self):
         self.current_parameters = KilosortParams().dict()
         json_dump = json.dumps(self.current_parameters, indent=4)
-        self.parameter_edit_box.setPlainText(json_dump)
+        self.set_text(json_dump)
 
     def reset_to_saved_defaults(self):
         self.current_parameters = self._default_parameters.dict()
         json_dump = json.dumps(self.current_parameters, indent=4)
-        self.parameter_edit_box.setPlainText(json_dump)
+        self.set_text(json_dump)
 
     def set_json_text(self):
         json_dump = json.dumps(self.current_parameters, indent=4)
-        self.parameter_edit_box.setPlainText(json_dump)
+        self.set_text(json_dump)
+
+    def set_text(self, text):
+        self.parameter_edit_box.setPlainText(text)
 
     def get_parameters(self):
         return self.current_parameters
