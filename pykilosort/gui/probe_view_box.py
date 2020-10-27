@@ -70,7 +70,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def set_layout(self, context):
         self.probe_view.clear()
-        self.set_active_layout(context.probe, context.intermediate.igood.ravel())
+        self.set_active_layout(context.probe, context.intermediate.igood)
 
         self.update_probe_view()
 

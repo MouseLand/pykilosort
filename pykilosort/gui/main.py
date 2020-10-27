@@ -3,8 +3,7 @@ import numpy as np
 from pathlib import Path
 # TODO: optimize imports before incorporating into codebase
 from phylib.io.traces import get_ephys_reader
-from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox
-from pykilosort.gui import find_good_channels
+from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox, KiloSortWorker
 from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
 from pykilosort.gui import probes
@@ -205,6 +204,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.params = params
 
+        self.settings_box.disable_all_buttons()
+        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
+
+        self.prepare_for_new_context()
         self.load_raw_data()
         self.setup_context()
         self.setup_probe_view()
@@ -227,6 +230,17 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.data_view_box.setup_seek(self.context)
         self.data_view_box.update_plot(self.context)
 
+    def update_context_with_good_channels(self):
+        worker = KiloSortWorker(self.context, self.data_path, self.results_directory, ["goodchannels"])
+
+        worker.foundGoodChannels.connect(self.update_context)
+
+        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
+        worker.start()
+        while worker.isRunning():
+            QtWidgets.QApplication.processEvents()
+        QtWidgets.QApplication.restoreOverrideCursor()
+
     def setup_context(self):
         context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))
 
@@ -237,7 +251,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context.load()
 
-        self.context = find_good_channels(self.context)
+        self.update_context_with_good_channels()
 
     @QtCore.pyqtSlot(object)
     def update_context(self, context):

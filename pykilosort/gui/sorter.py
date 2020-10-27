@@ -94,6 +94,7 @@ def get_whitened_traces(raw_data, probe, params, whitening_matrix):
 
 
 class KiloSortWorker(QtCore.QThread):
+    foundGoodChannels = QtCore.pyqtSignal(object)
     finishedPreprocess = QtCore.pyqtSignal(object)
     finishedSpikesort = QtCore.pyqtSignal(object)
     finishedAll = QtCore.pyqtSignal(object)
@@ -119,5 +120,9 @@ class KiloSortWorker(QtCore.QThread):
         if "export" in self.steps:
             run_export(self.context, self.data_path, self.output_directory)
             self.finishedAll.emit(self.context)
+
+        if "goodchannels" in self.steps:
+            self.context = find_good_channels(self.context)
+            self.foundGoodChannels.emit(self.context)
 
 

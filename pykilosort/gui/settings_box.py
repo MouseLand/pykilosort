@@ -314,8 +314,6 @@ class SettingsBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot()
     def update_settings(self):
         if self.check_settings():
-            self.disable_all_buttons()
-            QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
             self.settingsUpdated.emit()
 
     @QtCore.pyqtSlot()
