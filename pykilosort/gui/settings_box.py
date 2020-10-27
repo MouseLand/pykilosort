@@ -3,7 +3,7 @@ import json
 import pprint
 from pathlib import Path
 import numpy as np
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtWidgets, QtCore
 from scipy.io.matlab.miobase import MatReadError
 from pykilosort.utils import load_probe, create_prb
 from pykilosort.params import KilosortParams
