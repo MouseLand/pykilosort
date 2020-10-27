@@ -214,23 +214,29 @@ class SettingsBox(QtWidgets.QGroupBox):
         return advanced_options
 
     def on_select_data_file_clicked(self):
+        file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
         data_file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
                                                                   caption="Choose data file to load...",
-                                                                  directory=os.path.expanduser("~"))
+                                                                  directory=os.path.expanduser("~"),
+                                                                  options=file_dialog_options)
         if data_file_name:
             self.data_file_path_input.setText(data_file_name)
 
     def on_select_working_dir_clicked(self):
+        file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
         working_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose working directory...",
-                                                                         directory=QtCore.QUrl(os.path.expanduser("~")))
+                                                                         directory=QtCore.QUrl(os.path.expanduser("~")),
+                                                                         options=file_dialog_options)
         if working_dir_name:
             self.working_directory_input.setText(working_dir_name.toLocalFile())
 
     def on_select_results_dir_clicked(self):
+        file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
         results_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
                                                                          caption="Choose results directory...",
-                                                                         directory=QtCore.QUrl(os.path.expanduser("~")))
+                                                                         directory=QtCore.QUrl(os.path.expanduser("~")),
+                                                                         options=file_dialog_options)
         if results_dir_name:
             self.results_directory_input.setText(results_dir_name.toLocalFile())
 
@@ -395,10 +401,12 @@ class SettingsBox(QtWidgets.QGroupBox):
                 self.disable_preview_probe()
 
         elif name == "other...":
+            file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
             probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
                                                                   caption="Choose probe file...",
                                                                   filter="Probe Files (*.mat *.prb)",
-                                                                  directory=os.path.expanduser("~")
+                                                                  directory=os.path.expanduser("~"),
+                                                                  options=file_dialog_options
                                                                   )
             if probe_path:
                 try:
