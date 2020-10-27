@@ -12,15 +12,18 @@ def find_good_channels(context):
     raw_data = context.raw_data
     intermediate = context.intermediate
 
-    if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-        if 'igood' not in intermediate:
+    if 'igood' not in intermediate:
+        if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
             # determine bad channels
             with context.time('good_channels'):
                 intermediate.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)
+                intermediate.igood = intermediate.igood.ravel()
             # Cache the result.
             context.write(igood=intermediate.igood)
 
-    intermediate.igood = intermediate.igood.ravel()
+        else:
+            intermediate.igood = np.ones_like(probe.chanMap, dtype=bool)
+
     # probe.chanMap = probe.chanMap[intermediate.igood]
     # probe.xc = probe.xc[intermediate.igood]
     # probe.yc = probe.yc[intermediate.igood]
