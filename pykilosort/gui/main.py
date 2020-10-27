@@ -140,6 +140,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.message_log_dock)
 
+        self.header_box.reset_gui_button.clicked.connect(self.reset_gui)
+
         self.settings_box.settingsUpdated.connect(self.set_parameters)
         self.settings_box.previewProbe.connect(self.probe_view_box.preview_probe)
 
@@ -273,3 +275,21 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def get_params(self):
         return self.params
+
+    def prepare_for_new_context(self):
+        self.data_view_box.prepare_for_new_context()
+        self.probe_view_box.prepare_for_new_context()
+        self.message_log_box.prepare_for_new_context()
+
+        self.context = None
+
+    def reset_gui(self):
+        self.time_range = None
+        self.num_channels = None
+        self.context = None
+        self.raw_data = None
+
+        self.probe_view_box.reset()
+        self.data_view_box.reset()
+        self.settings_box.reset()
+        self.message_log_box.reset()

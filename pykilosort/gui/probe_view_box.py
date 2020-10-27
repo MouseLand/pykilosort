@@ -150,3 +150,30 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         if connect:
             scatter_plot.sigClicked.connect(self.on_points_clicked)
         self.probe_view.addItem(scatter_plot)
+
+    def reset(self):
+        self.clear_plot()
+        self.reset_current_probe_layout()
+        self.reset_active_data_view_mode()
+        self.primary_channel = None
+
+    def reset_active_data_view_mode(self):
+        self.active_data_view_mode = "colormap"
+
+    def reset_current_probe_layout(self):
+        self.active_layout = None
+        self.kcoords = None
+        self.xc = None
+        self.yc = None
+        self.total_channels = None
+        self.channel_map = None
+        self.channel_map_dict = {}
+        self.good_channels = None
+        self.active_channels = []
+
+    def prepare_for_new_context(self):
+        self.clear_plot()
+        self.reset_current_probe_layout()
+
+    def clear_plot(self):
+        self.probe_view.getPlotItem().clear()

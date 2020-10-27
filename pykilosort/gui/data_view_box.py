@@ -366,16 +366,23 @@ class DataViewBox(QtWidgets.QGroupBox):
         QtWidgets.QMessageBox.information(self, "Controls", controls_popup_text,
                                           QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
 
-    def reset_cache(self):
-        self.whitening_matrix = None
-        self.whitened_traces = None
-        self.residual_traces = None
-        self.prediction_traces = None
+    def reset(self):
+        self.plot_item.clear()
+        self.clear_cached_traces()
+        self.clear_cached_whitening_matrix()
+
+    def prepare_for_new_context(self):
+        self.plot_item.clear()
+        self.clear_cached_traces()
+        self.clear_cached_whitening_matrix()
 
     def clear_cached_traces(self):
         self.whitened_traces = None
         self.residual_traces = None
         self.prediction_traces = None
+
+    def clear_cached_whitening_matrix(self):
+        self.whitening_matrix = None
 
     def generate_lookup_table(self, colormap_min, colormap_max, num_points=8192):
         assert colormap_min >= 0.0 and colormap_max <= 1.0

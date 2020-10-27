@@ -75,24 +75,11 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.lambda_value = None
         self.auc_splits = None
 
-        self.setup()
-
-        # set default parameters to trigger an update on settings
         default_params = KilosortParams()
-
-        self.num_channels_input.setText(str(1))
-        self.time_range_min_input.setText(str(0))
-        self.time_range_max_input.setText("inf")
-        self.min_firing_rate_input.setText(str(default_params.minfr_goodchannels))
-        self.threshold_upper_input.setText(str(default_params.Th[0]))
-        self.threshold_lower_input.setText(str(default_params.Th[1]))
-        self.lambda_value_input.setText(str(default_params.lam))
-        self.auc_splits_input.setText(str(default_params.AUCsplit))
-
         self.settings = {}
         self.advanced_options = default_params.parse_obj(self.get_default_advanced_options()).dict()
 
-        self.update_settings()
+        self.setup()
 
     def setup(self):
         self.setTitle("Settings")
@@ -187,6 +174,23 @@ class SettingsBox(QtWidgets.QGroupBox):
         layout.addWidget(self.advanced_options_button)
 
         self.setLayout(layout)
+
+        self.set_default_field_values(KilosortParams().parse_obj(self.advanced_options))
+
+        self.update_settings()
+
+    def set_default_field_values(self, default_params):
+        if default_params is None:
+            default_params = KilosortParams()
+
+        self.num_channels_input.setText(str(1))
+        self.time_range_min_input.setText(str(0))
+        self.time_range_max_input.setText("inf")
+        self.min_firing_rate_input.setText(str(default_params.minfr_goodchannels))
+        self.threshold_upper_input.setText(str(default_params.Th[0]))
+        self.threshold_lower_input.setText(str(default_params.Th[1]))
+        self.lambda_value_input.setText(str(default_params.lam))
+        self.auc_splits_input.setText(str(default_params.AUCsplit))
 
     def get_default_advanced_options(self):
         advanced_options_path = self.gui.local_config_path / "advanced_options.json"
@@ -595,3 +599,16 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         else:
             return num_channels
+
+    def preapre_for_new_context(self):
+        pass
+
+    def reset(self):
+        self.data_file_path_input.clear()
+        self.working_directory_input.clear()
+        self.results_directory_input.clear()
+        self.probe_layout_selector.setCurrentIndex(0)
+        self.set_default_field_values(None)
+        self.disable_preview_probe()
+        self.disable_load()
+
