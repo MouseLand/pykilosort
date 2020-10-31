@@ -189,7 +189,6 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None):
     yc = probe.yc
     chanMap = probe.chanMap
     Nchan = probe.Nchan
-    chanMap = probe.chanMap
 
     # Nchan is obtained after the bad channels have been removed
     CC = cp.zeros((Nchan, Nchan))
@@ -252,7 +251,6 @@ def get_good_channels(raw_data=None, probe=None, params=None):
     minfr_goodchannels = params.minfr_goodchannels
 
     chanMap = probe.chanMap
-    # Nchan = probe.Nchan
     NchanTOT = len(chanMap)
 
     ich = []

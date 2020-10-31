@@ -1,7 +1,7 @@
 import logging
 import os
 
-# TODO: setting to true not yet tested
+# TODO: move this to config
 ENABLE_STABLEMODE = True
 ENSURE_DETERM = False
 

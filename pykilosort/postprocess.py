@@ -10,6 +10,7 @@ import numba
 import numpy as np
 import cupy as cp
 import cupyx as cpx
+from scipy.signal import lfilter
 
 from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .cluster import getClosestChannels
@@ -27,6 +28,7 @@ def log(x):
 
 
 def my_conv2(x, sig, varargin=None, **kwargs):
+    # TODO: Fix so output matches my_conv2_cpu
     # x is the matrix to be filtered along a choice of axes
     # sig is either a scalar or a sequence of scalars, one for each axis to be filtered
     # varargin can be the dimensions to do filtering, if len(sig) != x.shape
@@ -57,6 +59,50 @@ def my_conv2(x, sig, varargin=None, **kwargs):
         y = y.reshape(dsnew, order='F')
         y = cp.transpose(y, list(range(1, idim + 1)) + [0] + list(range(idim + 1, Nd)))
     return y
+
+
+def my_conv2_cpu(x, sig, varargin=None, **kwargs):
+    # (Alternative conv2 function for testing)
+    # x is the matrix to be filtered along a choice of axes
+    # sig is either a scalar or a sequence of scalars, one for each axis to be filtered
+    # varargin can be the dimensions to do filtering, if len(sig) != x.shape
+    # if sig is scalar and no axes are provided, the default axis is 2
+    if sig <= .25:
+        return x
+    idims = 1
+    if varargin is not None:
+        idims = varargin
+    idims = _make_vect(idims)
+    if _is_vect(idims) and _is_vect(sig):
+        sigall = sig
+    else:
+        sigall = np.tile(sig, len(idims))
+
+    for sig, idim in zip(sigall, idims):
+        Nd = x.ndim
+        x = cp.transpose(x, [idim] + list(range(0, idim)) + list(range(idim + 1, Nd)))
+        dsnew = x.shape
+        x = cp.reshape(x, (x.shape[0], -1), order='F')
+
+        tmax = ceil(4 * sig)
+        dt = np.arange(-tmax, tmax + 1)
+        gaus = np.exp(-dt ** 2 / (2 * sig ** 2))
+        gaus = gaus / np.sum(gaus)
+
+        cNorm = lfilter(gaus, np.array([1.]), np.concatenate((np.ones(dsnew[0]), np.zeros(tmax))))
+        cNorm = cNorm[tmax:]
+
+        x_n = cp.asnumpy(x)
+        x_n = lfilter(gaus, np.array([1.]), np.concatenate((x_n, np.zeros((tmax, dsnew[1])))),
+                    axis=0)
+        x_n = x_n[tmax:]
+        x_n = np.reshape(x_n, dsnew)
+
+        x_n = x_n / cNorm.reshape(-1, 1)
+        x = cp.array(x_n)
+        x = cp.transpose(x, list(range(1, idim + 1)) + [0] + list(range(idim + 1, Nd)))
+
+    return x
 
 
 def ccg_slow(st1, st2, nbins, tbin):
@@ -493,26 +539,19 @@ def splitAllClusters(ctx, flag):
         clp0 = cProjPC[isp, :, :]  # get the PC projections for these spikes
         clp0 = cp.asarray(clp0, dtype=cp.float32)  # upload to the GPU
         clp0 = clp0.reshape((clp0.shape[0], -1), order='F')
-        m = mean(clp0, axis=0)
-        clp = clp0
-        clp -= m  # mean center them
+        clp = clp0 - mean(clp0, axis=0) # mean center them
 
         isp = np.nonzero(isp)[0]
 
-        # (DEV_NOTES) Python flattens clp0 in C order rather than Fortran order so the
-        # flattened PC projections will be slightly different, however this is fixed when
-        # the projections are reformed later
-
         # subtract a running average, because the projections are NOT drift corrected
-        clpc = my_conv2(clp, 250, 0)
-        clp -= clpc
+        clp = clp - my_conv2(clp, 250, 0)
 
         # now use two different ways to initialize the bimodal direction
         # the main script calls this function twice, and does both initializations
 
         if flag:
             u, s, v = svdecon(clp.T)
-            u, v = -u, -v  # change sign for consistency with MATLAB
+            #    u, v = -u, -v  # change sign for consistency with MATLAB
             w = u[:, 0]  # initialize with the top PC
         else:
             w = mean(clp0, axis=0)  # initialize with the mean of NOT drift-corrected trace
@@ -777,7 +816,7 @@ def set_cutoff(ctx):
         fcontamination = 0.1  # acceptable contamination rate
         est_contam_rate[j] = 1
 
-        while Th > params.Th[1]:
+        while Th >= params.Th[1]:
             # continually lower the threshold, while the estimated unit contamination is low
             st = ss[vexp > Th]  # take spikes above the current threshold
             if len(st) == 0:
@@ -787,7 +826,13 @@ def set_cutoff(ctx):
             # compute the auto-correlogram with 500 bins at 1ms bins
             K, Qi, Q00, Q01, rir = ccg(st, st, 500, dt)
             # this is a measure of refractoriness
-            Q = (Qi / max(Q00, Q01)).min()
+            if max(Q00, Q01) == 0:
+                if Qi.max() > 0:
+                    Q = np.inf
+                else:
+                    Q = 0
+            else:
+                Q = (Qi / max(Q00, Q01)).min()
             # this is a second measure of refractoriness (kicks in for very low firing rates)
             R = rir.min()
             # if the unit is already contaminated, we break, and use the next higher threshold
@@ -815,7 +860,13 @@ def set_cutoff(ctx):
         # compute the auto-correlogram with 500 bins at 1ms bins
         K, Qi, Q00, Q01, rir = ccg(st, st, 500, dt)
         # this is a measure of refractoriness
-        Q = (Qi / max(Q00, Q01)).min()
+        if max(Q00, Q01) == 0:
+            if Qi.max() > 0:
+                Q = np.inf
+            else:
+                Q = 1
+        else:
+            Q = (Qi / max(Q00, Q01)).min()
         est_contam_rate[j] = Q  # this score will be displayed in Phy
 
         Ths[j] = Th  # store the threshold for potential debugging
@@ -1131,4 +1182,4 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
                 f.write('offset = 0\n')
                 f.write('hp_filtered = False\n')
                 f.write('sample_rate = %i\n' % params.fs)
-                f.write('template_scaling = %.1f\n' % params.get('templateScaling', 1.0))
+                f.write('template_scaling = %.1f\n' % params.templateScaling)
