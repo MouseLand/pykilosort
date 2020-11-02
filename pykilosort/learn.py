@@ -13,7 +13,9 @@ from pykilosort.utils import Bunch, get_cuda, _extend, LargeArrayWriter
 logger = logging.getLogger(__name__)
 
 
-def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None, nPCs=None):
+def extractTemplatesfromSnippets(
+    proc=None, probe=None, params=None, Nbatch=None, nPCs=None
+):
     # this function is very similar to extractPCfromSnippets.
     # outputs not just the PC waveforms, but also the template "prototype",
     # basically k-means clustering of 1D waveforms.
@@ -33,7 +35,7 @@ def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None
 
     for ibatch in tqdm(range(0, Nbatch, nskip), desc="Extracting templates"):
         offset = Nchan * batchstart[ibatch]
-        dat = proc.flat[offset:offset + NT * Nchan].reshape((-1, Nchan), order='F')
+        dat = proc.flat[offset : offset + NT * Nchan].reshape((-1, Nchan), order="F")
 
         # move data to GPU and scale it back to unit variance
         dataRAW = cp.asarray(dat, dtype=np.float32) / params.scaleproc
@@ -60,7 +62,7 @@ def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None
     # initialize the template clustering with random waveforms
     uu = np.random.permutation(dd.shape[1])[:nPCs]
     wTEMP = dd[:, uu]
-    wTEMP = wTEMP / cp.sum(wTEMP ** 2, axis=0) ** .5  # normalize them
+    wTEMP = wTEMP / cp.sum(wTEMP ** 2, axis=0) ** 0.5  # normalize them
 
     for i in range(10):
         # at each iteration, assign the waveform to its most correlated cluster
@@ -70,7 +72,7 @@ def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None
         for j in range(nPCs):
             # weighted average to get new cluster means
             wTEMP[:, j] = cp.dot(dd[:, imax == j], amax[imax == j].T)
-        wTEMP = wTEMP / cp.sum(wTEMP ** 2, axis=0) ** .5  # unit normalize
+        wTEMP = wTEMP / cp.sum(wTEMP ** 2, axis=0) ** 0.5  # unit normalize
 
     # the PCs are just the left singular vectors of the waveforms
     U, Sv, V = svdecon(dd)
@@ -99,7 +101,7 @@ def getKernels(params):
     nt0 = params.nt0
 
     xs = cp.arange(1, nt0 + 1)
-    ys = cp.linspace(.5, nt0 + .5, nt0 * nup + 1)[:-1]
+    ys = cp.linspace(0.5, nt0 + 0.5, nt0 * nup + 1)[:-1]
 
     # these kernels are just standard kriging interpolators
 
@@ -109,18 +111,18 @@ def getKernels(params):
     d = cp.mod(xs[:, np.newaxis] - xs[np.newaxis, :] + nt0, nt0)
     d = cp.minimum(d, nt0 - d)
     # the kernel covariance uses a squared exponential of spatial scale sig
-    Kxx = cp.exp(-d ** 2 / sig ** 2)
+    Kxx = cp.exp(-(d ** 2) / sig ** 2)
 
     # do the same for the kernel similarities between upsampled "test" timepoints and
     # the original coordinates
     d = cp.mod(ys[:, np.newaxis] - xs[np.newaxis, :] + nt0, nt0)
     d = cp.minimum(d, nt0 - d)
-    Kyx = cp.exp(-d ** 2 / sig ** 2)
+    Kyx = cp.exp(-(d ** 2) / sig ** 2)
 
     # the upsampling matrix is given by the following formula,
     # with some light diagonal regularization of the matrix inversion
-    B = cp.dot(Kyx, cp.linalg.inv(Kxx + .01 * cp.eye(nt0)))
-    B = B.reshape((nup, nt0, nt0), order='F')
+    B = cp.dot(Kyx, cp.linalg.inv(Kxx + 0.01 * cp.eye(nt0)))
+    B = B.reshape((nup, nt0, nt0), order="F")
 
     # A is just a slice through this upsampling matrix corresponding to the most negative point
     # this is used to compute the biggest negative deflection (after upsampling)
@@ -141,7 +143,7 @@ def getMeUtU(iU, iC, mask, Nnearest, Nchan):
     Nfilt = iU.size
 
     # create a sparse matrix with ones if a channel K belongs to a template
-    U = np.zeros((Nchan, Nfilt), dtype=np.float32, order='F')
+    U = np.zeros((Nchan, Nfilt), dtype=np.float32, order="F")
 
     # use the template primary channel to obtain its neighboring channels from iC
     ix = cp.asnumpy(iC[:, iU]) + np.arange(0, Nchan * Nfilt, Nchan).astype(np.int32)
@@ -173,7 +175,7 @@ def getMeWtW2(W, U0, Nnearest=None):
     # iList
 
     nt0, Nfilt, Nrank = W.shape
-    WtW = cp.zeros((Nfilt, Nfilt), dtype=np.float32, order='F')
+    WtW = cp.zeros((Nfilt, Nfilt), dtype=np.float32, order="F")
 
     # since the templates are factorized into orthonormal components, we can compute dot products
     # one dimension at a time
@@ -200,7 +202,7 @@ def getMeWtW2(W, U0, Nnearest=None):
 
 
 def mexGetSpikes2(Params, drez, wTEMP, iC):
-    code, constants = get_cuda('mexGetSpikes2')
+    code, constants = get_cuda("mexGetSpikes2")
 
     NT = int(Params[0])
     Nchan = int(Params[9])
@@ -215,58 +217,69 @@ def mexGetSpikes2(Params, drez, wTEMP, iC):
     # tpF = (16, Nnearest)
     tpS = (nt0, 16)
 
-    d_Params = cp.asarray(Params, dtype=np.float64, order='F')
-    d_data = cp.asarray(drez, dtype=np.float32, order='F')
-    d_W = cp.asarray(wTEMP, dtype=np.float32, order='F')
-    d_iC = cp.asarray(iC, dtype=np.int32, order='F')
+    d_Params = cp.asarray(Params, dtype=np.float64, order="F")
+    d_data = cp.asarray(drez, dtype=np.float32, order="F")
+    d_W = cp.asarray(wTEMP, dtype=np.float32, order="F")
+    d_iC = cp.asarray(iC, dtype=np.int32, order="F")
 
-    d_counter = cp.zeros(2, dtype=np.int32, order='F')
-    d_dout = cp.zeros((NT, Nchan), dtype=np.float32, order='F')
-    d_dfilt = cp.zeros((Nrank, NT, Nchan), dtype=np.float32, order='F')
-    d_err = cp.zeros(NT, dtype=np.float32, order='F')
-    d_kkmax = cp.zeros((NT, Nchan), dtype=np.int32, order='F')
-    d_kk = cp.zeros(NT, dtype=np.int32, order='F')
-    d_ftype = cp.zeros(NT, dtype=np.int32, order='F')
-    d_st = cp.zeros(maxFR, dtype=np.int32, order='F')
-    d_id = cp.zeros(maxFR, dtype=np.int32, order='F')
-    d_x = cp.zeros(maxFR, dtype=np.float32, order='F')
-    d_st1 = cp.zeros(maxFR, dtype=np.int32, order='F')
-    d_id1 = cp.zeros(maxFR, dtype=np.int32, order='F')
+    d_counter = cp.zeros(2, dtype=np.int32, order="F")
+    d_dout = cp.zeros((NT, Nchan), dtype=np.float32, order="F")
+    d_dfilt = cp.zeros((Nrank, NT, Nchan), dtype=np.float32, order="F")
+    d_err = cp.zeros(NT, dtype=np.float32, order="F")
+    d_kkmax = cp.zeros((NT, Nchan), dtype=np.int32, order="F")
+    d_kk = cp.zeros(NT, dtype=np.int32, order="F")
+    d_ftype = cp.zeros(NT, dtype=np.int32, order="F")
+    d_st = cp.zeros(maxFR, dtype=np.int32, order="F")
+    d_id = cp.zeros(maxFR, dtype=np.int32, order="F")
+    d_x = cp.zeros(maxFR, dtype=np.float32, order="F")
+    d_st1 = cp.zeros(maxFR, dtype=np.int32, order="F")
+    d_id1 = cp.zeros(maxFR, dtype=np.int32, order="F")
 
-    counter = np.zeros(2, dtype=np.int32, order='F')
+    counter = np.zeros(2, dtype=np.int32, order="F")
 
     # filter the data with the temporal templates
-    Conv1D = cp.RawKernel(code, 'Conv1D')
+    Conv1D = cp.RawKernel(code, "Conv1D")
     Conv1D((Nchan,), (Nthreads,), (d_Params, d_data, d_W, d_dfilt))
 
     # sum each template across channels, square, take max
-    sumChannels = cp.RawKernel(code, 'sumChannels')
-    sumChannels((int(NT / Nthreads),), (Nthreads,), (d_Params, d_dfilt, d_dout, d_kkmax, d_iC))
+    sumChannels = cp.RawKernel(code, "sumChannels")
+    sumChannels(
+        (int(NT / Nthreads),), (Nthreads,), (d_Params, d_dfilt, d_dout, d_kkmax, d_iC)
+    )
 
     # compute the best filter
-    bestFilter = cp.RawKernel(code, 'bestFilter')
+    bestFilter = cp.RawKernel(code, "bestFilter")
     bestFilter(
-        (int(NT / Nthreads),), (Nthreads,), (d_Params, d_dout, d_err, d_ftype, d_kkmax, d_kk))
+        (int(NT / Nthreads),),
+        (Nthreads,),
+        (d_Params, d_dout, d_err, d_ftype, d_kkmax, d_kk),
+    )
 
     # ignore peaks that are smaller than another nearby peak
-    cleanup_spikes = cp.RawKernel(code, 'cleanup_spikes')
+    cleanup_spikes = cp.RawKernel(code, "cleanup_spikes")
     cleanup_spikes(
-        (int(NT / Nthreads),), (Nthreads,), (d_Params, d_err, d_ftype, d_x, d_st, d_id, d_counter))
+        (int(NT / Nthreads),),
+        (Nthreads,),
+        (d_Params, d_err, d_ftype, d_x, d_st, d_id, d_counter),
+    )
 
     # ignore peaks that are smaller than another nearby peak
-    cleanup_heights = cp.RawKernel(code, 'cleanup_heights')
+    cleanup_heights = cp.RawKernel(code, "cleanup_heights")
     cleanup_heights(
-        (1 + int(maxFR // 32),), (32,), (d_Params, d_x, d_st, d_id, d_st1, d_id1, d_counter))
+        (1 + int(maxFR // 32),),
+        (32,),
+        (d_Params, d_x, d_st, d_id, d_st1, d_id1, d_counter),
+    )
 
     # add new spikes to 2nd counter
     counter[0] = d_counter[1]
     counter[0] = min(maxFR, counter[0])
 
-    d_WU = cp.zeros((nt0, Nchan, counter[0]), dtype=np.float32, order='F')
+    d_WU = cp.zeros((nt0, Nchan, counter[0]), dtype=np.float32, order="F")
     # d_WU1 = cp.zeros((nt0, Nchan, counter[0]), dtype=np.float32, order='F')
 
     # update dWU here by adding back to subbed spikes
-    extract_snips = cp.RawKernel(code, 'extract_snips')
+    extract_snips = cp.RawKernel(code, "extract_snips")
     extract_snips((Nchan,), tpS, (d_Params, d_st1, d_id1, d_counter, d_data, d_WU))
 
     # QUESTION: why a copy here??
@@ -274,13 +287,24 @@ def mexGetSpikes2(Params, drez, wTEMP, iC):
     #     d_WU1[...] = d_WU[...]
 
     del (
-        d_ftype, d_kkmax, d_err, d_st, d_id, d_st1, d_x, d_kk, d_id1, d_counter,
-        d_Params, d_dfilt)
+        d_ftype,
+        d_kkmax,
+        d_err,
+        d_st,
+        d_id,
+        d_st1,
+        d_x,
+        d_kk,
+        d_id1,
+        d_counter,
+        d_Params,
+        d_dfilt,
+    )
     return d_WU, d_dout
 
 
 def mexSVDsmall2(Params, dWU, W, iC, iW, Ka, Kb):
-    code, constants = get_cuda('mexSVDsmall2')
+    code, constants = get_cuda("mexSVDsmall2")
 
     Nthreads = constants.Nthreads
 
@@ -289,43 +313,43 @@ def mexSVDsmall2(Params, dWU, W, iC, iW, Ka, Kb):
     Nrank = int(Params[6])
     Nchan = int(Params[9])
 
-    d_Params = cp.asarray(Params, dtype=np.float64, order='F')
+    d_Params = cp.asarray(Params, dtype=np.float64, order="F")
 
-    d_dWU = cp.asarray(dWU, dtype=np.float64, order='F')
-    d_iC = cp.asarray(iC, dtype=np.int32, order='F')
-    d_iW = cp.asarray(iW, dtype=np.int32, order='F')
+    d_dWU = cp.asarray(dWU, dtype=np.float64, order="F")
+    d_iC = cp.asarray(iC, dtype=np.int32, order="F")
+    d_iW = cp.asarray(iW, dtype=np.int32, order="F")
 
-    d_A = cp.asarray(Ka, dtype=np.float64, order='F')
-    d_B = cp.asarray(Kb, dtype=np.float64, order='F')
+    d_A = cp.asarray(Ka, dtype=np.float64, order="F")
+    d_B = cp.asarray(Kb, dtype=np.float64, order="F")
 
-    d_U = cp.zeros((Nchan, Nfilt, Nrank), dtype=np.float64, order='F')
-    d_mu = cp.zeros(Nfilt, dtype=np.float64, order='F')
+    d_U = cp.zeros((Nchan, Nfilt, Nrank), dtype=np.float64, order="F")
+    d_mu = cp.zeros(Nfilt, dtype=np.float64, order="F")
 
-    d_W = cp.asarray(W, dtype=np.float64, order='F')
+    d_W = cp.asarray(W, dtype=np.float64, order="F")
 
-    d_wtw = cp.zeros((nt0, nt0, Nfilt), dtype=np.float64, order='F')
-    d_dWUb = cp.zeros((nt0, Nchan, Nfilt), dtype=np.float64, order='F')
+    d_wtw = cp.zeros((nt0, nt0, Nfilt), dtype=np.float64, order="F")
+    d_dWUb = cp.zeros((nt0, Nchan, Nfilt), dtype=np.float64, order="F")
 
     tpS = (nt0, int(Nthreads // nt0))
     tpK = (Nrank, int(Nthreads // Nrank))
 
-    blankdWU = cp.RawKernel(code, 'blankdWU')
+    blankdWU = cp.RawKernel(code, "blankdWU")
     blankdWU((Nfilt,), tpS, (d_Params, d_dWU, d_iC, d_iW, d_dWUb))
 
     # compute dWU * dWU'
-    getwtw = cp.RawKernel(code, 'getwtw')
+    getwtw = cp.RawKernel(code, "getwtw")
     getwtw((Nfilt,), tpS, (d_Params, d_dWUb, d_wtw))
 
     # get W by power svd iterations
-    getW = cp.RawKernel(code, 'getW')
+    getW = cp.RawKernel(code, "getW")
     getW((Nfilt,), (nt0,), (d_Params, d_wtw, d_W))
 
     # compute U by W' * dWU
-    getU = cp.RawKernel(code, 'getU')
+    getU = cp.RawKernel(code, "getU")
     getU((Nfilt,), tpK, (d_Params, d_dWUb, d_W, d_U))
 
     # normalize U, get S, get mu, renormalize W
-    reNormalize = cp.RawKernel(code, 'reNormalize')
+    reNormalize = cp.RawKernel(code, "reNormalize")
     reNormalize((Nfilt,), (nt0,), (d_Params, d_A, d_B, d_W, d_U, d_mu))
 
     del d_wtw, d_Params, d_dWUb
@@ -334,7 +358,7 @@ def mexSVDsmall2(Params, dWU, W, iC, iW, Ka, Kb):
 
 
 def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
-    code, constants = get_cuda('mexMPnu8')
+    code, constants = get_cuda("mexMPnu8")
     maxFR = int(constants.maxFR)
     nmaxiter = int(constants.nmaxiter)
     Nthreads = int(constants.Nthreads)
@@ -347,38 +371,38 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     NchanU = int(Params[10])
     Nchan = int(Params[9])
 
-    d_Params = cp.asarray(Params, dtype=np.float64, order='F')
+    d_Params = cp.asarray(Params, dtype=np.float64, order="F")
 
-    d_draw = cp.asarray(dataRAW, dtype=np.float32, order='F')
-    d_U = cp.asarray(U, dtype=np.float32, order='F')
-    d_W = cp.asarray(W, dtype=np.float32, order='F')
-    d_mu = cp.asarray(mu, dtype=np.float32, order='F')
-    d_iC = cp.asarray(iC, dtype=np.int32, order='F')
-    d_iW = cp.asarray(iW, dtype=np.int32, order='F')
-    d_UtU = cp.asarray(UtU, dtype=np.bool, order='F')
-    d_iList = cp.asarray(iList, dtype=np.int32, order='F')
-    d_wPCA = cp.asarray(wPCA, dtype=np.float32, order='F')
+    d_draw = cp.asarray(dataRAW, dtype=np.float32, order="F")
+    d_U = cp.asarray(U, dtype=np.float32, order="F")
+    d_W = cp.asarray(W, dtype=np.float32, order="F")
+    d_mu = cp.asarray(mu, dtype=np.float32, order="F")
+    d_iC = cp.asarray(iC, dtype=np.int32, order="F")
+    d_iW = cp.asarray(iW, dtype=np.int32, order="F")
+    d_UtU = cp.asarray(UtU, dtype=np.bool, order="F")
+    d_iList = cp.asarray(iList, dtype=np.int32, order="F")
+    d_wPCA = cp.asarray(wPCA, dtype=np.float32, order="F")
 
-    d_nsp = cp.zeros(Nfilt, dtype=np.int32, order='F')
-    d_dWU = cp.zeros((nt0, Nchan, Nfilt), dtype=np.float64, order='F')
+    d_nsp = cp.zeros(Nfilt, dtype=np.int32, order="F")
+    d_dWU = cp.zeros((nt0, Nchan, Nfilt), dtype=np.float64, order="F")
 
-    d_dout = cp.zeros((2 * NT, Nfilt), dtype=np.float32, order='F')
-    d_data = cp.zeros((NT, Nfilt, Nrank), dtype=np.float32, order='F')
-    d_err = cp.zeros(NT, dtype=np.float32, order='F')
-    d_ftype = cp.zeros(NT, dtype=np.int32, order='F')
-    d_eloss = cp.zeros(NT, dtype=np.float32, order='F')
-    d_st = cp.zeros(maxFR, dtype=np.int32, order='F')
-    d_id = cp.zeros(maxFR, dtype=np.int32, order='F')
-    d_x = cp.zeros(maxFR, dtype=np.float32, order='F')
-    d_y = cp.zeros(maxFR, dtype=np.float32, order='F')
-    d_z = cp.zeros(maxFR, dtype=np.float32, order='F')
-    
-    d_counter = cp.zeros(2, dtype=np.int32, order='F')
-    d_count = cp.zeros(nmaxiter, dtype=np.int32, order='F')
-    d_feat = cp.zeros((Nnearest, maxFR), dtype=np.float32, order='F')
-    d_featPC = cp.zeros((NchanU, Nrank, maxFR), dtype=np.float32, order='F')
+    d_dout = cp.zeros((2 * NT, Nfilt), dtype=np.float32, order="F")
+    d_data = cp.zeros((NT, Nfilt, Nrank), dtype=np.float32, order="F")
+    d_err = cp.zeros(NT, dtype=np.float32, order="F")
+    d_ftype = cp.zeros(NT, dtype=np.int32, order="F")
+    d_eloss = cp.zeros(NT, dtype=np.float32, order="F")
+    d_st = cp.zeros(maxFR, dtype=np.int32, order="F")
+    d_id = cp.zeros(maxFR, dtype=np.int32, order="F")
+    d_x = cp.zeros(maxFR, dtype=np.float32, order="F")
+    d_y = cp.zeros(maxFR, dtype=np.float32, order="F")
+    d_z = cp.zeros(maxFR, dtype=np.float32, order="F")
 
-    counter = np.zeros(2, dtype=np.int32, order='F')
+    d_counter = cp.zeros(2, dtype=np.int32, order="F")
+    d_count = cp.zeros(nmaxiter, dtype=np.int32, order="F")
+    d_feat = cp.zeros((Nnearest, maxFR), dtype=np.float32, order="F")
+    d_featPC = cp.zeros((NchanU, Nrank, maxFR), dtype=np.float32, order="F")
+
+    counter = np.zeros(2, dtype=np.int32, order="F")
 
     # tpB = (8, 2 * nt0 - 1)
     tpF = (16, Nnearest)
@@ -386,19 +410,21 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     # tpW = (Nnearest, Nrank)
     tpPC = (NchanU, Nrank)
 
-
     # filter the data with the spatial templates
-    spaceFilter = cp.RawKernel(code, 'spaceFilter')
+    spaceFilter = cp.RawKernel(code, "spaceFilter")
     spaceFilter((Nfilt,), (Nthreads,), (d_Params, d_draw, d_U, d_iC, d_iW, d_data))
 
     # filter the data with the temporal templates
-    timeFilter = cp.RawKernel(code, 'timeFilter')
+    timeFilter = cp.RawKernel(code, "timeFilter")
     timeFilter((Nfilt,), (Nthreads,), (d_Params, d_data, d_W, d_dout))
 
     # compute the best filter
-    bestFilter = cp.RawKernel(code, 'bestFilter')
+    bestFilter = cp.RawKernel(code, "bestFilter")
     bestFilter(
-        (int(NT // Nthreads),), (Nthreads,), (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype))
+        (int(NT // Nthreads),),
+        (Nthreads,),
+        (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype),
+    )
 
     if ENABLE_STABLEMODE:
         d_draw64 = cp.array(d_draw, dtype=np.float64)
@@ -406,11 +432,25 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     # loop to find and subtract spikes
     for k in range(int(Params[3])):
         # ignore peaks that are smaller than another nearby peak
-        cleanup_spikes = cp.RawKernel(code, 'cleanup_spikes')
+        cleanup_spikes = cp.RawKernel(code, "cleanup_spikes")
         cleanup_spikes(
-            (int(NT // Nthreads),), (Nthreads,),
-            (d_Params, d_dout, d_mu, d_err, d_eloss,
-             d_ftype, d_st, d_id, d_x, d_y, d_z, d_counter))
+            (int(NT // Nthreads),),
+            (Nthreads,),
+            (
+                d_Params,
+                d_dout,
+                d_mu,
+                d_err,
+                d_eloss,
+                d_ftype,
+                d_st,
+                d_id,
+                d_x,
+                d_y,
+                d_z,
+                d_counter,
+            ),
+        )
 
         # add new spikes to 2nd counter
         counter[:] = cp.asnumpy(d_counter[:])
@@ -420,58 +460,132 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
 
         # extract template features before subtraction
         if Params[12] > 1:
-            extractFEAT = cp.RawKernel(code, 'extractFEAT')
+            extractFEAT = cp.RawKernel(code, "extractFEAT")
             extractFEAT(
-                (64,), tpF, (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat))
-       
+                (64,),
+                tpF,
+                (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat),
+            )
+
         if ENSURE_DETERM:
             if ENABLE_STABLEMODE:
-                d_idx = cp.argsort(d_st[counter[1]:counter[1]+(counter[0]-counter[1])])
+                d_idx = cp.argsort(
+                    d_st[counter[1] : counter[1] + (counter[0] - counter[1])]
+                )
             else:
                 d_idx = cp.arange(0, counter[0] - counter[1])
-           
-            if Nchan < Nthreads:
-                subtract_spikes_v2 = cp.RawKernel(code, 'subtract_spikes_v2')
-                subtract_spikes_v2((1,), (Nchan,), (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U))
-            else:
-                subtract_spikes_v2 = cp.RawKernel(code, 'subtract_spikes_v2')
-                subtract_spikes_v2((Nchan/Nthreads,), (Nthreads,), (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U))
 
-            spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
+            if Nchan < Nthreads:
+                subtract_spikes_v2 = cp.RawKernel(code, "subtract_spikes_v2")
+                subtract_spikes_v2(
+                    (1,),
+                    (Nchan,),
+                    (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U),
+                )
+            else:
+                subtract_spikes_v2 = cp.RawKernel(code, "subtract_spikes_v2")
+                subtract_spikes_v2(
+                    (Nchan / Nthreads,),
+                    (Nthreads,),
+                    (d_Params, d_st, d_idx, d_id, d_y, d_counter, d_draw, d_W, d_U),
+                )
+
+            spaceFilterUpdate = cp.RawKernel(code, "spaceFilterUpdate")
             spaceFilterUpdate(
-                (Nfilt,), (2 * nt0 - 1,),
-                (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+                (Nfilt,),
+                (2 * nt0 - 1,),
+                (
+                    d_Params,
+                    d_draw,
+                    d_U,
+                    d_UtU,
+                    d_iC,
+                    d_iW,
+                    d_data,
+                    d_st,
+                    d_id,
+                    d_counter,
+                ),
+            )
         else:
             if ENABLE_STABLEMODE:
-                subtract_spikes_v4 = cp.RawKernel(code, 'subtract_spikes_v4')
-                subtract_spikes_v4((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw64, d_W, d_U))
+                subtract_spikes_v4 = cp.RawKernel(code, "subtract_spikes_v4")
+                subtract_spikes_v4(
+                    (Nfilt,),
+                    tpS,
+                    (d_Params, d_st, d_id, d_y, d_counter, d_draw64, d_W, d_U),
+                )
 
-                spaceFilterUpdate_v2 = cp.RawKernel(code, 'spaceFilterUpdate_v2')
+                spaceFilterUpdate_v2 = cp.RawKernel(code, "spaceFilterUpdate_v2")
                 spaceFilterUpdate_v2(
-                    (Nfilt,), (2 * nt0 - 1,),
-                    (d_Params, d_draw64, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+                    (Nfilt,),
+                    (2 * nt0 - 1,),
+                    (
+                        d_Params,
+                        d_draw64,
+                        d_U,
+                        d_UtU,
+                        d_iC,
+                        d_iW,
+                        d_data,
+                        d_st,
+                        d_id,
+                        d_counter,
+                    ),
+                )
             else:
                 # subtract spikes from raw data here
-                subtract_spikes = cp.RawKernel(code, 'subtract_spikes')
-                subtract_spikes((Nfilt,), tpS, (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U))
+                subtract_spikes = cp.RawKernel(code, "subtract_spikes")
+                subtract_spikes(
+                    (Nfilt,),
+                    tpS,
+                    (d_Params, d_st, d_id, d_y, d_counter, d_draw, d_W, d_U),
+                )
 
                 # filter the data with the spatial templates
-                spaceFilterUpdate = cp.RawKernel(code, 'spaceFilterUpdate')
+                spaceFilterUpdate = cp.RawKernel(code, "spaceFilterUpdate")
                 spaceFilterUpdate(
-                    (Nfilt,), (2 * nt0 - 1,),
-                    (d_Params, d_draw, d_U, d_UtU, d_iC, d_iW, d_data, d_st, d_id, d_counter))
+                    (Nfilt,),
+                    (2 * nt0 - 1,),
+                    (
+                        d_Params,
+                        d_draw,
+                        d_U,
+                        d_UtU,
+                        d_iC,
+                        d_iW,
+                        d_data,
+                        d_st,
+                        d_id,
+                        d_counter,
+                    ),
+                )
 
         # filter the data with the temporal templates
-        timeFilterUpdate = cp.RawKernel(code, 'timeFilterUpdate')
+        timeFilterUpdate = cp.RawKernel(code, "timeFilterUpdate")
         timeFilterUpdate(
-            (Nfilt,), (2 * nt0 - 1,),
-            (d_Params, d_data, d_W, d_UtU, d_dout, d_st, d_id, d_counter))
+            (Nfilt,),
+            (2 * nt0 - 1,),
+            (d_Params, d_data, d_W, d_UtU, d_dout, d_st, d_id, d_counter),
+        )
 
         if counter[0] - counter[1] > 0:
-            bestFilterUpdate = cp.RawKernel(code, 'bestFilterUpdate')
+            bestFilterUpdate = cp.RawKernel(code, "bestFilterUpdate")
             bestFilterUpdate(
-                (counter[0] - counter[1],), (2 * nt0 - 1,),
-                (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype, d_st, d_id, d_counter))
+                (counter[0] - counter[1],),
+                (2 * nt0 - 1,),
+                (
+                    d_Params,
+                    d_dout,
+                    d_mu,
+                    d_err,
+                    d_eloss,
+                    d_ftype,
+                    d_st,
+                    d_id,
+                    d_counter,
+                ),
+            )
 
         d_count[k + 1] = d_counter[0]
 
@@ -484,23 +598,55 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     # compute PC features from reziduals + subtractions
     # TODO: design - let's not use numeric indexing into the Params array. It's much more difficult to read.
     if Params[12] > 0:
-        computePCfeatures = cp.RawKernel(code, 'computePCfeatures')
+        computePCfeatures = cp.RawKernel(code, "computePCfeatures")
         computePCfeatures(
-            (Nfilt,), tpPC,
-            (d_Params, d_counter, d_draw, d_st, d_id, d_y,
-             d_W, d_U, d_mu, d_iW, d_iC, d_wPCA, d_featPC))
+            (Nfilt,),
+            tpPC,
+            (
+                d_Params,
+                d_counter,
+                d_draw,
+                d_st,
+                d_id,
+                d_y,
+                d_W,
+                d_U,
+                d_mu,
+                d_iW,
+                d_iC,
+                d_wPCA,
+                d_featPC,
+            ),
+        )
 
     if ENABLE_STABLEMODE:
         # d_idx = array of time sorted indicie
         d_idx = cp.argsort(d_st)
     else:
         d_idx = cp.arange(0, counter[0])
-    
+
     # update dWU here by adding back to subbed spikes.
-    average_snips = cp.RawKernel(code, 'average_snips')
+    average_snips = cp.RawKernel(code, "average_snips")
     average_snips(
-        (Nfilt,), tpS,
-        (d_Params, d_st, d_idx, d_id, d_x, d_y, d_counter, d_draw, d_W, d_U, d_dWU, d_nsp, d_mu, d_z))
+        (Nfilt,),
+        tpS,
+        (
+            d_Params,
+            d_st,
+            d_idx,
+            d_id,
+            d_x,
+            d_y,
+            d_counter,
+            d_draw,
+            d_W,
+            d_U,
+            d_dWU,
+            d_nsp,
+            d_mu,
+            d_z,
+        ),
+    )
 
     if counter[0] < maxFR:
         minSize = counter[0]
@@ -510,30 +656,38 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
     del d_counter, d_Params, d_ftype, d_err, d_eloss, d_z, d_dout, d_data
 
     return (
-        d_st[:minSize], d_id[:minSize], d_y[:minSize], d_feat[..., :minSize],
-        d_dWU, d_draw, d_nsp, d_featPC[..., :minSize], d_x[:minSize])
+        d_st[:minSize],
+        d_id[:minSize],
+        d_y[:minSize],
+        d_feat[..., :minSize],
+        d_dWU,
+        d_draw,
+        d_nsp,
+        d_featPC[..., :minSize],
+        d_x[:minSize],
+    )
 
 
 def mexWtW2(Params, W1, W2, UtU):
-    code, constants = get_cuda('mexWtW2')
+    code, constants = get_cuda("mexWtW2")
 
     nblock = constants.nblock
 
     Nfilt = int(Params[1])
     nt0 = int(Params[9])
 
-    d_Params = cp.asarray(Params, dtype=np.float64, order='F')
+    d_Params = cp.asarray(Params, dtype=np.float64, order="F")
 
-    d_W1 = cp.asarray(W1, dtype=np.float32, order='F')
-    d_W2 = cp.asarray(W2, dtype=np.float32, order='F')
-    d_UtU = cp.asarray(UtU, dtype=np.float32, order='F')
+    d_W1 = cp.asarray(W1, dtype=np.float32, order="F")
+    d_W2 = cp.asarray(W2, dtype=np.float32, order="F")
+    d_UtU = cp.asarray(UtU, dtype=np.float32, order="F")
 
-    d_WtW = cp.zeros((Nfilt, Nfilt, 2 * nt0 - 1), dtype=np.float32, order='F')
+    d_WtW = cp.zeros((Nfilt, Nfilt, 2 * nt0 - 1), dtype=np.float32, order="F")
 
     grid = (1 + int(Nfilt // nblock), 1 + int(Nfilt // nblock))
     block = (nblock, nblock)
 
-    crossFilter = cp.RawKernel(code, 'crossFilter')
+    crossFilter = cp.RawKernel(code, "crossFilter")
     crossFilter(grid, block, (d_Params, d_W1, d_W2, d_UtU, d_WtW))
 
     del d_Params, d_W1, d_W2, d_UtU
@@ -554,7 +708,7 @@ def getMeWtW(W, U0, Nnearest=None):
     Params = [1, Nfilt, 0, 0, 0, 0, 0, 0, 0, nt0]
 
     # initialize correlation matrix for all timelags
-    WtW = cp.zeros((Nfilt, Nfilt, 2 * nt0 - 1), dtype=np.float32, order='F')
+    WtW = cp.zeros((Nfilt, Nfilt, 2 * nt0 - 1), dtype=np.float32, order="F")
     for i in range(Nrank):
         for j in range(Nrank):
             # the dot product factorizes into separable products for each spatio-temporal component
@@ -596,7 +750,7 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
-    ndrop[0] = .9 * ndrop[0] + .1 * idrop.sum()
+    ndrop[0] = 0.9 * ndrop[0] + 0.1 * idrop.sum()
 
     # compute pairwise correlations between templates
     cc = getMeWtW2(W, U, None)
@@ -623,7 +777,7 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
-    ndrop[1] = .9 * ndrop[1] + .1 * idrop.sum()
+    ndrop[1] = 0.9 * ndrop[1] + 0.1 * idrop.sum()
 
     return W, U, dWU, mu, nsp, ndrop
 
@@ -644,12 +798,15 @@ def learnAndSolve8b(ctx):
     Nrank = 3  # this one is the rank of the templates
 
     wTEMP, wPCA = extractTemplatesfromSnippets(
-        proc=proc, probe=probe, params=params, Nbatch=Nbatch, nPCs=NrankPC)
+        proc=proc, probe=probe, params=params, Nbatch=Nbatch, nPCs=NrankPC
+    )
 
     # move these to the GPU
-    wPCA = cp.asarray(wPCA[:, :Nrank], dtype=np.float32, order='F')
-    wTEMP = cp.asarray(wTEMP, dtype=np.float32, order='F')
-    wPCAd = cp.asarray(wPCA, dtype=np.float64, order='F')  # convert to double for extra precision
+    wPCA = cp.asarray(wPCA[:, :Nrank], dtype=np.float32, order="F")
+    wTEMP = cp.asarray(wTEMP, dtype=np.float32, order="F")
+    wPCAd = cp.asarray(
+        wPCA, dtype=np.float64, order="F"
+    )  # convert to double for extra precision
 
     nt0 = params.nt0
     nt0min = params.nt0min
@@ -679,7 +836,8 @@ def learnAndSolve8b(ctx):
     # fitting and then goes through the data symmetrically-out from the center during the final
     # pass
     ischedule = np.concatenate(
-        (np.arange(nhalf, nBatches), np.arange(nBatches - 1, nhalf - 1, -1)))
+        (np.arange(nhalf, nBatches), np.arange(nBatches - 1, nhalf - 1, -1))
+    )
     i1 = np.arange(nhalf - 1, -1, -1)
     i2 = np.arange(nhalf, nBatches)
 
@@ -688,7 +846,7 @@ def learnAndSolve8b(ctx):
     niter = irounds.size
     if irounds[niter - nBatches - 1] != nhalf:
         # this check is in here in case I do somehting weird when I try different schedules
-        raise ValueError('Mismatch between number of batches')
+        raise ValueError("Mismatch between number of batches")
 
     # these two flags are used to keep track of what stage of model fitting we're at
     # flag_final = 0
@@ -703,23 +861,44 @@ def learnAndSolve8b(ctx):
     # schedule of learning rates for the model fitting part
     # starts small and goes high, it corresponds approximately to the number of spikes
     # from the past that were averaged to give rise to the current template
-    pmi = cp.exp(-1. / cp.linspace(params.momentum[0], params.momentum[1], niter - nBatches))
+    pmi = cp.exp(
+        -1.0 / cp.linspace(params.momentum[0], params.momentum[1], niter - nBatches)
+    )
 
     Nsum = min(Nchan, 7)  # how many channels to extend out the waveform in mexgetspikes
     # lots of parameters passed into the CUDA scripts
-    Params = np.array([
-        NT, Nfilt, params.Th[0], nInnerIter, nt0, Nnearest,
-        Nrank, params.lam, pmi[0], Nchan, NchanNear, params.nt0min, 1,
-        Nsum, NrankPC, params.Th[0]], dtype=np.float64)
+    Params = np.array(
+        [
+            NT,
+            Nfilt,
+            params.Th[0],
+            nInnerIter,
+            nt0,
+            Nnearest,
+            Nrank,
+            params.lam,
+            pmi[0],
+            Nchan,
+            NchanNear,
+            params.nt0min,
+            1,
+            Nsum,
+            NrankPC,
+            params.Th[0],
+        ],
+        dtype=np.float64,
+    )
 
     # W0 has to be ordered like this
-    W0 = cp.transpose(cp.atleast_3d(cp.asarray(wPCA, dtype=np.float64, order='F')), [0, 2, 1])
+    W0 = cp.transpose(
+        cp.atleast_3d(cp.asarray(wPCA, dtype=np.float64, order="F")), [0, 2, 1]
+    )
 
     # initialize the list of channels each template lives on
-    iList = cp.zeros((Nnearest, Nfilt), dtype=np.int32, order='F')
+    iList = cp.zeros((Nnearest, Nfilt), dtype=np.int32, order="F")
 
     # initialize average number of spikes per batch for each template
-    nsp = cp.zeros((0, 1), dtype=np.float64, order='F')
+    nsp = cp.zeros((0, 1), dtype=np.float64, order="F")
 
     # this flag starts 0, is set to 1 later
     Params[12] = 0
@@ -727,11 +906,11 @@ def learnAndSolve8b(ctx):
     # kernels for subsample alignment
     Ka, Kb = getKernels(params)
 
-    p1 = .95  # decay of nsp estimate in each batch
+    p1 = 0.95  # decay of nsp estimate in each batch
 
     ntot = 0
     # this keeps track of dropped templates for debugging purposes
-    ndrop = np.zeros(2, dtype=np.float32, order='F')
+    ndrop = np.zeros(2, dtype=np.float32, order="F")
 
     # this is the minimum firing rate that all templates must maintain, or be dropped
     m0 = params.minFR * params.NT / params.fs
@@ -742,10 +921,13 @@ def learnAndSolve8b(ctx):
 
     # these ones store features per spike
     # Nnearest is the number of nearest templates to store features for
-    fW = LargeArrayWriter(ctx.path('fW', ext='.dat'), dtype=np.float32, shape=(Nnearest, -1))
+    fW = LargeArrayWriter(
+        ctx.path("fW", ext=".dat"), dtype=np.float32, shape=(Nnearest, -1)
+    )
     # NchanNear is the number of nearest channels to take PC features from
     fWpc = LargeArrayWriter(
-        ctx.path('fWpc', ext='.dat'), dtype=np.float32, shape=(NchanNear, Nrank, -1))
+        ctx.path("fWpc", ext=".dat"), dtype=np.float32, shape=(NchanNear, Nrank, -1)
+    )
 
     for ibatch in tqdm(range(niter), desc="Optimizing templates"):
         # korder is the index of the batch at this point in the schedule
@@ -758,16 +940,16 @@ def learnAndSolve8b(ctx):
             # this is required to revert back to the template states in the middle of the
             # batches
             W, dWU = ir.W, ir.dWU
-            logger.debug('Reverted back to middle timepoint.')
+            logger.debug("Reverted back to middle timepoint.")
 
         if ibatch < niter - nBatches:
             # obtained pm for this batch
             Params[8] = float(pmi[ibatch])
-            pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order='F')
+            pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order="F")
 
         # loading a single batch (same as everywhere)
         offset = Nchan * batchstart[k]
-        dat = proc.flat[offset:offset + NT * Nchan].reshape((-1, Nchan), order='F')
+        dat = proc.flat[offset : offset + NT * Nchan].reshape((-1, Nchan), order="F")
         dataRAW = cp.asarray(dat, dtype=np.float32) / params.scaleproc
 
         if ibatch == 0:
@@ -776,12 +958,16 @@ def learnAndSolve8b(ctx):
             # CUDA function to get spatiotemporal clips from spike detections
             dWU, cmap = mexGetSpikes2(Params, dataRAW, wTEMP, iC)
 
-            dWU = cp.asarray(dWU, dtype=np.float64, order='F')
+            dWU = cp.asarray(dWU, dtype=np.float64, order="F")
 
             # project these into the wPCA waveforms
             dWU = cp.reshape(
-                cp.dot(wPCAd, cp.dot(wPCAd.T, dWU.reshape((dWU.shape[0], -1), order='F'))),
-                dWU.shape, order='F')
+                cp.dot(
+                    wPCAd, cp.dot(wPCAd.T, dWU.reshape((dWU.shape[0], -1), order="F"))
+                ),
+                dWU.shape,
+                order="F",
+            )
 
             # initialize the low-rank decomposition with standard waves
             W = W0[:, cp.ones(dWU.shape[2], dtype=np.int32), :]
@@ -801,7 +987,9 @@ def learnAndSolve8b(ctx):
 
             isort = cp.argsort(iW)  # sort by max abs channel
             iW = iW[isort]
-            W = W[:, isort, :]  # user ordering to resort all the other template variables
+            W = W[
+                :, isort, :
+            ]  # user ordering to resort all the other template variables
             dWU = dWU[:, :, isort]
             nsp = nsp[isort]
 
@@ -822,7 +1010,8 @@ def learnAndSolve8b(ctx):
         # waveforms assigned to each cluster (dWU0),
         # and probably a few more things I forget about
         st0, id0, x0, featW, dWU0, drez, nsp0, featPC, vexp = mexMPnu8(
-            Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA)
+            Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA
+        )
 
         logger.debug("%d spikes.", x0.size)
 
@@ -841,9 +1030,10 @@ def learnAndSolve8b(ctx):
         # exp(pm) factor several times, and fexp is the resulting update factor
         # for each template
         fexp = np.exp(nsp0 * cp.log(pm[:Nfilt]))
-        fexp = cp.reshape(fexp, (1, 1, -1), order='F')
-        dWU = dWU * fexp + (1 - fexp) * (dWU0 / cp.reshape(
-            cp.maximum(1, nsp0), (1, 1, -1), order='F'))
+        fexp = cp.reshape(fexp, (1, 1, -1), order="F")
+        dWU = dWU * fexp + (1 - fexp) * (
+            dWU0 / cp.reshape(cp.maximum(1, nsp0), (1, 1, -1), order="F")
+        )
 
         # nsp just gets updated according to the fixed factor p1
         nsp = nsp * p1 + (1 - p1) * nsp0
@@ -859,7 +1049,8 @@ def learnAndSolve8b(ctx):
 
             # final clean up, triage templates one last time
             W, U, dWU, mu, nsp, ndrop = triageTemplates2(
-                params, iW, C2C, W, U, dWU, mu, nsp, ndrop)
+                params, iW, C2C, W, U, dWU, mu, nsp, ndrop
+            )
 
             # final number of templates
             Nfilt = W.shape[1]
@@ -872,16 +1063,21 @@ def learnAndSolve8b(ctx):
             iW = cp.argmax(cp.abs(dWU[nt0min - 1, :, :]), axis=0)
 
             # extract ALL features on the last pass
-            Params[12] = 2  # this is a flag to output features (PC and template features)
+            Params[
+                12
+            ] = 2  # this is a flag to output features (PC and template features)
 
             # different threshold on last pass?
-            Params[2] = params.Th[-1]  # usually the threshold is much lower on the last pass
+            Params[2] = params.Th[
+                -1
+            ]  # usually the threshold is much lower on the last pass
 
             # memorize the state of the templates
             logger.debug("Memorized middle timepoint.")
             ir.W, ir.dWU, ir.U, ir.mu = W, dWU, U, mu
             ir.Wraw = cp.zeros(
-                (U.shape[0], W.shape[0], U.shape[1]), dtype=np.float64, order='F')
+                (U.shape[0], W.shape[0], U.shape[1]), dtype=np.float64, order="F"
+            )
             for n in range(U.shape[1]):
                 # temporarily use U rather Urot until I have a chance to test it
                 ir.Wraw[:, :, n] = mu[n] * cp.dot(U[:, n, :], W[:, n, :].T)
@@ -892,7 +1088,8 @@ def learnAndSolve8b(ctx):
                 # this drops templates based on spike rates and/or similarities to
                 # other templates
                 W, U, dWU, mu, nsp, ndrop = triageTemplates2(
-                    params, iW, C2C, W, U, dWU, mu, nsp, ndrop)
+                    params, iW, C2C, W, U, dWU, mu, nsp, ndrop
+                )
 
             Nfilt = W.shape[1]  # update the number of filters
             Params[1] = Nfilt
@@ -903,15 +1100,27 @@ def learnAndSolve8b(ctx):
             if dWU0.shape[2] > 0:
                 # new templates need to be integrated into the same format as all templates
                 # apply PCA for smoothing purposes
-                dWU0 = cp.reshape(cp.dot(wPCAd, cp.dot(
-                    wPCAd.T, dWU0.reshape(
-                        (dWU0.shape[0], dWU0.shape[1] * dWU0.shape[2]), order='F'))),
-                    dWU0.shape, order='F')
+                dWU0 = cp.reshape(
+                    cp.dot(
+                        wPCAd,
+                        cp.dot(
+                            wPCAd.T,
+                            dWU0.reshape(
+                                (dWU0.shape[0], dWU0.shape[1] * dWU0.shape[2]),
+                                order="F",
+                            ),
+                        ),
+                    ),
+                    dWU0.shape,
+                    order="F",
+                )
                 dWU = cp.concatenate((dWU, dWU0), axis=2)
 
                 m = dWU0.shape[2]
                 # initialize temporal components of waveforms
-                W = _extend(W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1)
+                W = _extend(
+                    W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1
+                )
 
                 # initialize the number of spikes with the minimum allowed
                 nsp = _extend(nsp, Nfilt, Nfilt + m, params.minFR * NT / params.fs)
@@ -923,7 +1132,9 @@ def learnAndSolve8b(ctx):
                 Params[1] = Nfilt
 
                 W = W[:, :Nfilt, :]  # remove any new filters over the maximum allowed
-                dWU = dWU[:, :, :Nfilt]  # remove any new filters over the maximum allowed
+                dWU = dWU[
+                    :, :, :Nfilt
+                ]  # remove any new filters over the maximum allowed
                 nsp = nsp[:Nfilt]  # remove any new filters over the maximum allowed
                 mu = mu[:Nfilt]  # remove any new filters over the maximum allowed
 
@@ -962,16 +1173,27 @@ def learnAndSolve8b(ctx):
 
         if ibatch == niter - nBatches - 1:
             # these next three store the low-d template decompositions
-            ir.WA = np.zeros((nt0, Nfilt, Nrank, nBatches), dtype=np.float32, order='F')
-            ir.UA = np.zeros((Nchan, Nfilt, Nrank, nBatches), dtype=np.float32, order='F')
-            ir.muA = np.zeros((Nfilt, nBatches), dtype=np.float32, order='F')
+            ir.WA = np.zeros((nt0, Nfilt, Nrank, nBatches), dtype=np.float32, order="F")
+            ir.UA = np.zeros(
+                (Nchan, Nfilt, Nrank, nBatches), dtype=np.float32, order="F"
+            )
+            ir.muA = np.zeros((Nfilt, nBatches), dtype=np.float32, order="F")
 
         if ibatch % 100 == 0:
             # this is some of the relevant diagnostic information to be printed during training
             logger.info(
-                ('%d / %d batches, %d units, nspks: %2.4f, mu: %2.4f, '
-                    'nst0: %d, merges: %2.4f, %2.4f'),
-                ibatch, niter, Nfilt, nsp.sum(), median(mu), st0.size, *ndrop)
+                (
+                    "%d / %d batches, %d units, nspks: %2.4f, mu: %2.4f, "
+                    "nst0: %d, merges: %2.4f, %2.4f"
+                ),
+                ibatch,
+                niter,
+                Nfilt,
+                nsp.sum(),
+                median(mu),
+                st0.size,
+                *ndrop
+            )
 
         free_gpu_memory()
 
@@ -1015,9 +1237,9 @@ def learnAndSolve8b(ctx):
     U_a = np.zeros((Nchan * Nrank, nKeep, Nfilt), dtype=np.float32)
     U_b = np.zeros((nBatches, nKeep, Nfilt), dtype=np.float32)
 
-    for j in tqdm(range(Nfilt), desc='Compressing templates'):
+    for j in tqdm(range(Nfilt), desc="Compressing templates"):
         # do this for every template separately
-        WA = np.reshape(ir.WA[:, j, ...], (-1, nBatches), order='F')
+        WA = np.reshape(ir.WA[:, j, ...], (-1, nBatches), order="F")
         # svd on the GPU was faster for this, but the Python randomized CPU version
         # might be faster still
         # WA = gpuArray(WA)
@@ -1026,14 +1248,14 @@ def learnAndSolve8b(ctx):
         W_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
         W_b[:, :, j] = C[:, :nKeep]
 
-        UA = np.reshape(ir.UA[:, j, ...], (-1, nBatches), order='F')
+        UA = np.reshape(ir.UA[:, j, ...], (-1, nBatches), order="F")
         # UA = gpuArray(UA)
         A, B, C = svdecon_cpu(UA)
         # U_a times U_b results in a reconstruction of the time components
         U_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
         U_b[:, :, j] = C[:, :nKeep]
 
-    logger.info('Finished compressing time-varying templates.')
+    logger.info("Finished compressing time-varying templates.")
 
     return Bunch(
         wPCA=wPCA[:, :Nrank],
