@@ -5,7 +5,6 @@ import numpy as np
 import cupy as cp
 from tqdm import tqdm
 
-from pykilosort import ENABLE_STABLEMODE, ENSURE_DETERM
 from pykilosort.cptools import svdecon, svdecon_cpu, median, free_gpu_memory, ones
 from pykilosort.cluster import isolated_peaks_new, get_SpikeSample, getClosestChannels
 from pykilosort.utils import Bunch, get_cuda, _extend, LargeArrayWriter
@@ -357,7 +356,7 @@ def mexSVDsmall2(Params, dWU, W, iC, iW, Ka, Kb):
     return d_W, d_U, d_mu
 
 
-def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
+def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
     code, constants = get_cuda("mexMPnu8")
     maxFR = int(constants.maxFR)
     nmaxiter = int(constants.nmaxiter)
@@ -426,7 +425,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
         (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype),
     )
 
-    if ENABLE_STABLEMODE:
+    if params.stablemode_enabled:
         d_draw64 = cp.array(d_draw, dtype=np.float64)
 
     # loop to find and subtract spikes
@@ -467,8 +466,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
                 (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat),
             )
 
-        if ENSURE_DETERM:
-            if ENABLE_STABLEMODE:
+        if params.deterministicmode_enabled:
+            if params.stablemode_enabled:
                 d_idx = cp.argsort(
                     d_st[counter[1] : counter[1] + (counter[0] - counter[1])]
                 )
@@ -508,7 +507,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
                 ),
             )
         else:
-            if ENABLE_STABLEMODE:
+            if params.stablemode_enabled:
                 subtract_spikes_v4 = cp.RawKernel(code, "subtract_spikes_v4")
                 subtract_spikes_v4(
                     (Nfilt,),
@@ -592,7 +591,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
         # update 1st counter from 2nd counter
         d_counter[1] = d_counter[0]
 
-    if ENABLE_STABLEMODE and not ENSURE_DETERM:
+    if params.stablemode_enabled and not params.deterministicmode_enabled:
         d_draw = cp.array(d_draw64, dtype=np.float32)
 
     # compute PC features from reziduals + subtractions
@@ -619,7 +618,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA):
             ),
         )
 
-    if ENABLE_STABLEMODE:
+    if params.stablemode_enabled:
         # d_idx = array of time sorted indicie
         d_idx = cp.argsort(d_st)
     else:
@@ -1010,7 +1009,7 @@ def learnAndSolve8b(ctx):
         # waveforms assigned to each cluster (dWU0),
         # and probably a few more things I forget about
         st0, id0, x0, featW, dWU0, drez, nsp0, featPC, vexp = mexMPnu8(
-            Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA
+            Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params
         )
 
         logger.debug("%d spikes.", x0.size)

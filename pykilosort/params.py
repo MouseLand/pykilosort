@@ -77,6 +77,15 @@ class KilosortParams(BaseModel):
         description="number of blocks used to segment the probe when tracking drift, 0 == don't track, 1 == rigid, > 1 == non-rigid",
     )
 
+    stablemode_enabled: bool = Field(False, "make output more stable")
+    deterministicmode_enabled: bool = Field(False, "make output deterministic by sorting spikes before applying kernels")
+
+    @validator("deterministicmode_enabled")
+    def validate_deterministicmode(v, values):
+        if values.get("stablemode_enabled"):
+            return deterministicmode_enabled
+        raise ValueError("stablemode must be enabled for deterministic results")
+
     datashift: t.Optional[DatashiftParams] = Field(
         None, description="parameters for 'datashift' drift correction. not required"
     )
@@ -181,7 +190,7 @@ class KilosortParams(BaseModel):
     # Computed properties
     @property
     def NT(self) -> int:
-        return 64 * 1024 + self.ntbuff
+        return 32 * 1024 + self.ntbuff
 
     @property
     def NTbuff(self) -> int:
