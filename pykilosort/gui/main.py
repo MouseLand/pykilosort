@@ -151,6 +151,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.probe_view_box.channelSelected.connect(self.data_view_box.change_primary_channel)
 
         self.run_box.updateContext.connect(self.update_context)
+        self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
 
     def change_channel_display(self, direction):
         if self.context is not None:
@@ -177,13 +178,13 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def toggle_mode(self, mode):
         if mode == "raw":
-            self.data_view_box.raw_button.toggle()
+            self.data_view_box.raw_button.click()
         elif mode == "whitened":
-            self.data_view_box.whitened_button.toggle()
+            self.data_view_box.whitened_button.click()
         elif mode == "prediction":
-            self.data_view_box.prediction_button.toggle()
+            self.data_view_box.prediction_button.click()
         elif mode == "residual":
-            self.data_view_box.residual_button.toggle()
+            self.data_view_box.residual_button.click()
         else:
             raise ValueError("Invalid mode requested!")
 
@@ -266,6 +267,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box.set_data_path(self.data_path)
         self.run_box.set_working_directory(self.working_directory)
         self.run_box.set_results_directory(self.results_directory)
+
+    @QtCore.pyqtSlot(dict)
+    def update_sorting_status(self, status_dict):
+        self.data_view_box.change_sorting_status(status_dict)
 
     def get_context(self):
         return self.context

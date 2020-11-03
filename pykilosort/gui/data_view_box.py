@@ -40,8 +40,21 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.mode_buttons_group = QtWidgets.QButtonGroup(self)
         self.view_buttons_group = QtWidgets.QButtonGroup(self)
 
-        self.view_buttons = [self.raw_button, self.whitened_button, self.prediction_button, self.residual_button]
+        self.view_buttons = {'raw': self.raw_button,
+                             'whitened': self.whitened_button,
+                             'prediction': self.prediction_button,
+                             'residual': self.residual_button}
+
         self.mode_buttons = [self.traces_button, self.colormap_button]
+
+        self._view_button_checked_bg_colors = {'raw': 'white',
+                                               'whitened': 'lightblue',
+                                               'prediction': 'green',
+                                               'residual': 'red'}
+
+        self._keys = ['raw', 'whitened', 'prediction', 'residual']
+
+        self.view_buttons_state = {key: False for key in self._keys}
 
         self.primary_channel = 0
         self.current_time = 0
@@ -51,6 +64,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.whitened_traces = None
         self.prediction_traces = None
         self.residual_traces = None
+
+        self.sorting_status = {'preprocess': False,
+                               'spikesort': False,
+                               'export': False}
 
         # traces settings
         self.good_channel_color = (255, 255, 255)
@@ -119,26 +136,21 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.traces_button.toggled.connect(self.toggle_view)
 
-        self.raw_button.setCheckable(True)
-        self.raw_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-        self.raw_button.toggled.connect(self.on_raw_button_toggled)
+        for key in self._keys:
+            button = self.view_buttons[key]
+            button.setCheckable(True)
+            button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+            button.clicked.connect(self.on_views_clicked)
+            self.view_buttons_group.addButton(button)
+
         self.raw_button.setChecked(True)
+        self.raw_button.setStyleSheet("QPushButton {background-color: white; color: black;}")
 
-        self.whitened_button.setCheckable(True)
-        self.whitened_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-        self.whitened_button.toggled.connect(self.on_whitened_button_toggled)
+        self.enable_view_buttons()
 
-        self.prediction_button.setCheckable(True)
-        self.prediction_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-        self.prediction_button.toggled.connect(self.on_prediction_button_toggled)
-
-        self.residual_button.setCheckable(True)
-        self.residual_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-        self.residual_button.toggled.connect(self.on_residual_button_toggled)
-
-        for view_button in self.view_buttons:
-            self.view_buttons_group.addButton(view_button)
         self.view_buttons_group.setExclusive(True)
+
+        self.view_buttons_state = [self.view_buttons[key].isChecked() for key in self._keys]
 
         data_controls_layout.addWidget(self.traces_button)
         data_controls_layout.addWidget(self.colormap_button)
@@ -158,37 +170,25 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.setLayout(layout)
 
-    def on_raw_button_toggled(self, state):
-        if state:
-            self.raw_button.setStyleSheet("QPushButton {background-color: white; color: black;}")
-        else:
-            self.raw_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+    @QtCore.pyqtSlot()
+    def on_views_clicked(self):
+        current_state = {key: self.view_buttons[key].isChecked() for key in self._keys}
 
-        self.update_plot()
+        if current_state != self.view_buttons_state:
+            self.view_buttons_state = current_state
 
-    def on_whitened_button_toggled(self, state):
-        if state:
-            self.whitened_button.setStyleSheet("QPushButton {background-color: lightblue; color: black;}")
-        else:
-            self.whitened_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+            for view, state in self.view_buttons_state.items():
+                button = self.view_buttons[view]
+                if state:
+                    color = self._view_button_checked_bg_colors[view]
+                    button.setStyleSheet(f"QPushButton {{background-color: {color}; color: black;}}")
+                else:
+                    if button.isEnabled():
+                        button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+                    else:
+                        button.setStyleSheet("QPushButton {background-color: black; color: gray;}")
 
-        self.update_plot()
-
-    def on_prediction_button_toggled(self, state):
-        if state:
-            self.prediction_button.setStyleSheet("QPushButton {background-color: green; color: black;}")
-        else:
-            self.prediction_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-
-        self.update_plot()
-
-    def on_residual_button_toggled(self, state):
-        if state:
-            self.residual_button.setStyleSheet("QPushButton {background-color: red; color: black;}")
-        else:
-            self.residual_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
-
-        self.update_plot()
+            self.update_plot()
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll(self, direction):
@@ -219,10 +219,10 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.view_buttons_group.setExclusive(False)
         else:
             self.modeChanged.emit("colormap")
-            for button in self.view_buttons:
+            for button in self.view_buttons.values():
                 if button.isChecked():
                     button.setChecked(False)
-            self.view_buttons[0].setChecked(True)
+            self.view_buttons['raw'].setChecked(True)
             self.view_buttons_group.setExclusive(True)
 
         self.update_plot()
@@ -360,6 +360,31 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.current_time = position
         self.clear_cached_traces()
         self.update_plot()
+
+    def change_sorting_status(self, status_dict):
+        self.sorting_status = status_dict
+        self.enable_view_buttons()
+
+    def enable_view_buttons(self):
+        if self.colormap_button.isChecked():
+            if self.prediction_button.isChecked() or self.residual_button.isChecked():
+                self.raw_button.click()
+        else:
+            if self.prediction_button.isChecked():
+                self.prediction_button.click()
+            if self.residual_button.isChecked():
+                self.residual_button.click()
+
+        if self.sorting_status['preprocess'] and self.sorting_status['spikesort']:
+            self.prediction_button.setEnabled(True)
+            self.prediction_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+            self.residual_button.setEnabled(True)
+            self.residual_button.setStyleSheet("QPushButton {background-color: black; color: white;}")
+        else:
+            self.prediction_button.setDisabled(True)
+            self.prediction_button.setStyleSheet("QPushButton {background-color: black; color: gray;}")
+            self.residual_button.setDisabled(True)
+            self.residual_button.setStyleSheet("QPushButton {background-color: black; color: gray;}")
 
     def show_controls_popup(self):
         QtWidgets.QMessageBox.information(self, "Controls", controls_popup_text,

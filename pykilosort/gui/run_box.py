@@ -5,6 +5,7 @@ from pykilosort.gui.sorter import KiloSortWorker
 class RunBox(QtWidgets.QGroupBox):
 
     updateContext = QtCore.pyqtSignal(object)
+    sortingStepStatusUpdate = QtCore.pyqtSignal(dict)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -24,6 +25,10 @@ class RunBox(QtWidgets.QGroupBox):
         self.data_path = None
         self.working_directory = None
         self.results_directory = None
+
+        self.sorting_step_status = {'preprocess': False,
+                                    'spikesort': False,
+                                    'export': False}
 
         self.preprocess_done = False
         self.spikesort_done = False
@@ -58,11 +63,11 @@ class RunBox(QtWidgets.QGroupBox):
     def reenable_buttons(self):
         self.run_all_button.setEnabled(True)
         self.preprocess_button.setEnabled(True)
-        if self.preprocess_done:
+        if self.sorting_step_status['preprocess']:
             self.spike_sort_button.setEnabled(True)
         else:
             self.spike_sort_button.setEnabled(False)
-        if self.spikesort_done:
+        if self.sorting_step_status['spikesort']:
             self.export_button.setEnabled(True)
         else:
             self.export_button.setEnabled(False)
@@ -79,24 +84,29 @@ class RunBox(QtWidgets.QGroupBox):
     def get_current_context(self):
         return self.parent.get_context()
 
+    def set_sorting_step_status(self, step, status):
+        self.sorting_step_status[step] = status
+        self.sortingStepStatusUpdate.emit(self.sorting_step_status)
+
     @QtCore.pyqtSlot(object)
     def finished_preprocess(self, context):
         self.updateContext.emit(context)
-        self.preprocess_done = True
+        self.set_sorting_step_status('preprocess', True)
 
     @QtCore.pyqtSlot(object)
     def finished_spikesort(self, context):
         self.updateContext.emit(context)
-        self.spikesort_done = True
+        self.set_sorting_step_status('spikesort', True)
 
     @QtCore.pyqtSlot(object)
     def finished_export(self, context):
         self.updateContext.emit(context)
+        self.set_sorting_step_status('export', True)
 
     @QtCore.pyqtSlot()
     def preprocess(self):
-        self.preprocess_done = False
-        self.spikesort_done = False
+        self.set_sorting_step_status('preprocess', False)
+        self.set_sorting_step_status('spikesort', False)
         self.reenable_buttons()
         if self.get_current_context() is not None:
             self.run_steps("preprocess")
@@ -116,8 +126,8 @@ class RunBox(QtWidgets.QGroupBox):
         if self.get_current_context() is not None:
             self.run_steps(["preprocess", "spikesort", "export"])
 
-        self.preprocess_done = False
-        self.spikesort_done = False
+        self.set_sorting_step_status('preprocess', True)
+        self.set_sorting_step_status('spikesort', True)
         self.reenable_buttons()
 
     def run_steps(self, steps):
