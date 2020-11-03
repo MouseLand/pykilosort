@@ -437,6 +437,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.whitened_button.isChecked():
                     if self.whitened_traces is None:
+                        if "Wrot" in intermediate and self.whitening_matrix is None:
+                            self.whitening_matrix = intermediate.Wrot
 
                         whitened_traces, self.whitening_matrix = get_whitened_traces(
                             raw_data=raw_traces,
@@ -468,6 +470,9 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 elif self.whitened_button.isChecked():
                     if self.whitened_traces is None:
+                        if "Wrot" in intermediate and self.whitening_matrix is None:
+                            self.whitening_matrix = intermediate.Wrot
+
                         whitened_traces, self.whitening_matrix = get_whitened_traces(
                             raw_data=raw_traces,
                             probe=probe,
