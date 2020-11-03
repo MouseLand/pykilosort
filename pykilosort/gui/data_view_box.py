@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
 from pykilosort.gui.palettes import COLORMAP_COLORS
-from pykilosort.gui.sorter import get_whitened_traces
+from pykilosort.gui.sorter import get_whitened_traces, get_predicted_traces
 from pykilosort.gui.minor_gui_elements import controls_popup_text
 from pykilosort.gui.logger import setup_logger
 import pyqtgraph as pg
@@ -481,6 +481,23 @@ class DataViewBox(QtWidgets.QGroupBox):
                         except IndexError:
                             continue
 
+                if self.prediction_button.isChecked():
+                    if self.prediction_traces is None:
+                        prediction_traces = get_predicted_traces(matrix_U=intermediate.U_s,
+                                                                 matrix_W=intermediate.Wphy,
+                                                                 sorting_result=intermediate.st3,
+                                                                 time_limits=(start_time, end_time))
+                        self.prediction_traces = prediction_traces
+                    else:
+                        prediction_traces = self.prediction_traces
+
+                    for i in range(self.primary_channel + self.channels_displayed_traces, self.primary_channel, -1):
+                        try:
+                            color = 'g' if good_channels[i] else self.bad_channel_color
+                            self.add_curve_to_plot(prediction_traces.T[i], color, i)
+                        except IndexError:
+                            continue
+
             if self.colormap_button.isChecked():
                 raw_traces = raw_data[start_time:end_time]
                 start_channel = self.primary_channel
@@ -509,6 +526,18 @@ class DataViewBox(QtWidgets.QGroupBox):
                         whitened_traces = self.whitened_traces
                     colormap_min, colormap_max = -16.0, 16.0
                     self.add_image_to_plot(whitened_traces[:, start_channel:end_channel], colormap_min, colormap_max)
+
+                elif self.prediction_button.isChecked():
+                    if self.prediction_traces is None:
+                        prediction_traces = get_predicted_traces(matrix_U=intermediate.U_s,
+                                                                 matrix_W=intermediate.Wphy,
+                                                                 sorting_result=intermediate.st3,
+                                                                 time_limits=(start_time, end_time))
+                        self.prediction_traces = prediction_traces
+                    else:
+                        prediction_traces = self.prediction_traces
+                    colormap_min, colormap_max = -16.0, 16.0
+                    self.add_image_to_plot(prediction_traces[:, start_channel:end_channel], colormap_min, colormap_max)
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
             self.data_view_widget.setLimits(xMin=0, xMax=time_range)
