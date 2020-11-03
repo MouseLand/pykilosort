@@ -144,3 +144,8 @@ class RunBox(QtWidgets.QGroupBox):
             QtWidgets.QApplication.processEvents()
         QtWidgets.QApplication.restoreOverrideCursor()
         self.reenable_buttons()
+
+    def prepare_for_new_context(self):
+        self.set_sorting_step_status('preprocess', False)
+        self.set_sorting_step_status('spikesort', False)
+        self.set_sorting_step_status('export', False)
