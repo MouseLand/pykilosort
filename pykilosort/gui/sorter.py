@@ -35,62 +35,30 @@ def find_good_channels(context):
 
 
 def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
-    num_of_batches = get_Nbatch(raw_traces, params)
-    Wrot = cp.asarray(whitening_matrix, dtype=np.float32)
-
     sample_rate = params.fs
     high_pass_freq = params.fshigh
     low_pass_freq = params.fslow
-    NT = params.NT
-    NTbuff = params.NTbuff
-    ntbuff = params.ntbuff
+    scaleproc = params.scaleproc
 
-    whitened_arrays = []
+    whitening_matrix_np = cp.asarray(whitening_matrix, dtype=np.float32) / np.float(scaleproc)
 
-    for ibatch in range(num_of_batches):
+    filtered_data = gpufilter(buff=cp.asarray(raw_traces, dtype=np.float32),
+                              chanMap=probe.chanMap,
+                              fs=sample_rate,
+                              fslow=low_pass_freq,
+                              fshigh=high_pass_freq)
 
-        # number of samples to start reading at.
-        i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
-        if ibatch == 0:
-            # The very first batch has no pre-buffer, and has to be treated separately
-            ioffset = 0
-        else:
-            ioffset = ntbuff
+    whitened_data = cp.dot(filtered_data, whitening_matrix_np)
 
-        buff = raw_traces[i:i + NTbuff]
-        if buff.size == 0:
-            print("Loaded buffer has an empty size!")
-            break  # this shouldn't really happen, unless we counted data batches wrong
-
-        nsampcurr = buff.shape[0]  # how many time samples the current batch has
-        if nsampcurr < NTbuff:
-            buff = np.concatenate(
-                (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
-
-        # apply filters and median subtraction
-        buff = cp.asarray(buff, dtype=np.float32)
-
-        datr = gpufilter(buff, chanMap=probe.chanMap, fs=sample_rate, fshigh=high_pass_freq, fslow=low_pass_freq)
-        assert datr.flags.c_contiguous
-
-        datr = datr[ioffset:ioffset + NT, :]  # remove timepoints used as buffers
-        # TODO: unclear - comment says we are scaling by 200. Is wrot already scaled?
-        #               - we should definitely scale as we could be hit badly by precision here.
-        datr = cp.dot(datr, Wrot)  # whiten the data and scale by 200 for int16 range
-        assert datr.flags.c_contiguous
-
-        whitened_arrays.append(datr)
-
-    concatenated_array = cp.concatenate(tuple(whitened_arrays), axis=0)
-    array_means = cp.mean(concatenated_array, axis=0)
-    array_stds = cp.std(concatenated_array, axis=0)
-    whitened_array = (concatenated_array - array_means) / array_stds
+    array_means = cp.mean(whitened_data, axis=0)
+    array_stds = cp.std(whitened_data, axis=0)
+    whitened_array = (whitened_data - array_means) / array_stds
     return whitened_array.get()
 
 
 def get_whitened_traces(raw_data, probe, params, whitening_matrix):
     if whitening_matrix is None:
-        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
+        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params, nSkipCov=100)
     whitened_traces = filter_and_whiten(raw_traces=raw_data, params=params,
                                         probe=probe, whitening_matrix=whitening_matrix)
     return whitened_traces, whitening_matrix
@@ -126,7 +94,7 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
 
     output = predicted_traces[:, buffer * 2:-buffer * 2]
 
-    return cp.asnumpy(output).T * 4
+    return cp.asnumpy(output).T
 
 
 class KiloSortWorker(QtCore.QThread):
