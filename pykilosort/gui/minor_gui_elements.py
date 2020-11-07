@@ -162,6 +162,7 @@ class ProbeBuilder(QtWidgets.QDialog):
 
             self.construct_probe()
 
+    # TODO: use `Probe` from pykilosort/params.py
     def construct_probe(self):
         probe = Bunch()
 
