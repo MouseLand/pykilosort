@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 import pyqtgraph as pg
 from pykilosort.gui.logger import setup_logger

@@ -1,5 +1,4 @@
 import json
-import logging
 
 import numpy as np
 from pykilosort.gui.logger import setup_logger
