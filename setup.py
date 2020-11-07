@@ -63,7 +63,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'kilosort = pykilosort.gui:kilosort'
+            'kilosort = pykilosort.gui.launch:launcher'
         ],
     },
 )

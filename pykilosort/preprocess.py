@@ -170,7 +170,7 @@ def whiteningLocal(CC, yc, xc, nRange):
     return Wrot
 
 
-def get_whitening_matrix(raw_data=None, probe=None, params=None):
+def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     """
     based on a subset of the data, compute a channel whitening matrix
     this requires temporal filtering first (gpufilter)
@@ -183,13 +183,13 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None):
     NT = params.NT
     fs = params.fs
     fshigh = params.fshigh
-    nSkipCov = params.nSkipCov
+    if nSkipCov is None:
+        nSkipCov = params.nSkipCov
 
     xc = probe.xc
     yc = probe.yc
     chanMap = probe.chanMap
     Nchan = probe.Nchan
-    chanMap = probe.chanMap
 
     # Nchan is obtained after the bad channels have been removed
     CC = cp.zeros((Nchan, Nchan))
@@ -214,7 +214,7 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None):
 
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
-    CC = CC / ceil((Nbatch - 1) / nSkipCov)
+    CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
 
     if whiteningRange < np.inf:
         #  if there are too many channels, a finite whiteningRange is more robust to noise

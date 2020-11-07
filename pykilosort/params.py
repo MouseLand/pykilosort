@@ -13,7 +13,7 @@ class KilosortParams(BaseModel):
 
     fshigh: float = Field(150., description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
-    minfr_goodchannels: float = Field(0.1, description="minimum firing rate on a 'good' channel (0 to skip)")
+    minfr_goodchannels: float = Field(0, description="minimum firing rate on a 'good' channel (0 to skip)")
 
     Th: t.List[float] = Field([10, 4], description="""
         threshold on projections (like in Kilosort1, can be different for last pass like [10 4])
