@@ -1,8 +1,13 @@
-import numpy as np
 import json
-from pykilosort.utils import Bunch
+import logging
+
+import numpy as np
+from pykilosort.gui.logger import setup_logger
 from pykilosort.params import KilosortParams
-from PyQt5 import QtWidgets, QtGui, QtCore
+from pykilosort.utils import Bunch
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+logger = setup_logger(__name__)
 
 
 class ProbeBuilder(QtWidgets.QDialog):
@@ -20,17 +25,28 @@ class ProbeBuilder(QtWidgets.QDialog):
         self.y_coords_label = QtWidgets.QLabel("Y-coordinates for each site:")
 
         self.k_coords_value = QtWidgets.QLineEdit()
-        self.k_coords_label = QtWidgets.QLabel("Shrank index (\'kcoords\') for each "
-                                               "site (leave blank for single shank):")
+        self.k_coords_label = QtWidgets.QLabel(
+            "Shrank index ('kcoords') for each " "site (leave blank for single shank):"
+        )
 
         self.channel_map_value = QtWidgets.QLineEdit()
-        self.channel_map_label = QtWidgets.QLabel("Channel map (list of rows in the data file for each site):")
+        self.channel_map_label = QtWidgets.QLabel(
+            "Channel map (list of rows in the data file for each site):"
+        )
 
         self.bad_channels_value = QtWidgets.QLineEdit()
-        self.bad_channels_label = QtWidgets.QLabel("List of disconnected/bad site numbers (blank for none):")
+        self.bad_channels_label = QtWidgets.QLabel(
+            "List of disconnected/bad site numbers (blank for none):"
+        )
 
-        self.input_list = [self.map_name_value, self.x_coords_value, self.y_coords_value,
-                           self.k_coords_value, self.channel_map_value, self.bad_channels_value]
+        self.input_list = [
+            self.map_name_value,
+            self.x_coords_value,
+            self.y_coords_value,
+            self.k_coords_value,
+            self.channel_map_value,
+            self.bad_channels_value,
+        ]
 
         self.error_label = QtWidgets.QLabel()
         self.error_label.setText("Invalid inputs!")
@@ -56,12 +72,18 @@ class ProbeBuilder(QtWidgets.QDialog):
     def setup(self):
         layout = QtWidgets.QVBoxLayout()
 
-        info_label = QtWidgets.QLabel("Valid inputs: lists, or numpy expressions (use np for numpy)")
+        info_label = QtWidgets.QLabel(
+            "Valid inputs: lists, or numpy expressions (use np for numpy)"
+        )
 
         self.cancel_button.clicked.connect(self.reject)
-        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton))
+        self.okay_button.setIcon(
+            self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton)
+        )
         self.okay_button.clicked.connect(self.accept)
-        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton))
+        self.okay_button.setIcon(
+            self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton)
+        )
         self.check_button.clicked.connect(self.check_inputs)
 
         buttons = [self.check_button, self.okay_button, self.cancel_button]
@@ -78,14 +100,22 @@ class ProbeBuilder(QtWidgets.QDialog):
         for field in self.input_list:
             field.textChanged.connect(self.set_values_as_unchecked)
 
-        widget_list = [self.map_name_label, self.map_name_value,
-                       info_label,
-                       self.x_coords_label, self.x_coords_value,
-                       self.y_coords_label, self.y_coords_value,
-                       self.k_coords_label, self.k_coords_value,
-                       self.channel_map_label, self.channel_map_value,
-                       self.bad_channels_label, self.bad_channels_value,
-                       self.error_label]
+        widget_list = [
+            self.map_name_label,
+            self.map_name_value,
+            info_label,
+            self.x_coords_label,
+            self.x_coords_value,
+            self.y_coords_label,
+            self.y_coords_value,
+            self.k_coords_label,
+            self.k_coords_value,
+            self.channel_map_label,
+            self.channel_map_value,
+            self.bad_channels_label,
+            self.bad_channels_value,
+            self.error_label,
+        ]
 
         button_layout = QtWidgets.QHBoxLayout()
         for button in buttons:
@@ -183,12 +213,13 @@ class ProbeBuilder(QtWidgets.QDialog):
 
 
 class AdvancedOptionsEditor(QtWidgets.QDialog):
-
     def __init__(self, parent):
         super(AdvancedOptionsEditor, self).__init__(parent=parent)
         self.parent = parent
 
-        self._default_parameters = KilosortParams().parse_obj(self.parent.get_default_advanced_options())
+        self._default_parameters = KilosortParams().parse_obj(
+            self.parent.get_default_advanced_options()
+        )
         self.current_parameters = self._default_parameters.dict()
 
         self.parameter_edit_box = JsonEditor(self)
@@ -215,12 +246,18 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
 
         self.parameter_edit_box.textChanged.connect(self.set_values_as_unchecked)
 
-        parameter_edit_label = QtWidgets.QLabel("Modify the advanced parameters by changing this json file:")
+        parameter_edit_label = QtWidgets.QLabel(
+            "Modify the advanced parameters by changing this json file:"
+        )
 
         self.cancel_button.clicked.connect(self.reject)
-        self.cancel_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton))
+        self.cancel_button.setIcon(
+            self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton)
+        )
         self.okay_button.clicked.connect(self.accept)
-        self.okay_button.setIcon(self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton))
+        self.okay_button.setIcon(
+            self.parent.style().standardIcon(QtWidgets.QStyle.SP_DialogOkButton)
+        )
         self.check_button.clicked.connect(self.check_json)
         self.reset_to_original.clicked.connect(self.reset_to_original_defaults)
         self.reset_to_saved.clicked.connect(self.reset_to_saved_defaults)
@@ -271,7 +308,9 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
     def check_json(self):
         try:
             param_dict = json.loads(self.parameter_edit_box.toPlainText())
-            self.current_parameters = self._default_parameters.parse_obj(param_dict).dict()
+            self.current_parameters = self._default_parameters.parse_obj(
+                param_dict
+            ).dict()
 
             self.set_values_as_checked()
 
@@ -280,9 +319,11 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
 
             self.okay_button.setDisabled(False)
         except Exception as e:
-            self.error_label.setText("Invalid syntax! Refer to terminal for error message.")
+            self.error_label.setText(
+                "Invalid syntax! Refer to terminal for error message."
+            )
             self.error_label.show()
-            print(e)
+            logger.exception(e)
 
     def reset_to_original_defaults(self):
         self.current_parameters = KilosortParams().dict()
@@ -309,6 +350,7 @@ class QLineNumberArea(QtWidgets.QWidget):
     """
     Adapted from: https://stackoverflow.com/a/49790764/7126611
     """
+
     def __init__(self, editor):
         super().__init__(editor)
         self.codeEditor = editor
@@ -324,6 +366,7 @@ class JsonEditor(QtWidgets.QPlainTextEdit):
     """
     Adapted from: https://stackoverflow.com/a/49790764/7126611
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.lineNumberArea = QLineNumberArea(self)
@@ -338,7 +381,7 @@ class JsonEditor(QtWidgets.QPlainTextEdit):
         while max_value >= 10:
             max_value /= 10
             digits += 1
-        space = 3 + self.fontMetrics().width('9') * digits + 5
+        space = 3 + self.fontMetrics().width("9") * digits + 5
         return space
 
     def update_line_number_area_width(self, null):
@@ -348,14 +391,20 @@ class JsonEditor(QtWidgets.QPlainTextEdit):
         if dy:
             self.lineNumberArea.scroll(0, dy)
         else:
-            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(), rect.height())
+            self.lineNumberArea.update(
+                0, rect.y(), self.lineNumberArea.width(), rect.height()
+            )
         if rect.contains(self.viewport().rect()):
             self.update_line_number_area_width(0)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         cr = self.contentsRect()
-        self.lineNumberArea.setGeometry(QtCore.QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height()))
+        self.lineNumberArea.setGeometry(
+            QtCore.QRect(
+                cr.left(), cr.top(), self.line_number_area_width(), cr.height()
+            )
+        )
 
     def highlight_current_line(self):
         extra_selections = []
@@ -385,7 +434,14 @@ class JsonEditor(QtWidgets.QPlainTextEdit):
             if block.isVisible() and (bottom >= event.rect().top()):
                 number = str(block_number + 1)
                 painter.setPen(QtCore.Qt.white)
-                painter.drawText(0, top, self.lineNumberArea.width(), height, QtCore.Qt.AlignRight, number)
+                painter.drawText(
+                    0,
+                    top,
+                    self.lineNumberArea.width(),
+                    height,
+                    QtCore.Qt.AlignRight,
+                    number,
+                )
 
             block = block.next()
             top = bottom
