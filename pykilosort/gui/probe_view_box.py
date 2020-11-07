@@ -62,6 +62,8 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         primary_channel_position = int(np.where(channel_map == primary_channel)[0])
         end_channel_position = np.where(channel_map == primary_channel + displayed_channels)[0]
+        # prevent the last displayed channel would be set as the end channel in the case that
+        # `primary_channel + displayed_channels` exceeds the total number of channels in the channel map
         if end_channel_position.size == 0:
             end_channel_position = np.argmax(channel_map)
         else:
@@ -124,6 +126,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
             elif good_channel and not is_active:
                 color = self.configuration['good_channel']
             else:
+                # TODO: logger.error
                 print("Logical error!")
             pen = pg.mkPen(0.5)
             brush = pg.mkBrush(color)
