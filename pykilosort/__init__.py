@@ -14,7 +14,7 @@ else:
     import cupyx
 
 from .utils import Bunch, memmap_binary_file, read_data, load_probe  # noqa
-from .main import run  # noqa
+from .main import run, run_export, run_spikesort, run_preprocess  # noqa
 
 
 __version__ = '2.0.0a0'

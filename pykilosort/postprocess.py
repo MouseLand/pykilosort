@@ -322,7 +322,10 @@ def ccg(st1, st2, nbins, tbin):
     #                      - vary for different setups.
     st1 = cp.asnumpy(st1)
     st2 = cp.asnumpy(st2)
-    return _ccg(st1, st2, nbins, tbin)
+    try:
+        return _ccg(st1, st2, nbins, tbin)
+    except ValueError:
+        return 0
 
 
 def clusterAverage(clu, spikeQuantity):
