@@ -24,6 +24,7 @@ def find_good_channels(context):
         else:
             intermediate.igood = np.ones_like(probe.chanMap, dtype=bool)
 
+    # TODO: delete comments
     # probe.chanMap = probe.chanMap[intermediate.igood]
     # probe.xc = probe.xc[intermediate.igood]
     # probe.yc = probe.yc[intermediate.igood]

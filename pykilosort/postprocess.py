@@ -325,8 +325,6 @@ def ccg(st1, st2, nbins, tbin):
     try:
         return _ccg(st1, st2, nbins, tbin)
     except ValueError:
-        print(st1.shape)
-        print(st2.shape)
         return 0
 
 
