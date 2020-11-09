@@ -145,7 +145,8 @@ def getMeUtU(iU, iC, mask, Nnearest, Nchan):
     U = np.zeros((Nchan, Nfilt), dtype=np.float32, order="F")
 
     # use the template primary channel to obtain its neighboring channels from iC
-    ix = cp.asnumpy(iC[:, iU]) + np.arange(0, Nchan * Nfilt, Nchan).astype(np.int32)
+    ix = cp.asnumpy(iC[:, iU]).squeeze() + np.arange(0, Nchan * Nfilt, Nchan).astype(np.int32)
+
     # WARNING: transpose because the indexing assumes F ordering.
     U.T.flat[ix] = 1  # use this as an awkward index into U
 
@@ -362,7 +363,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
     nmaxiter = int(constants.nmaxiter)
     Nthreads = int(constants.Nthreads)
 
-    NT = int(Params[0])
+    NT = int(Params[0]) # NT = (unsigned int) Params[0];
     Nfilt = int(Params[1])
     nt0 = int(Params[4])
     Nnearest = int(Params[5])
@@ -403,10 +404,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
 
     counter = np.zeros(2, dtype=np.int32, order="F")
 
-    # tpB = (8, 2 * nt0 - 1)
     tpF = (16, Nnearest)
     tpS = (nt0, 16)
-    # tpW = (Nnearest, Nrank)
     tpPC = (NchanU, Nrank)
 
     # filter the data with the spatial templates
@@ -425,7 +424,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype),
     )
 
-    if params.stablemode_enabled:
+    if params.stablemode_enabled and not params.deterministicmode_enabled:
         d_draw64 = cp.array(d_draw, dtype=np.float64)
 
     # loop to find and subtract spikes
@@ -454,6 +453,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         # add new spikes to 2nd counter
         counter[:] = cp.asnumpy(d_counter[:])
         if counter[0] > maxFR:
+            logger.warning("Firing rate limit hit for batch.")
             counter[0] = maxFR
             d_counter[0] = counter[0]
 
@@ -468,11 +468,13 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
 
         if params.deterministicmode_enabled:
             if params.stablemode_enabled:
-                d_idx = cp.argsort(
-                    d_st[counter[1] : counter[1] + (counter[0] - counter[1])]
-                )
+                d_stSort = d_st[counter[1]:counter[0]] # cudaMemcpy( d_stSort, d_st+counter[1], (counter[0] - counter[1])*sizeof(int), cudaMemcpyDeviceToDevice );
+                d_idx = cp.argsort(d_stSort) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
             else:
-                d_idx = cp.arange(0, counter[0] - counter[1])
+                raise ValueError("Stablemode required for deterministic calculations.")
+                # This is allowed in the MATLAB version runtime but it doesn't really make sense
+                # and isn't recommended so let's not anyone fall into the trap without knowing.
+                # d_idx = cp.arange(0, counter[0] - counter[1])
 
             if Nchan < Nthreads:
                 subtract_spikes_v2 = cp.RawKernel(code, "subtract_spikes_v2")
@@ -594,7 +596,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
     if params.stablemode_enabled and not params.deterministicmode_enabled:
         d_draw = cp.array(d_draw64, dtype=np.float32)
 
-    # compute PC features from reziduals + subtractions
+    # compute PC features from residuals + subtractions
     # TODO: design - let's not use numeric indexing into the Params array. It's much more difficult to read.
     if Params[12] > 0:
         computePCfeatures = cp.RawKernel(code, "computePCfeatures")
@@ -619,8 +621,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         )
 
     if params.stablemode_enabled:
-        # d_idx = array of time sorted indicie
-        d_idx = cp.argsort(d_st)
+        # d_idx = array of time sorted indices
+        d_idx = cp.argsort(d_st[:counter[0] - 1]) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
     else:
         d_idx = cp.arange(0, counter[0])
 
