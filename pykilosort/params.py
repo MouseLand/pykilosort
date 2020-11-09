@@ -77,8 +77,8 @@ class KilosortParams(BaseModel):
         description="number of blocks used to segment the probe when tracking drift, 0 == don't track, 1 == rigid, > 1 == non-rigid",
     )
 
-    stablemode_enabled: bool = Field(False, "make output more stable")
-    deterministicmode_enabled: bool = Field(False, "make output deterministic by sorting spikes before applying kernels")
+    stablemode_enabled: bool = Field(False, description="make output more stable")
+    deterministicmode_enabled: bool = Field(False, description="make output deterministic by sorting spikes before applying kernels")
 
     @validator("deterministicmode_enabled")
     def validate_deterministicmode(v, values):
