@@ -71,13 +71,17 @@ def run(
     assert params
 
     # dir path
-    dir_path = dir_path or Path(dat_path).parent
+    dir_path = Path(dir_path) or Path(dat_path).parent
     assert dir_path, "Please provide a dir_path"
     dir_path.mkdir(exist_ok=True, parents=True)
     assert dir_path.exists()
 
     # Create the context.
-    ctx_path = dir_path / '.kilosort' / raw_data.name
+    ctx_path = dir_path / ".kilosort" / Path(raw_data.name).name
+    if clear_context:
+        logger.info(f"Clearing context at {ctx_path} ...")
+        shutil.rmtree(ctx_path, ignore_errors=True)
+        
     ctx = Context(ctx_path)
     ctx.params = params
     ctx.probe = probe
