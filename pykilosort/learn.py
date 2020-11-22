@@ -52,6 +52,10 @@ def extractTemplatesfromSnippets(proc=None, probe=None, params=None, Nbatch=None
         if k > 1e5:
             break
 
+    #TODO: add some proper error control for the case below
+    if k == 0:
+        logger.info("ERROR: No spike activity found")
+
     # discard empty samples
     # dd = dd[:, :k]
     dd = cp.asfortranarray(cp.concatenate(dds, axis=1).astype(np.float32))
