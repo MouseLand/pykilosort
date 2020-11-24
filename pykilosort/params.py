@@ -61,8 +61,6 @@ class DatashiftParams(BaseModel):
 class KilosortParams(BaseModel):
     fs: float = Field(30000.0, description="sample rate")
 
-    probe: Probe = Field(..., description="recording probe metadata")
-
     fshigh: float = Field(150.0, description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
     minfr_goodchannels: float = Field(0.1, description="minimum firing rate on a 'good' channel (0 to skip)")
