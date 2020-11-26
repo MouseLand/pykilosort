@@ -153,9 +153,6 @@ class KilosortParams(BaseModel):
     whiteningRange: int = Field(
         32, description="number of channels to use for whitening each channel"
     )
-    nSkipCov: int = Field(
-        25, description="compute whitening matrix from every N-th batch"
-    )
     scaleproc: int = Field(200, description="int16 scaling of whitened data")
     nPCs: int = Field(3, description="how many PCs to project the spikes into")
 
