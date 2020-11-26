@@ -163,6 +163,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box.updateContext.connect(self.update_context)
         self.run_box.disableInput.connect(self.disable_all_input)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
+        self.run_box.updateProbeView.connect(self.update_probe_view)
 
     def change_channel_display(self, direction):
         if self.context is not None:
@@ -229,7 +230,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.prepare_for_new_context()
         self.load_raw_data()
         self.setup_context()
-        self.setup_probe_view()
+        self.update_probe_view()
         self.setup_data_view()
         self.update_run_box()
 
@@ -252,38 +253,28 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.data_view_box.create_plot_items()
         self.data_view_box.update_plot(self.context)
 
-    def update_context_with_good_channels(self):
-        worker = KiloSortWorker(
-            self.context, self.data_path, self.results_directory, ["goodchannels"]
-        )
-
-        worker.foundGoodChannels.connect(self.update_context)
-
-        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
-        worker.start()
-        while worker.isRunning():
-            QtWidgets.QApplication.processEvents()
-        QtWidgets.QApplication.restoreOverrideCursor()
-
     def setup_context(self):
         context_path = Path(
             os.path.join(self.working_directory, ".kilosort", self.raw_data.name)
         )
 
         self.context = Context(context_path=context_path)
-        self.context.probe = self.probe_layout
+        probe_layout = self.probe_layout
+        probe_layout.Nchan = len(probe_layout.chanMap)
+        self.context.probe = probe_layout
         self.context.params = self.params
         self.context.raw_data = self.raw_data
 
-        self.context.load()
+        self.context.intermediate.igood = np.ones_like(probe_layout.chanMap, dtype=bool)
 
-        self.update_context_with_good_channels()
+        self.context.load()
 
     @QtCore.pyqtSlot(object)
     def update_context(self, context):
         self.context = context
 
-    def setup_probe_view(self):
+    @QtCore.pyqtSlot()
+    def update_probe_view(self):
         self.probe_view_box.set_layout(self.context)
 
     def update_run_box(self):
