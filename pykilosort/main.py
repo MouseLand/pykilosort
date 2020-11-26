@@ -96,25 +96,8 @@ def run(
     # Find good channels.
     # NOTE: now we use C order from loading up to the creation of the proc file, which is
     # in Fortran order.
-    if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-        if "igood" not in ir:
-            # determine bad channels
-            with ctx.time("good_channels"):
-                ir.igood = get_good_channels(
-                    raw_data=raw_data, probe=probe, params=params
-                )
-            # Cache the result.
-            ctx.write(igood=ir.igood)
-        if stop_after == "good_channels":
-            return ctx
 
-        # it's enough to remove bad channels from the channel map, which treats them
-        # as if they are dead
-        ir.igood = ir.igood.ravel().astype('bool')
-        probe.chanMap = probe.chanMap[ir.igood]
-        probe.xc = probe.xc[ir.igood]  # removes coordinates of bad channels
-        probe.yc = probe.yc[ir.igood]
-        probe.kcoords = probe.kcoords[ir.igood]
+    ir.igood = np.ones(len(probe.chanMap), dtype='bool')
     probe.Nchan = len(
         probe.chanMap
     )  # total number of good channels that we will spike sort
