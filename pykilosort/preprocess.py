@@ -196,10 +196,13 @@ def whiteningLocal(CC, yc, xc, nRange):
 
     for j in range(CC.shape[0]):
         ds = (xc - xc[j]) ** 2 + (yc - yc[j]) ** 2
-        ilocal = np.argsort(ds)
+        # ilocal = np.argsort(ds)
         # take the closest channels to the primary channel.
         # First channel in this list will always be the primary channel.
-        ilocal = ilocal[:nRange]
+        # ilocal = ilocal[:nRange]
+
+        ilocal = np.lexsort((np.arange(len(ds)), ds))[:nRange]
+        # using lexsort to match Matlab default behaviour
         
         wrot0 = cp.asnumpy(whiteningFromCovariance(CC[np.ix_(ilocal, ilocal)]))
         # the first column of wrot0 is the whitening filter for the primary channel
