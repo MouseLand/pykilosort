@@ -197,7 +197,7 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     for ibatch in tqdm(range(0, Nbatch, nSkipCov), desc="Computing the whitening matrix"):
         i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
         # WARNING: we no longer use Fortran order, so raw_data is nsamples x NchanTOT
-        buff = raw_data[i:i + NT - ntbuff]
+        buff = raw_data[i:i + NTbuff]
         assert buff.shape[0] > buff.shape[1]
         assert buff.flags.c_contiguous
 
