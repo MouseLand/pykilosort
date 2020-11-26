@@ -6,6 +6,7 @@ from pykilosort.gui.sorter import KiloSortWorker
 
 class RunBox(QtWidgets.QGroupBox):
     updateContext = QtCore.pyqtSignal(object)
+    updateProbeView = QtCore.pyqtSignal()
     sortingStepStatusUpdate = QtCore.pyqtSignal(dict)
     disableInput = QtCore.pyqtSignal(bool)
 
@@ -117,6 +118,7 @@ class RunBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot(object)
     def finished_preprocess(self, context):
         self.updateContext.emit(context)
+        self.updateProbeView.emit()
         self.set_sorting_step_status("preprocess", True)
 
     @QtCore.pyqtSlot(object)

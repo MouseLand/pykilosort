@@ -2,33 +2,8 @@ import cupy as cp
 import numpy as np
 from numba import jit
 from pykilosort.main import run_export, run_preprocess, run_spikesort
-from pykilosort.preprocess import get_good_channels, get_whitening_matrix, gpufilter
+from pykilosort.preprocess import get_whitening_matrix, gpufilter
 from PyQt5 import QtCore
-
-
-def find_good_channels(context):
-    params = context.params
-    probe = context.probe
-    raw_data = context.raw_data
-    intermediate = context.intermediate
-
-    if "igood" not in intermediate:
-        if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-            # determine bad channels
-            with context.time("good_channels"):
-                intermediate.igood = get_good_channels(
-                    raw_data=raw_data, probe=probe, params=params
-                )
-                intermediate.igood = intermediate.igood.ravel()
-            # Cache the result.
-            context.write(igood=intermediate.igood)
-
-        else:
-            intermediate.igood = np.ones_like(probe.chanMap, dtype=bool)
-
-    probe.Nchan = len(probe.chanMap)
-    context.probe = probe
-    return context
 
 
 def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
@@ -122,7 +97,6 @@ def get_predicted_traces(
 
 
 class KiloSortWorker(QtCore.QThread):
-    foundGoodChannels = QtCore.pyqtSignal(object)
     finishedPreprocess = QtCore.pyqtSignal(object)
     finishedSpikesort = QtCore.pyqtSignal(object)
     finishedAll = QtCore.pyqtSignal(object)
@@ -162,7 +136,3 @@ class KiloSortWorker(QtCore.QThread):
         if "export" in self.steps:
             run_export(self.context, self.data_path, self.output_directory)
             self.finishedAll.emit(self.context)
-
-        if "goodchannels" in self.steps:
-            self.context = find_good_channels(self.context)
-            self.foundGoodChannels.emit(self.context)
