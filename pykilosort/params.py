@@ -61,7 +61,7 @@ class DatashiftParams(BaseModel):
 class KilosortParams(BaseModel):
     fs: float = Field(30000.0, description="sample rate")
 
-    fshigh: float = Field(150.0, description="high pass filter frequency")
+    fshigh: float = Field(300.0, description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
 
     genericSpkTh: float = Field(
