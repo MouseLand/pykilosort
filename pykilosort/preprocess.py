@@ -407,7 +407,7 @@ def preprocess(ctx):
             # to have as buffers for filtering
 
             # number of samples to start reading at.
-            i = max(0, (NT - params.ntbuff) * ibatch - 2 * params.ntbuff)
+            i = max(0, NT * ibatch - ntb)
             if ibatch == 0:
                 # The very first batch has no pre-buffer, and has to be treated separately
                 ioffset = 0
