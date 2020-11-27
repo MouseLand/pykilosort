@@ -135,19 +135,19 @@ def run(
     assert ir.proc_path.exists()
     ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
 
-    # -------------------------------------------------------------------------
-    # Time-reordering as a function of drift.
-    #
-    # This function saves:
-    #
-    #       iorig, ccb0, ccbsort
-    #
-    if "iorig" not in ir:
-        with ctx.time("reorder"):
-            out = clusterSingleBatches(ctx)
-        ctx.save(**out)
-    if stop_after == "reorder":
-        return ctx
+    # # -------------------------------------------------------------------------
+    # # Time-reordering as a function of drift.
+    # #
+    # # This function saves:
+    # #
+    # #       iorig, ccb0, ccbsort
+    # #
+    # if "iorig" not in ir:
+    #     with ctx.time("reorder"):
+    #         out = clusterSingleBatches(ctx)
+    #     ctx.save(**out)
+    # if stop_after == "reorder":
+    #     return ctx
 
     # -------------------------------------------------------------------------
     #  Main tracking and template matching algorithm.
