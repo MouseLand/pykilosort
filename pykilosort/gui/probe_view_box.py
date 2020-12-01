@@ -79,7 +79,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
             end_channel_position = int(end_channel_position)
         self.active_channels = channel_map[
             primary_channel_position:end_channel_position+1
-        ].tolist()
+        +1].tolist()
 
     def set_layout(self, context):
         self.probe_view.clear()
