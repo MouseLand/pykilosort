@@ -138,7 +138,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         for ind, (x_pos, y_pos) in enumerate(zip(self.xc, self.yc)):
             pos = (x_pos, y_pos)
             good_channel = self.good_channels[ind]
-            is_active = np.isin(ind, self.active_channels)
+            is_active = np.isin(ind, self.active_channels).tolist()
             if not good_channel:
                 color = self.configuration["bad_channel"]
             elif good_channel and is_active:
