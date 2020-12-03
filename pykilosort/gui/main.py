@@ -294,6 +294,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(dict)
     def update_sorting_status(self, status_dict):
         self.data_view_box.change_sorting_status(status_dict)
+        self.probe_view_box.change_sorting_status(status_dict)
 
     def get_context(self):
         return self.context
