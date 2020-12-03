@@ -396,7 +396,7 @@ def preprocess(ctx):
     logger.info("Loading raw data and applying filters.")
 
     # weights to combine batches at the edge
-    w_edge = cp.linspace(0,1,ntb)
+    w_edge = cp.linspace(0,1,ntb).reshape(-1, 1)
     datr_prev = cp.zeros((ntb, Nchan), dtype=np.int32)
 
     with open(ir.proc_path, 'wb') as fw:  # open for writing processed data
@@ -425,23 +425,23 @@ def preprocess(ctx):
                     (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
 
             if i == 0:
-                bpad = cp.tile(buff[0], (ntb, 1))
-                buff = cp.concatenate((bpad, buff[:NTbuff - ntb]), axis=0)
+                bpad = np.tile(buff[0], (ntb, 1))
+                buff = np.concatenate((bpad, buff[:NTbuff - ntb]), axis=0)
 
             # apply filters and median subtraction
             #buff = cp.asarray(buff, dtype=np.float32)
 
             #datr = gpufilter(buff, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
 
-            buff_c = np.array(buff, dtype=np.int32)
-            datr_c = cpufilter(buff, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
+            buff_c = np.array(buff, dtype=np.float32)
+            datr_c = cpufilter(buff_c, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
             datr = cp.asarray(datr_c, dtype=np.float32)
             assert datr.flags.c_contiguous
 
             datr[ntb:2*ntb] = w_edge * datr[ntb:2*ntb] + (1 - w_edge) * datr_prev
-            datr_prev = datr[NT + ntb, NT + 2*ntb]
+            datr_prev = datr[NT + ntb: NT + 2*ntb]
 
-            datr = datr[ioffset:ioffset + NT, :]  # remove timepoints used as buffers
+            datr = datr[ntb:ntb + NT, :]  # remove timepoints used as buffers
             datr = cp.dot(datr, Wrot)  # whiten the data and scale by 200 for int16 range
             assert datr.flags.c_contiguous
 
