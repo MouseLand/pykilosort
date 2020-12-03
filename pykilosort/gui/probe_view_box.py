@@ -33,6 +33,12 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         self.channel_map_dict = {}
         self.good_channels = None
 
+        self.sorting_status = {
+            "preprocess": False,
+            "spikesort": False,
+            "export": False
+        }
+
         self.configuration = {
             "active_channel": "g",
             "good_channel": "b",
@@ -120,6 +126,9 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def synchronize_primary_channel(self):
         self.primary_channel = self.gui.data_view_box.primary_channel
+
+    def change_sorting_status(self, status_dict):
+        self.sorting_status = status_dict
 
     def generate_spots_list(self):
         spots = []
