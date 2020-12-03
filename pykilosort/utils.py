@@ -35,6 +35,24 @@ class Bunch(dict):
         return Bunch(super(Bunch, self).copy())
 
 
+def copy_bunch(old_bunch):
+    """
+    A function to copy a bunch object with a deep copy of numpy arrays
+    :param old_bunch: Bunch object to be copied
+    :return: New Bunch object
+    """
+    assert isinstance(old_bunch, Bunch)
+
+    new_bunch = Bunch()
+    for key in old_bunch.keys():
+        if type(old_bunch[key]) == np.ndarray:
+            new_bunch[key] = old_bunch[key].copy()
+        else:
+            new_bunch[key] = old_bunch[key]
+
+    return new_bunch
+
+
 def p(x):
     print("shape", x.shape, "mean", "%5e" % x.mean())
     print(x[:2, :2])
