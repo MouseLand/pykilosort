@@ -59,6 +59,30 @@ class DatashiftParams(BaseModel):
 
 
 class KilosortParams(BaseModel):
+
+    # TODO: Fix datashift parameters layout
+    # Datashift Parameters
+
+    sig: float = Field(20.0, description="sigma for the Gaussian process smoothing")
+    nblocks: int = Field(
+        5, description="blocks for registration. 1 does rigid registration."
+    )
+    output_filename: t.Optional[str] = Field(
+        None, description="optionally save registered data to a new binary file"
+    )
+    overwrite: bool = Field(True, description="overwrite proc file with shifted data")
+
+
+    @validator("nblocks")
+    def validate_nblocks(v):
+        if v < 0:
+            raise ValueError(
+                "datashift.nblocks must be >= 1, or datashift should be None"
+            )
+        return v
+
+    # Kilosort Parameters
+
     fs: float = Field(30000.0, description="sample rate")
 
     fshigh: float = Field(300.0, description="high pass filter frequency")
