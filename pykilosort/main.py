@@ -11,7 +11,7 @@ from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get
 from .cluster import clusterSingleBatches
 from .learn import learnAndSolve8b
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
-from .utils import Bunch, Context, memmap_large_array, load_probe
+from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch
 from .params import KilosortParams
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ def run(
     ctx = Context(ctx_path)
     ctx.params = params
     ctx.probe = probe
+    ctx.raw_probe = copy_bunch(probe)
     ctx.raw_data = raw_data
 
     # Load the intermediate results to avoid recomputing things.
