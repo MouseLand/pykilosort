@@ -89,7 +89,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def set_layout(self, context):
         self.probe_view.clear()
-        probe = context.probe
+        probe = context.raw_probe
         good_channels = context.intermediate.igood
 
         self.set_active_layout(probe, good_channels)

@@ -262,6 +262,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         probe_layout = self.probe_layout
         probe_layout.Nchan = len(probe_layout.chanMap)
         self.context.probe = probe_layout
+        self.context.raw_probe = copy_bunch(probe_layout)
         self.context.params = self.params
         self.context.raw_data = self.raw_data
 
