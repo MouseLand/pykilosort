@@ -143,7 +143,7 @@ def getMeUtU(iU, iC, mask, Nnearest, Nchan):
     U = np.zeros((Nchan, Nfilt), dtype=np.float32, order='F')
 
     # use the template primary channel to obtain its neighboring channels from iC
-    ix = cp.asnumpy(iC[:, iU]) + np.arange(0, Nchan * Nfilt, Nchan).astype(np.int32)
+    ix = cp.asnumpy(iC[:, iU]).squeeze() + np.arange(0, Nchan * Nfilt, Nchan).astype(np.int32)
     # WARNING: transpose because the indexing assumes F ordering.
     U.T.flat[ix] = 1  # use this as an awkward index into U
 
