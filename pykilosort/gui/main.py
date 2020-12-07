@@ -16,7 +16,7 @@ from pykilosort.gui import (
 )
 from pykilosort.gui.logger import setup_logger
 from pykilosort.params import KilosortParams
-from pykilosort.utils import Context
+from pykilosort.utils import Context, copy_bunch
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 logger = setup_logger(__name__)
