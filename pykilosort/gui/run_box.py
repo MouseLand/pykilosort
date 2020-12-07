@@ -1,5 +1,5 @@
-from PyQt5 import QtWidgets, QtCore, QtGui
 from pykilosort.gui.sorter import KiloSortWorker
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 class RunBox(QtWidgets.QGroupBox):
@@ -20,15 +20,22 @@ class RunBox(QtWidgets.QGroupBox):
         self.spike_sort_button = QtWidgets.QPushButton("Spikesort")
         self.export_button = QtWidgets.QPushButton("Export for Phy")
 
-        self.buttons = [self.run_all_button, self.preprocess_button, self.spike_sort_button, self.export_button]
+        self.buttons = [
+            self.run_all_button,
+            self.preprocess_button,
+            self.spike_sort_button,
+            self.export_button,
+        ]
 
         self.data_path = None
         self.working_directory = None
         self.results_directory = None
 
-        self.sorting_step_status = {'preprocess': False,
-                                    'spikesort': False,
-                                    'export': False}
+        self.sorting_step_status = {
+            "preprocess": False,
+            "spikesort": False,
+            "export": False,
+        }
 
         self.preprocess_done = False
         self.spikesort_done = False
@@ -44,7 +51,9 @@ class RunBox(QtWidgets.QGroupBox):
         self.spike_sort_button.setEnabled(False)
         self.export_button.setEnabled(False)
 
-        self.run_all_button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.run_all_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
 
         self.layout.addWidget(self.run_all_button, 0, 0, 3, 2)
         self.layout.addWidget(self.preprocess_button, 0, 2, 1, 2)
@@ -63,11 +72,11 @@ class RunBox(QtWidgets.QGroupBox):
     def reenable_buttons(self):
         self.run_all_button.setEnabled(True)
         self.preprocess_button.setEnabled(True)
-        if self.sorting_step_status['preprocess']:
+        if self.sorting_step_status["preprocess"]:
             self.spike_sort_button.setEnabled(True)
         else:
             self.spike_sort_button.setEnabled(False)
-        if self.sorting_step_status['spikesort']:
+        if self.sorting_step_status["spikesort"]:
             self.export_button.setEnabled(True)
         else:
             self.export_button.setEnabled(False)
@@ -91,22 +100,22 @@ class RunBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot(object)
     def finished_preprocess(self, context):
         self.updateContext.emit(context)
-        self.set_sorting_step_status('preprocess', True)
+        self.set_sorting_step_status("preprocess", True)
 
     @QtCore.pyqtSlot(object)
     def finished_spikesort(self, context):
         self.updateContext.emit(context)
-        self.set_sorting_step_status('spikesort', True)
+        self.set_sorting_step_status("spikesort", True)
 
     @QtCore.pyqtSlot(object)
     def finished_export(self, context):
         self.updateContext.emit(context)
-        self.set_sorting_step_status('export', True)
+        self.set_sorting_step_status("export", True)
 
     @QtCore.pyqtSlot()
     def preprocess(self):
-        self.set_sorting_step_status('preprocess', False)
-        self.set_sorting_step_status('spikesort', False)
+        self.set_sorting_step_status("preprocess", False)
+        self.set_sorting_step_status("spikesort", False)
         self.reenable_buttons()
         if self.get_current_context() is not None:
             self.run_steps("preprocess")
@@ -126,12 +135,14 @@ class RunBox(QtWidgets.QGroupBox):
         if self.get_current_context() is not None:
             self.run_steps(["preprocess", "spikesort", "export"])
 
-        self.set_sorting_step_status('preprocess', True)
-        self.set_sorting_step_status('spikesort', True)
+        self.set_sorting_step_status("preprocess", True)
+        self.set_sorting_step_status("spikesort", True)
         self.reenable_buttons()
 
     def run_steps(self, steps):
-        worker = KiloSortWorker(self.get_current_context(), self.data_path, self.results_directory, steps)
+        worker = KiloSortWorker(
+            self.get_current_context(), self.data_path, self.results_directory, steps
+        )
 
         worker.finishedPreprocess.connect(self.finished_preprocess)
         worker.finishedSpikesort.connect(self.finished_spikesort)
@@ -146,6 +157,6 @@ class RunBox(QtWidgets.QGroupBox):
         self.reenable_buttons()
 
     def prepare_for_new_context(self):
-        self.set_sorting_step_status('preprocess', False)
-        self.set_sorting_step_status('spikesort', False)
-        self.set_sorting_step_status('export', False)
+        self.set_sorting_step_status("preprocess", False)
+        self.set_sorting_step_status("spikesort", False)
+        self.set_sorting_step_status("export", False)
