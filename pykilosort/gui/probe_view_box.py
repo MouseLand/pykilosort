@@ -1,6 +1,9 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
 import numpy as np
 import pyqtgraph as pg
+from pykilosort.gui.logger import setup_logger
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+logger = setup_logger(__name__)
 
 
 class ProbeViewBox(QtWidgets.QGroupBox):
@@ -15,7 +18,9 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         self.probe_view = pg.PlotWidget()
 
-        self.info_message = QtWidgets.QLabel("scroll to zoom, click to view channel,\nright click to disable channel")
+        self.info_message = QtWidgets.QLabel(
+            "scroll to zoom, click to view channel,\nright click to disable channel"
+        )
 
         self.setup()
 
@@ -28,9 +33,11 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         self.channel_map_dict = {}
         self.good_channels = None
 
-        self.configuration = {'active_channel': 'g',
-                              'good_channel': 'b',
-                              'bad_channel': 'r'}
+        self.configuration = {
+            "active_channel": "g",
+            "good_channel": "b",
+            "bad_channel": "r",
+        }
 
         self.active_data_view_mode = "colormap"
         self.primary_channel = None
@@ -61,14 +68,18 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         channel_map = np.array(self.channel_map)
 
         primary_channel_position = int(np.where(channel_map == primary_channel)[0])
-        end_channel_position = np.where(channel_map == primary_channel + displayed_channels)[0]
+        end_channel_position = np.where(
+            channel_map == primary_channel + displayed_channels
+        )[0]
         # prevent the last displayed channel would be set as the end channel in the case that
         # `primary_channel + displayed_channels` exceeds the total number of channels in the channel map
         if end_channel_position.size == 0:
             end_channel_position = np.argmax(channel_map)
         else:
             end_channel_position = int(end_channel_position)
-        self.active_channels = channel_map[primary_channel_position:end_channel_position].tolist()
+        self.active_channels = channel_map[
+            primary_channel_position:end_channel_position
+        ].tolist()
 
     def set_layout(self, context):
         self.probe_view.clear()
@@ -113,21 +124,20 @@ class ProbeViewBox(QtWidgets.QGroupBox):
     def generate_spots_list(self):
         spots = []
         size = 10
-        symbol = 's'
+        symbol = "s"
 
         for ind, (x_pos, y_pos) in enumerate(zip(self.xc, self.yc)):
             pos = (x_pos, y_pos)
             good_channel = self.good_channels[ind]
             is_active = np.isin(ind, self.active_channels)
             if not good_channel:
-                color = self.configuration['bad_channel']
+                color = self.configuration["bad_channel"]
             elif good_channel and is_active:
-                color = self.configuration['active_channel']
+                color = self.configuration["active_channel"]
             elif good_channel and not is_active:
-                color = self.configuration['good_channel']
+                color = self.configuration["good_channel"]
             else:
-                # TODO: logger.error
-                print("Logical error!")
+                logger.error("Logical error.")
             pen = pg.mkPen(0.5)
             brush = pg.mkBrush(color)
             spots.append(dict(pos=pos, size=size, pen=pen, brush=brush, symbol=symbol))

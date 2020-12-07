@@ -1,21 +1,28 @@
 import os
-import numpy as np
 from pathlib import Path
-# TODO: optimize imports before incorporating into codebase
+
+import numpy as np
 from phylib.io.traces import get_ephys_reader
-from pykilosort.gui import DataViewBox, ProbeViewBox, SettingsBox, RunBox, MessageLogBox, HeaderBox, KiloSortWorker
+from pykilosort import __version__
+from pykilosort.gui import (
+    DataViewBox,
+    HeaderBox,
+    KiloSortWorker,
+    MessageLogBox,
+    ProbeViewBox,
+    RunBox,
+    SettingsBox,
+    probes,
+)
+from pykilosort.gui.logger import setup_logger
 from pykilosort.params import KilosortParams
 from pykilosort.utils import Context
-from pykilosort.gui import probes
-from pykilosort.gui.logger import setup_logger
-from pykilosort import __version__
-from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 logger = setup_logger(__name__)
 
 
 class KiloSortGUI(QtWidgets.QMainWindow):
-
     def __init__(self, application, *args, **kwargs):
         super(KiloSortGUI, self).__init__(*args, **kwargs)
 
@@ -119,7 +126,10 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.setWindowTitle(f"Kilosort{__version__}")
 
         self.message_log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.message_log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFloatable | QtWidgets.QDockWidget.DockWidgetMovable)
+        self.message_log_dock.setFeatures(
+            QtWidgets.QDockWidget.DockWidgetFloatable
+            | QtWidgets.QDockWidget.DockWidgetMovable
+        )
         self.message_log_dock.setWidget(self.message_log_box)
 
         self.content_layout.addWidget(self.header_box, 3)
@@ -146,9 +156,13 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.settings_box.previewProbe.connect(self.probe_view_box.preview_probe)
 
         self.data_view_box.channelChanged.connect(self.probe_view_box.update_probe_view)
-        self.data_view_box.modeChanged.connect(self.probe_view_box.synchronize_data_view_mode)
+        self.data_view_box.modeChanged.connect(
+            self.probe_view_box.synchronize_data_view_mode
+        )
 
-        self.probe_view_box.channelSelected.connect(self.data_view_box.change_primary_channel)
+        self.probe_view_box.channelSelected.connect(
+            self.data_view_box.change_primary_channel
+        )
 
         self.run_box.updateContext.connect(self.update_context)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
@@ -192,12 +206,12 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         settings = self.settings_box.settings
         advanced_options = self.settings_box.advanced_options
 
-        self.data_path = settings.pop('data_file_path')
-        self.working_directory = settings.pop('working_directory')
-        self.results_directory = settings.pop('results_directory')
-        self.probe_layout = settings.pop('probe_layout')
-        self.time_range = settings.pop('time_range')
-        self.num_channels = settings.pop('num_channels')
+        self.data_path = settings.pop("data_file_path")
+        self.working_directory = settings.pop("working_directory")
+        self.results_directory = settings.pop("results_directory")
+        self.probe_layout = settings.pop("probe_layout")
+        self.time_range = settings.pop("time_range")
+        self.num_channels = settings.pop("num_channels")
 
         params = KilosortParams()
         params = params.parse_obj(advanced_options)
@@ -226,7 +240,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         dtype = np.int16
         sample_rate = self.params.fs
 
-        raw_data = get_ephys_reader(self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels)
+        raw_data = get_ephys_reader(
+            self.data_path, sample_rate=sample_rate, dtype=dtype, n_channels=n_channels
+        )
         self.raw_data = raw_data
 
     def setup_data_view(self):
@@ -234,7 +250,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.data_view_box.update_plot(self.context)
 
     def update_context_with_good_channels(self):
-        worker = KiloSortWorker(self.context, self.data_path, self.results_directory, ["goodchannels"])
+        worker = KiloSortWorker(
+            self.context, self.data_path, self.results_directory, ["goodchannels"]
+        )
 
         worker.foundGoodChannels.connect(self.update_context)
 
@@ -245,7 +263,9 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         QtWidgets.QApplication.restoreOverrideCursor()
 
     def setup_context(self):
-        context_path = Path(os.path.join(self.working_directory, '.kilosort', self.raw_data.name))
+        context_path = Path(
+            os.path.join(self.working_directory, ".kilosort", self.raw_data.name)
+        )
 
         self.context = Context(context_path=context_path)
         self.context.probe = self.probe_layout

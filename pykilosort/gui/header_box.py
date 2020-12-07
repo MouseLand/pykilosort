@@ -1,9 +1,8 @@
 from pykilosort import __version__
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtGui, QtWidgets
 
 
 class HeaderBox(QtWidgets.QWidget):
-
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
 

@@ -1,8 +1,7 @@
-import numpy as np
 import cupy as cp
-
-from pykilosort.preprocess import get_good_channels, get_Nbatch, gpufilter, get_whitening_matrix
-from pykilosort.main import run_preprocess, run_spikesort, run_export
+import numpy as np
+from pykilosort.main import run_export, run_preprocess, run_spikesort
+from pykilosort.preprocess import get_good_channels, get_whitening_matrix, gpufilter
 from PyQt5 import QtCore
 
 
@@ -12,11 +11,13 @@ def find_good_channels(context):
     raw_data = context.raw_data
     intermediate = context.intermediate
 
-    if 'igood' not in intermediate:
+    if "igood" not in intermediate:
         if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
             # determine bad channels
-            with context.time('good_channels'):
-                intermediate.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)
+            with context.time("good_channels"):
+                intermediate.igood = get_good_channels(
+                    raw_data=raw_data, probe=probe, params=params
+                )
                 intermediate.igood = intermediate.igood.ravel()
             # Cache the result.
             context.write(igood=intermediate.igood)
@@ -24,13 +25,7 @@ def find_good_channels(context):
         else:
             intermediate.igood = np.ones_like(probe.chanMap, dtype=bool)
 
-    # TODO: delete comments
-    # probe.chanMap = probe.chanMap[intermediate.igood]
-    # probe.xc = probe.xc[intermediate.igood]
-    # probe.yc = probe.yc[intermediate.igood]
-    # probe.kcoords = probe.kcoords[intermediate.igood]
     probe.Nchan = len(probe.chanMap)
-    #
     context.probe = probe
     return context
 
@@ -41,13 +36,17 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
     low_pass_freq = params.fslow
     scaleproc = params.scaleproc
 
-    whitening_matrix_np = cp.asarray(whitening_matrix, dtype=np.float32) / np.float(scaleproc)
+    whitening_matrix_np = cp.asarray(whitening_matrix, dtype=np.float32) / np.float(
+        scaleproc
+    )
 
-    filtered_data = gpufilter(buff=cp.asarray(raw_traces, dtype=np.float32),
-                              chanMap=probe.chanMap,
-                              fs=sample_rate,
-                              fslow=low_pass_freq,
-                              fshigh=high_pass_freq)
+    filtered_data = gpufilter(
+        buff=cp.asarray(raw_traces, dtype=np.float32),
+        chanMap=probe.chanMap,
+        fs=sample_rate,
+        fslow=low_pass_freq,
+        fshigh=high_pass_freq,
+    )
 
     whitened_data = cp.dot(filtered_data, whitening_matrix_np)
 
@@ -59,9 +58,15 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
 def get_whitened_traces(raw_data, probe, params, whitening_matrix):
     if whitening_matrix is None:
-        whitening_matrix = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params, nSkipCov=100)
-    whitened_traces = filter_and_whiten(raw_traces=raw_data, params=params,
-                                        probe=probe, whitening_matrix=whitening_matrix)
+        whitening_matrix = get_whitening_matrix(
+            raw_data=raw_data, probe=probe, params=params, nSkipCov=100
+        )
+    whitened_traces = filter_and_whiten(
+        raw_traces=raw_data,
+        params=params,
+        probe=probe,
+        whitening_matrix=whitening_matrix,
+    )
     return whitened_traces, whitening_matrix
 
 
@@ -71,14 +76,18 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
 
     buffer = W.shape[0]
 
-    predicted_traces = np.zeros((U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0])), dtype=np.int16)
+    predicted_traces = np.zeros(
+        (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0])), dtype=np.int16
+    )
 
     sorting_result = np.asarray(sorting_result)
 
     all_spike_times = sorting_result[:, 0]
-    included_spike_pos = np.asarray((time_limits[0] - buffer // 2 < all_spike_times) &
-                                    (all_spike_times < time_limits[1] + buffer // 2)).nonzero()[0]
-
+    included_spike_pos = np.asarray(
+        (time_limits[0] - buffer // 2 < all_spike_times)
+        & (all_spike_times < time_limits[1] + buffer // 2)
+    ).nonzero()[0]
+    
     spike_times = all_spike_times[included_spike_pos].astype(np.int32)
     spike_templates = sorting_result[included_spike_pos, 1].astype(np.int32)
     spike_amplitudes = sorting_result[included_spike_pos, 2]
@@ -88,12 +97,14 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
         U_i = U[:, spike_templates[s], :]
         W_i = W[:, spike_templates[s], :]
 
-        addendum = np.ascontiguousarray(np.matmul(U_i, W_i.T) * amplitude, dtype=np.int16)
+        addendum = np.ascontiguousarray(
+            cp.matmul(U_i, W_i.T) * amplitude, dtype=np.int16
+        )
 
         pred_pos = np.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
         predicted_traces[:, pred_pos] += addendum
 
-    output = predicted_traces[:, buffer * 2:-buffer * 2]
+    output = predicted_traces[:, buffer * 2 : -buffer * 2]
 
     return output.T
 
