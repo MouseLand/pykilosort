@@ -71,23 +71,23 @@ def get_whitened_traces(raw_data, probe, params, whitening_matrix):
 
 
 def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
-    W = cp.asarray(matrix_W, dtype=np.float32)
-    U = cp.asarray(matrix_U, dtype=np.float32)
+    W = np.asarray(matrix_W, dtype=np.float32)
+    U = np.asarray(matrix_U, dtype=np.float32)
 
     buffer = W.shape[0]
 
-    predicted_traces = cp.zeros(
+    predicted_traces = np.zeros(
         (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0])), dtype=np.int16
     )
 
-    sorting_result = cp.asarray(sorting_result)
+    sorting_result = np.asarray(sorting_result)
 
     all_spike_times = sorting_result[:, 0]
-    included_spike_pos = cp.asarray(
+    included_spike_pos = np.asarray(
         (time_limits[0] - buffer // 2 < all_spike_times)
         & (all_spike_times < time_limits[1] + buffer // 2)
     ).nonzero()[0]
-
+    
     spike_times = all_spike_times[included_spike_pos].astype(np.int32)
     spike_templates = sorting_result[included_spike_pos, 1].astype(np.int32)
     spike_amplitudes = sorting_result[included_spike_pos, 2]
@@ -97,16 +97,16 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
         U_i = U[:, spike_templates[s], :]
         W_i = W[:, spike_templates[s], :]
 
-        addendum = cp.ascontiguousarray(
+        addendum = np.ascontiguousarray(
             cp.matmul(U_i, W_i.T) * amplitude, dtype=np.int16
         )
 
-        pred_pos = cp.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
+        pred_pos = np.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
         predicted_traces[:, pred_pos] += addendum
 
     output = predicted_traces[:, buffer * 2 : -buffer * 2]
 
-    return cp.asnumpy(output).T
+    return output.T
 
 
 class KiloSortWorker(QtCore.QThread):
