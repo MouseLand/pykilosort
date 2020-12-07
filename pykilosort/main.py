@@ -11,7 +11,7 @@ from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get
 from .cluster import clusterSingleBatches
 from .learn import learnAndSolve8b
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
-from .utils import Bunch, Context, memmap_large_array, load_probe
+from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch
 from .params import KilosortParams
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def run(
     params=None,
     stop_after=None,
     clear_context=False,
-    **kwargs
+    **kwargs,
 ):
     """Launch KiloSort 2.
 
@@ -77,10 +77,11 @@ def run(
     if clear_context:
         logger.info(f"Clearing context at {ctx_path} ...")
         shutil.rmtree(ctx_path, ignore_errors=True)
-        
+
     ctx = Context(ctx_path)
     ctx.params = params
     ctx.probe = probe
+    ctx.raw_probe = copy_bunch(probe)
     ctx.raw_data = raw_data
 
     # Load the intermediate results to avoid recomputing things.
@@ -110,7 +111,7 @@ def run(
 
         # it's enough to remove bad channels from the channel map, which treats them
         # as if they are dead
-        ir.igood = ir.igood.ravel().astype('bool')
+        ir.igood = ir.igood.ravel().astype("bool")
         probe.chanMap = probe.chanMap[ir.igood]
         probe.xc = probe.xc[ir.igood]  # removes coordinates of bad channels
         probe.yc = probe.yc[ir.igood]
@@ -285,6 +286,7 @@ def run(
 
     return ctx
 
+
 # TODO: use these in the actual main function
 def run_preprocess(ctx):
     params = ctx.params
@@ -297,9 +299,7 @@ def run_preprocess(ctx):
     if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
         # determine bad channels
         with ctx.time("good_channels"):
-            ir.igood = get_good_channels(
-                raw_data=raw_data, probe=probe, params=params
-            )
+            ir.igood = get_good_channels(raw_data=raw_data, probe=probe, params=params)
         # Cache the result.
         ctx.write(igood=ir.igood)
 
@@ -311,7 +311,9 @@ def run_preprocess(ctx):
         probe.yc = probe.yc[ir.igood]
         probe.kcoords = probe.kcoords[ir.igood]
 
-    probe.Nchan = len(probe.chanMap)  # total number of good channels that we will spike sort
+    probe.Nchan = len(
+        probe.chanMap
+    )  # total number of good channels that we will spike sort
     assert probe.Nchan > 0
 
     # upper bound on the number of templates we can have
@@ -320,9 +322,7 @@ def run_preprocess(ctx):
     # -------------------------------------------------------------------------
     # Find the whitening matrix.
     with ctx.time("whitening_matrix"):
-        ir.Wrot = get_whitening_matrix(
-            raw_data=raw_data, probe=probe, params=params
-        )
+        ir.Wrot = get_whitening_matrix(raw_data=raw_data, probe=probe, params=params)
     # Cache the result.
     ctx.write(Wrot=ir.Wrot)
 
