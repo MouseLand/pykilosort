@@ -98,7 +98,7 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
         W_i = W[:, spike_templates[s], :]
 
         addendum = np.ascontiguousarray(
-            cp.matmul(U_i, W_i.T) * amplitude, dtype=np.int16
+            np.matmul(U_i, W_i.T) * amplitude, dtype=np.int16
         )
 
         pred_pos = np.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
