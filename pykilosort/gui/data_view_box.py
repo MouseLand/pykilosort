@@ -499,6 +499,17 @@ class DataViewBox(QtWidgets.QGroupBox):
         color_map = pg.ColorMap(pos=positions, color=self._colors)
         return color_map.getLookupTable(nPts=num_points)
 
+    def add_curves_to_plot(self, traces, color):
+        traces = traces.T
+        traces += (np.arange(traces.shape[0]-1, -1, -1) * 200).reshape(traces.shape[0], 1)
+        connect = np.ones(traces.shape, dtype=bool)
+        connect[:, -1] = 0
+        x = np.tile([i for i in range(traces.shape[1])], traces.shape[0]).reshape(traces.shape)
+        path = pg.arrayToQPath(x.flatten(), traces.flatten(), connect.flatten())
+        curves = QtWidgets.QGraphicsPathItem(path)
+        curves.setPen(pg.mkPen(color=color, width=1))
+        self.plot_item.addItem(curves)
+
     def add_curve_to_plot(self, trace, color, label):
         curve = pg.PlotCurveItem(
             parent=self.plot_item, clickable=True, pen=pg.mkPen(color=color, width=1)
@@ -564,20 +575,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 raw_traces = raw_data[start_time:end_time]
 
                 if self.raw_button.isChecked():
-                    for i in range(
-                        self.primary_channel + self.channels_displayed_traces,
-                        self.primary_channel,
-                        -1,
-                    ):
-                        try:
-                            color = (
-                                self.traces_curve_color["raw"]
-                                if good_channels[i]
-                                else self.bad_channel_color
-                            )
-                            self.add_curve_to_plot(raw_traces.T[i], color, i)
-                        except IndexError:
-                            continue
+                    self.add_curves_to_plot(raw_traces, self.traces_curve_color["raw"])
 
                 if self.whitened_button.isChecked():
                     if self.whitened_traces is None:
