@@ -374,8 +374,8 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.time_seek.setPos(new_time)
 
     def change_plot_range(self, direction):
-        plot_range = self.plot_range + 0.1 * direction
-        if 0.01 < plot_range < 2.0:
+        plot_range = self.plot_range * (1.2 ** direction)
+        if 0.005 < plot_range < 1.0:
             self.plot_range = plot_range
             self.clear_cached_traces()
             self.update_plot()
