@@ -80,7 +80,7 @@ class KilosortParams(BaseModel):
 
     @property
     def NTbuff(self) -> int:
-        return self.NT + 3 * self.ntbuff
+        return self.NT + 4 * self.ntbuff
 
     @property
     def nt0min(self) -> int:
