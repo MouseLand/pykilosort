@@ -622,7 +622,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             autoLevels=False,
             lut=self.lookup_table,
             levels=(level_min, level_max),
-            autoDownsample=True,
+            autoDownsample=False,
         )
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
