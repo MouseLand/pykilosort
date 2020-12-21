@@ -128,6 +128,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.data_view_widget.setMouseEnabled(True)
         self.data_view_widget.mouseEnabled = True
         self.data_view_widget.hideAxis("left")
+        self.data_view_widget.disableAutoRange()
         self.data_view_widget.sceneObj.sigMouseClicked.connect(self.scene_clicked)
 
         self.data_view_widget.signalChangeChannel.connect(
@@ -571,11 +572,27 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.plot_item.clear()
             self.colormap_image = None
 
+            self.data_view_widget.setXRange(0, time_range, padding=0.0)
+            self.data_view_widget.setLimits(xMin=0, xMax=time_range)
+
             if self.traces_button.isChecked():
                 raw_traces = raw_data[start_time:end_time]
 
                 if self.raw_button.isChecked():
-                    self.add_curves_to_plot(raw_traces, self.traces_curve_color["raw"])
+                    for i in range(
+                        self.primary_channel + self.channels_displayed_traces,
+                        self.primary_channel,
+                        -1,
+                    ):
+                        try:
+                            color = (
+                                self.traces_curve_color["raw"]
+                                if good_channels[i]
+                                else self.bad_channel_color
+                            )
+                            self.add_curve_to_plot(raw_traces.T[i], color, i)
+                        except IndexError:
+                            continue
 
                 if self.whitened_button.isChecked():
                     if self.whitened_traces is None:
@@ -793,8 +810,6 @@ class DataViewBox(QtWidgets.QGroupBox):
                         colormap_max,
                     )
 
-            self.data_view_widget.setXRange(0, time_range, padding=0.0)
-            self.data_view_widget.setLimits(xMin=0, xMax=time_range)
             self.data_x_axis.setTicks(
                 [
                     [
@@ -803,6 +818,8 @@ class DataViewBox(QtWidgets.QGroupBox):
                     ]
                 ]
             )
+
+            self.data_view_widget.autoRange()
 
 
 class KSPlotWidget(pg.PlotWidget):
