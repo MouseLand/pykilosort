@@ -257,7 +257,7 @@ def get_approx_whitening_matrix(raw_data, params, probe):
     # Nchan is obtained after the bad channels have been removed
     CC = cp.zeros((Nchan, Nchan))
 
-    for ibatch in batches:
+    for ibatch in tqdm(batches, desc="Computing the approx. whitening matrix"):
         i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
         # WARNING: we no longer use Fortran order, so raw_data is nsamples x NchanTOT
         buff = raw_data[i:i + NT - ntbuff]
@@ -290,6 +290,8 @@ def get_approx_whitening_matrix(raw_data, params, probe):
         Wrot = whiteningFromCovariance(CC)
 
     Wrot = Wrot * scaleproc
+
+    print("Computed the whitening matrix.")
 
     return Wrot
 
