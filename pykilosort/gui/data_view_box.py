@@ -620,6 +620,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             logger.info("Approx. whitening matrix loaded from existing context.")
 
         elif self.whitening_matrix is None:
+            logger.info("Calculating approx. whitening matrix.")
             self.whitening_matrix = get_approx_whitening_matrix(
                 raw_data=raw_data, params=params, probe=probe
             )
