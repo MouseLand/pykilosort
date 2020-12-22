@@ -614,9 +614,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def get_whitened_traces(
-        self, raw_data, raw_traces, intermediate, params, probe
-    ):
+    def set_whitening_matrix(self, raw_data, intermediate, params, probe):
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
             logger.info("Approx. whitening matrix loaded from existing context.")
