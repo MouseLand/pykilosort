@@ -291,8 +291,6 @@ def get_approx_whitening_matrix(raw_data, params, probe):
 
     Wrot = Wrot * scaleproc
 
-    print("Computed the whitening matrix.")
-
     return Wrot
 
 
