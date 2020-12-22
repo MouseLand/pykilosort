@@ -630,9 +630,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def get_whitened_traces(
-        self, raw_data, raw_traces, intermediate, params, probe
-    ):
+    def set_whitening_matrix(self, raw_data, intermediate, params, probe):
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
 
@@ -670,6 +668,13 @@ class DataViewBox(QtWidgets.QGroupBox):
             start_time = int(self.current_time * sample_rate)
             time_range = int(self.plot_range * sample_rate)
             end_time = start_time + time_range
+
+            self.set_whitening_matrix(
+                raw_data=raw_data,
+                intermediate=intermediate,
+                params=params,
+                probe=probe
+            )
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
             self.data_view_widget.setLimits(xMin=0, xMax=time_range)
@@ -719,12 +724,11 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         if self.whitened_button.isChecked():
             if self.whitened_traces is None:
-                whitened_traces = self.get_whitened_traces(
-                    raw_data=raw_data,
+                whitened_traces = filter_and_whiten(
                     raw_traces=raw_traces,
-                    intermediate=intermediate,
                     params=params,
-                    probe=probe
+                    probe=probe,
+                    whitening_matrix=self.whitening_matrix,
                 )
 
                 self.whitened_traces = whitened_traces
@@ -758,12 +762,11 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.residual_button.isChecked():
             if self.residual_traces is None:
                 if self.whitened_traces is None:
-                    whitened_traces = self.get_whitened_traces(
-                        raw_data=raw_data,
+                    whitened_traces = filter_and_whiten(
                         raw_traces=raw_traces,
-                        intermediate=intermediate,
                         params=params,
-                        probe=probe
+                        probe=probe,
+                        whitening_matrix=self.whitening_matrix,
                     )
 
                     self.whitened_traces = whitened_traces
@@ -817,13 +820,12 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         elif self.whitened_button.isChecked():
             if self.whitened_traces is None:
-                whitened_traces = self.get_whitened_traces(
-                    raw_data=raw_data,
-                    raw_traces=raw_traces,
-                    intermediate=intermediate,
-                    params=params,
-                    probe=probe
-                )
+                whitened_traces = filter_and_whiten(
+                            raw_traces=raw_traces,
+                            params=params,
+                            probe=probe,
+                            whitening_matrix=self.whitening_matrix,
+                        )
 
                 self.whitened_traces = whitened_traces
             else:
@@ -856,12 +858,11 @@ class DataViewBox(QtWidgets.QGroupBox):
         elif self.residual_button.isChecked():
             if self.residual_traces is None:
                 if self.whitened_traces is None:
-                    whitened_traces = self.get_whitened_traces(
-                        raw_data=raw_data,
+                    whitened_traces = filter_and_whiten(
                         raw_traces=raw_traces,
-                        intermediate=intermediate,
                         params=params,
-                        probe=probe
+                        probe=probe,
+                        whitening_matrix=self.whitening_matrix,
                     )
 
                     self.whitened_traces = whitened_traces
