@@ -633,20 +633,14 @@ class DataViewBox(QtWidgets.QGroupBox):
     def set_whitening_matrix(self, raw_data, intermediate, params, probe):
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
+            logger.info("Approx. whitening matrix loaded from existing context.")
 
         elif self.whitening_matrix is None:
+            logger.info("Calculating approx. whitening matrix.")
             self.whitening_matrix = get_approx_whitening_matrix(
                 raw_data=raw_data, params=params, probe=probe
             )
-
-        whitened_traces = filter_and_whiten(
-            raw_traces=raw_traces,
-            params=params,
-            probe=probe,
-            whitening_matrix=self.whitening_matrix,
-        )
-
-        return whitened_traces
+            logger.info("Approx. whitening matrix calculated.")
 
     def update_plot(self, context=None):
         if context is None:
