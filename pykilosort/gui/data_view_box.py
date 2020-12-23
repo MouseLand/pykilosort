@@ -152,9 +152,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         for mode_button in self.mode_buttons:
             self.mode_buttons_group.addButton(mode_button)
+            mode_button.clicked.connect(self.toggle_mode_from_click)
         self.mode_buttons_group.setExclusive(True)
-
-        self.traces_button.toggled.connect(self.toggle_view)
 
         for key in self._keys:
             button = self.view_buttons[key]
@@ -243,19 +242,60 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.gui.context is not None:
             self.change_plot_scaling(direction)
 
-    def toggle_view(self, toggled):
-        if toggled:
+    def toggle_mode_from_click(self):
+        if self.traces_button.isChecked():
             self.modeChanged.emit("traces")
             self.view_buttons_group.setExclusive(False)
-        else:
+            self.update_plot()
+
+        if self.colormap_button.isChecked():
             self.modeChanged.emit("colormap")
-            for button in self.view_buttons.values():
+            self._traces_to_colormap_toggle()
+            self.update_plot()
+
+    def toggle_view(self):
+        if self.colormap_button.isChecked():
+            self.traces_button.toggle()
+            self.modeChanged.emit("traces")
+            self.view_buttons_group.setExclusive(False)
+            self.update_plot()
+
+        elif self.traces_button.isChecked():
+            self.colormap_button.toggle()
+            self.modeChanged.emit("colormap")
+            self._traces_to_colormap_toggle()
+            self.update_plot()
+
+        else:
+            pass
+
+    def _traces_to_colormap_toggle(self):
+        if sum([button.isChecked() for button in self.view_buttons.values()]) == 1:
+            # if exactly one mode is active, that mode persists into colormap mode
+            self.update_plot()
+        else:
+            # if more than one mode is active, raw mode is activated on toggle
+            for name, button in self.view_buttons.items():
                 if button.isChecked():
                     button.setChecked(False)
-            self.view_buttons["raw"].setChecked(True)
-            self.view_buttons_group.setExclusive(True)
+                if button.isEnabled():
+                    button.setStyleSheet(
+                        "QPushButton {background-color: black; color: white;}"
+                    )
+                else:
+                    button.setStyleSheet(
+                        "QPushButton {background-color: black; color: gray;}"
+                    )
 
-        self.update_plot()
+            self.view_buttons["raw"].setChecked(True)
+            self.view_buttons["raw"].setStyleSheet(
+                f"QPushButton {{"
+                f"background-color: {self._view_button_checked_bg_colors['raw']}; "
+                f"color: black;"
+                f"}}"
+            )
+
+        self.view_buttons_group.setExclusive(True)
 
     def change_primary_channel(self, channel):
         self.primary_channel = channel

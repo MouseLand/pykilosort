@@ -188,7 +188,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
             self.data_view_box.change_plot_scaling(direction)
 
     def toggle_view(self):
-        self.data_view_box.traces_button.toggle()
+        self.data_view_box.toggle_view()
 
     def toggle_mode(self, mode):
         if mode == "raw":
