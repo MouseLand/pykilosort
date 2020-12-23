@@ -253,7 +253,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             self._traces_to_colormap_toggle()
             self.update_plot()
 
-    def toggle_view(self):
+    def toggle_mode(self):
         if self.colormap_button.isChecked():
             self.traces_button.toggle()
             self.modeChanged.emit("traces")
