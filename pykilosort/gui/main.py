@@ -56,15 +56,15 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.boxes = QtWidgets.QWidget()
         self.boxes_layout = QtWidgets.QHBoxLayout(self.boxes)
-        self.second_boxes_layout = QtWidgets.QVBoxLayout()
+        self.first_boxes_layout = QtWidgets.QVBoxLayout()
+        self.second_boxes_layout = QtWidgets.QHBoxLayout()
+        self.third_boxes_layout = QtWidgets.QVBoxLayout()
 
         self.settings_box = SettingsBox(self)
         self.probe_view_box = ProbeViewBox(self)
         self.data_view_box = DataViewBox(self)
         self.run_box = RunBox(self)
         self.message_log_box = MessageLogBox(self)
-
-        self.message_log_dock = QtWidgets.QDockWidget("Message Log", self)
 
         self.setup()
 
@@ -125,20 +125,18 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     def setup(self):
         self.setWindowTitle(f"Kilosort{__version__}")
 
-        self.message_log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.message_log_dock.setFeatures(
-            QtWidgets.QDockWidget.DockWidgetFloatable
-            | QtWidgets.QDockWidget.DockWidgetMovable
-        )
-        self.message_log_dock.setWidget(self.message_log_box)
-
         self.content_layout.addWidget(self.header_box, 3)
 
-        self.second_boxes_layout.addWidget(self.settings_box, 85)
-        self.second_boxes_layout.addWidget(self.run_box, 15)
+        self.third_boxes_layout.addWidget(self.settings_box, 85)
+        self.third_boxes_layout.addWidget(self.run_box, 15)
 
-        self.boxes_layout.addLayout(self.second_boxes_layout, 20)
-        self.boxes_layout.addWidget(self.probe_view_box, 10)
+        self.second_boxes_layout.addLayout(self.third_boxes_layout, 60)
+        self.second_boxes_layout.addWidget(self.probe_view_box, 40)
+
+        self.first_boxes_layout.addLayout(self.second_boxes_layout, 85)
+        self.first_boxes_layout.addWidget(self.message_log_box, 15)
+
+        self.boxes_layout.addLayout(self.first_boxes_layout, 30)
         self.boxes_layout.addWidget(self.data_view_box, 70)
 
         self.boxes.setLayout(self.boxes_layout)
@@ -147,8 +145,6 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.content_layout.setContentsMargins(10, 10, 10, 10)
         self.content.setLayout(self.content_layout)
         self.setCentralWidget(self.content)
-
-        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.message_log_dock)
 
         self.header_box.reset_gui_button.clicked.connect(self.reset_gui)
 
