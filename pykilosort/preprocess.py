@@ -371,7 +371,7 @@ def preprocess(ctx):
             nsampcurr = buff.shape[0]  # how many time samples the current batch has
             if nsampcurr < NTbuff:
                 buff = np.concatenate(
-                    (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
+                    (buff, np.tile(buff[nsampcurr - 1], (NTbuff - nsampcurr, 1))), axis=0)
 
             # apply filters and median subtraction
             buff = cp.asarray(buff, dtype=np.float32)
