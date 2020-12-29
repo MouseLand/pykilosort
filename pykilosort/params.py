@@ -45,9 +45,9 @@ class DatashiftParams(BaseModel):
         5, description="blocks for registration. 1 does rigid registration."
     )
     output_filename: t.Optional[str] = Field(
-        None, "optionally save registered data to a new binary file"
+        None, description="optionally save registered data to a new binary file"
     )
-    overwrite: bool = Field(True, "overwrite proc file with shifted data")
+    overwrite: bool = Field(True, description="overwrite proc file with shifted data")
 
     @validator("nblocks")
     def validate_nblocks(v):
