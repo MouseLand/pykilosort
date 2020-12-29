@@ -62,12 +62,8 @@ def run(
     assert probe
 
     # Get params.
-    user_params = params or {}
-    params = default_params.copy()
-    set_dependent_params(params)
-    params.update(user_params)
-    print('Parameters used:')
-    pprint(params)
+    if not isinstance(params, BaseModel):
+        params = KilosortParams(**params or {})
     assert params
 
     # dir path
