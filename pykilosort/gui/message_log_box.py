@@ -1,10 +1,10 @@
 from pathlib import Path
+
 from pykilosort.gui.logger import XStream
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 class MessageLogBox(QtWidgets.QGroupBox):
-
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
         self.gui = parent
@@ -38,7 +38,7 @@ class MessageLogBox(QtWidgets.QGroupBox):
 
             log_file_path = Path(context_path) / log_file_name
 
-            with open(log_file_path, 'w') as log_file:
+            with open(log_file_path, "w") as log_file:
                 log_file.write(self.log_box.toPlainText())
 
     def get_context(self):

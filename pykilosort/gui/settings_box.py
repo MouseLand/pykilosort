@@ -1,15 +1,15 @@
-import os
 import json
+import os
 import pprint
 from pathlib import Path
-import numpy as np
-from PyQt5 import QtWidgets, QtCore
-from scipy.io.matlab.miobase import MatReadError
-from pykilosort.utils import load_probe, create_prb
-from pykilosort.params import KilosortParams
-from pykilosort.gui.logger import setup_logger
-from pykilosort.gui.minor_gui_elements import ProbeBuilder, AdvancedOptionsEditor
 
+import numpy as np
+from pykilosort.gui.logger import setup_logger
+from pykilosort.gui.minor_gui_elements import AdvancedOptionsEditor, ProbeBuilder
+from pykilosort.params import KilosortParams
+from pykilosort.utils import create_prb, load_probe
+from PyQt5 import QtCore, QtWidgets
+from scipy.io.matlab.miobase import MatReadError
 
 logger = setup_logger(__name__)
 
@@ -26,10 +26,14 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.select_data_file = QtWidgets.QPushButton("Select Data File")
         self.data_file_path_input = QtWidgets.QLineEdit("")
 
-        self.select_working_directory = QtWidgets.QPushButton("Select Working Directory")
+        self.select_working_directory = QtWidgets.QPushButton(
+            "Select Working Directory"
+        )
         self.working_directory_input = QtWidgets.QLineEdit("")
 
-        self.select_results_directory = QtWidgets.QPushButton("Select Results Directory")
+        self.select_results_directory = QtWidgets.QPushButton(
+            "Select Results Directory"
+        )
         self.results_directory_input = QtWidgets.QLineEdit("")
 
         self.probe_layout_text = QtWidgets.QLabel("Select Probe Layout")
@@ -44,7 +48,9 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.time_range_min_input = QtWidgets.QLineEdit()
         self.time_range_max_input = QtWidgets.QLineEdit()
 
-        self.min_firing_rate_text = QtWidgets.QLabel("Min. Firing Rate/Channel\n(0 includes all channels)")
+        self.min_firing_rate_text = QtWidgets.QLabel(
+            "Min. Firing Rate/Channel\n(0 includes all channels)"
+        )
         self.min_firing_rate_input = QtWidgets.QLineEdit()
 
         self.threshold_text = QtWidgets.QLabel("Threshold")
@@ -77,7 +83,9 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         default_params = KilosortParams()
         self.settings = {}
-        self.advanced_options = default_params.parse_obj(self.get_default_advanced_options()).dict()
+        self.advanced_options = default_params.parse_obj(
+            self.get_default_advanced_options()
+        ).dict()
 
         self.setup()
 
@@ -97,32 +105,52 @@ class SettingsBox(QtWidgets.QGroupBox):
         select_data_file_layout.addWidget(self.data_file_path_input, 30)
         self.select_data_file.clicked.connect(self.on_select_data_file_clicked)
         self.data_file_path_input.textChanged.connect(self.on_data_file_path_changed)
-        self.data_file_path_input.editingFinished.connect(self.on_data_file_path_changed)
+        self.data_file_path_input.editingFinished.connect(
+            self.on_data_file_path_changed
+        )
 
         select_working_directory_layout = QtWidgets.QHBoxLayout()
         select_working_directory_layout.addWidget(self.select_working_directory, 70)
         select_working_directory_layout.addWidget(self.working_directory_input, 30)
-        self.select_working_directory.clicked.connect(self.on_select_working_dir_clicked)
-        self.working_directory_input.textChanged.connect(self.on_working_directory_changed)
-        self.working_directory_input.editingFinished.connect(self.on_working_directory_changed)
+        self.select_working_directory.clicked.connect(
+            self.on_select_working_dir_clicked
+        )
+        self.working_directory_input.textChanged.connect(
+            self.on_working_directory_changed
+        )
+        self.working_directory_input.editingFinished.connect(
+            self.on_working_directory_changed
+        )
 
         select_results_directory_layout = QtWidgets.QHBoxLayout()
         select_results_directory_layout.addWidget(self.select_results_directory, 70)
         select_results_directory_layout.addWidget(self.results_directory_input, 30)
-        self.select_results_directory.clicked.connect(self.on_select_results_dir_clicked)
-        self.results_directory_input.textChanged.connect(self.on_results_directory_changed)
-        self.results_directory_input.editingFinished.connect(self.on_results_directory_changed)
+        self.select_results_directory.clicked.connect(
+            self.on_select_results_dir_clicked
+        )
+        self.results_directory_input.textChanged.connect(
+            self.on_results_directory_changed
+        )
+        self.results_directory_input.editingFinished.connect(
+            self.on_results_directory_changed
+        )
 
         probe_layout_layout = QtWidgets.QHBoxLayout()
         probe_layout_layout.addWidget(self.probe_layout_text, 70)
         probe_layout_layout.addWidget(self.probe_layout_selector, 30)
-        self.probe_layout_selector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
-        self.probe_layout_selector.currentTextChanged.connect(self.on_probe_layout_selected)
+        self.probe_layout_selector.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.AdjustToMinimumContentsLength
+        )
+        self.probe_layout_selector.currentTextChanged.connect(
+            self.on_probe_layout_selected
+        )
 
         probe_preview_layout = QtWidgets.QHBoxLayout()
         self.probe_preview_button.setDisabled(True)
         self.probe_preview_button.clicked.connect(self.show_probe_layout)
-        probe_preview_layout.addWidget(self.probe_preview_button, 30, alignment=QtCore.Qt.AlignRight)
+        probe_preview_layout.addWidget(
+            self.probe_preview_button, 30, alignment=QtCore.Qt.AlignRight
+        )
 
         num_channels_layout = QtWidgets.QHBoxLayout()
         num_channels_layout.addWidget(self.num_channels_text, 70)
@@ -194,20 +222,26 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def get_default_advanced_options(self):
         advanced_options_path = self.gui.local_config_path / "advanced_options.json"
-        default_advanced_options_path = self.gui.local_config_path / "default_advanced_options.json"
+        default_advanced_options_path = (
+            self.gui.local_config_path / "default_advanced_options.json"
+        )
 
         if advanced_options_path.exists():
             with open(advanced_options_path, "r") as advanced_options_file:
                 advanced_options = json.load(advanced_options_file)
 
         elif default_advanced_options_path.exists():
-            with open(default_advanced_options_path, "r") as default_advanced_options_file:
+            with open(
+                default_advanced_options_path, "r"
+            ) as default_advanced_options_file:
                 advanced_options = json.load(default_advanced_options_file)
 
         else:
             advanced_options = KilosortParams().dict()
 
-            with open(default_advanced_options_path, "w+") as default_advanced_options_file:
+            with open(
+                default_advanced_options_path, "w+"
+            ) as default_advanced_options_file:
                 advanced_options_dump = json.dumps(advanced_options)
                 default_advanced_options_file.write(advanced_options_dump)
 
@@ -215,28 +249,34 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_select_data_file_clicked(self):
         file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
-        data_file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
-                                                                  caption="Choose data file to load...",
-                                                                  directory=os.path.expanduser("~"),
-                                                                  options=file_dialog_options)
+        data_file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Choose data file to load...",
+            directory=os.path.expanduser("~"),
+            options=file_dialog_options,
+        )
         if data_file_name:
             self.data_file_path_input.setText(data_file_name)
 
     def on_select_working_dir_clicked(self):
         file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
-        working_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
-                                                                         caption="Choose working directory...",
-                                                                         directory=QtCore.QUrl(os.path.expanduser("~")),
-                                                                         options=file_dialog_options)
+        working_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(
+            parent=self,
+            caption="Choose working directory...",
+            directory=QtCore.QUrl(os.path.expanduser("~")),
+            options=file_dialog_options,
+        )
         if working_dir_name:
             self.working_directory_input.setText(working_dir_name.toLocalFile())
 
     def on_select_results_dir_clicked(self):
         file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
-        results_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(parent=self,
-                                                                         caption="Choose results directory...",
-                                                                         directory=QtCore.QUrl(os.path.expanduser("~")),
-                                                                         options=file_dialog_options)
+        results_dir_name = QtWidgets.QFileDialog.getExistingDirectoryUrl(
+            parent=self,
+            caption="Choose results directory...",
+            directory=QtCore.QUrl(os.path.expanduser("~")),
+            options=file_dialog_options,
+        )
         if results_dir_name:
             self.results_directory_input.setText(results_dir_name.toLocalFile())
 
@@ -307,16 +347,16 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def check_settings(self):
         self.settings = {
-            'data_file_path': self.data_file_path,
-            'working_directory': self.working_directory_path,
-            'results_directory': self.working_directory_path,
-            'probe_layout': self.probe_layout,
-            'num_channels': self.num_channels,
-            'lam': self.lambda_value,
-            'time_range': [self.time_range_min, self.time_range_max],
-            'minfr_goodchannels': self.min_firing_rate,
-            'Th': [self.threshold_upper, self.threshold_lower],
-            'AUCsplit': self.auc_splits
+            "data_file_path": self.data_file_path,
+            "working_directory": self.working_directory_path,
+            "results_directory": self.working_directory_path,
+            "probe_layout": self.probe_layout,
+            "num_channels": self.num_channels,
+            "lam": self.lambda_value,
+            "time_range": [self.time_range_min, self.time_range_max],
+            "minfr_goodchannels": self.min_firing_rate,
+            "Th": [self.threshold_upper, self.threshold_lower],
+            "AUCsplit": self.auc_splits,
         }
 
         return None not in self.settings.values()
@@ -338,17 +378,20 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.advanced_options = dialog.get_parameters()
 
             save_advanced_options = QtWidgets.QMessageBox.question(
-                self, "Save as defaults?",
+                self,
+                "Save as defaults?",
                 "Would you like to save these as the default advanced options?",
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                QtWidgets.QMessageBox.No
+                QtWidgets.QMessageBox.No,
             )
 
             if save_advanced_options:
                 advanced_options_dumps = json.dumps(self.advanced_options, indent=4)
-                advanced_options_path = self.gui.local_config_path / "advanced_options.json"
+                advanced_options_path = (
+                    self.gui.local_config_path / "advanced_options.json"
+                )
 
-                with open(advanced_options_path, 'w+') as advanced_options_file:
+                with open(advanced_options_path, "w+") as advanced_options_file:
                     advanced_options_file.write(advanced_options_dumps)
 
     @QtCore.pyqtSlot(str)
@@ -386,7 +429,7 @@ class SettingsBox(QtWidgets.QGroupBox):
                 probe_name = probe_name + ".prb"
                 probe_prb = create_prb(probe_layout)
                 probe_path = Path(self.gui.new_probe_files_path).joinpath(probe_name)
-                with open(probe_path, 'w+') as probe_file:
+                with open(probe_path, "w+") as probe_file:
                     # TODO: pretty print output
                     str_prb = f"""channel_groups = {probe_prb}"""
                     probe_file.write(str_prb)
@@ -402,12 +445,13 @@ class SettingsBox(QtWidgets.QGroupBox):
 
         elif name == "other...":
             file_dialog_options = QtWidgets.QFileDialog.DontUseNativeDialog
-            probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
-                                                                  caption="Choose probe file...",
-                                                                  filter="Probe Files (*.mat *.prb)",
-                                                                  directory=os.path.expanduser("~"),
-                                                                  options=file_dialog_options
-                                                                  )
+            probe_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                parent=self,
+                caption="Choose probe file...",
+                filter="Probe Files (*.mat *.prb)",
+                directory=os.path.expanduser("~"),
+                options=file_dialog_options,
+            )
             if probe_path:
                 try:
                     probe_path = Path(probe_path)
@@ -416,21 +460,27 @@ class SettingsBox(QtWidgets.QGroupBox):
                     probe_layout = load_probe(probe_path)
 
                     save_probe_file = QtWidgets.QMessageBox.question(
-                        self, "Save probe layout?",
+                        self,
+                        "Save probe layout?",
                         "Would you like this probe layout to appear in the list of probe layouts next time?",
                         QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Yes,
-                        QtWidgets.QMessageBox.Yes)
+                        QtWidgets.QMessageBox.Yes,
+                    )
 
                     if save_probe_file == QtWidgets.QMessageBox.Yes:
                         probe_prb = create_prb(probe_layout)
 
                         probe_name = probe_path.with_suffix(".prb").name
                         def_probe_path = Path(self.gui.probe_files_path) / probe_name
-                        new_probe_path = Path(self.gui.new_probe_files_path) / probe_name
+                        new_probe_path = (
+                            Path(self.gui.new_probe_files_path) / probe_name
+                        )
 
                         if not new_probe_path.exists() and not def_probe_path.exists():
-                            with open(new_probe_path, 'w+') as probe_file:
-                                str_dict = pprint.pformat(probe_prb, indent=4, compact=False)
+                            with open(new_probe_path, "w+") as probe_file:
+                                str_dict = pprint.pformat(
+                                    probe_prb, indent=4, compact=False
+                                )
                                 str_prb = f"""channel_groups = {str_dict}"""
                                 probe_file.write(str_prb)
 
@@ -453,7 +503,9 @@ class SettingsBox(QtWidgets.QGroupBox):
                             self.enable_load()
 
                 except AssertionError:
-                    logger.exception("Please select a valid probe file (accepted types: *.prb, *.mat)!")
+                    logger.exception(
+                        "Please select a valid probe file (accepted types: *.prb, *.mat)!"
+                    )
                     self.disable_load()
                     self.disable_preview_probe()
             else:
@@ -493,11 +545,15 @@ class SettingsBox(QtWidgets.QGroupBox):
             if self.check_settings():
                 self.enable_load()
         except ValueError:
-            logger.exception("Invalid inputs!\nTime range values must be floats!"
-                             "\n(`inf` accepted as upper limit)")
+            logger.exception(
+                "Invalid inputs!\nTime range values must be floats!"
+                "\n(`inf` accepted as upper limit)"
+            )
             self.disable_load()
         except AssertionError:
-            logger.exception("Invalid inputs!\nCheck that 0 <= lower limit < upper limit!")
+            logger.exception(
+                "Invalid inputs!\nCheck that 0 <= lower limit < upper limit!"
+            )
             self.disable_load()
 
     def on_min_firing_rate_changed(self):
@@ -531,7 +587,9 @@ class SettingsBox(QtWidgets.QGroupBox):
             logger.exception("Invalid inputs!\nThreshold values must be floats!")
             self.disable_load()
         except AssertionError:
-            logger.exception("Invalid inputs!\nCheck that 0 < lower threshold < upper threshold!")
+            logger.exception(
+                "Invalid inputs!\nCheck that 0 < lower threshold < upper threshold!"
+            )
             self.disable_load()
 
     def on_lambda_changed(self):
@@ -574,7 +632,11 @@ class SettingsBox(QtWidgets.QGroupBox):
         probes_list = []
         for probe_folder in probe_folders:
             probes = os.listdir(probe_folder)
-            probes = [probe for probe in probes if probe.endswith(".mat") or probe.endswith(".prb")]
+            probes = [
+                probe
+                for probe in probes
+                if probe.endswith(".mat") or probe.endswith(".prb")
+            ]
             probes_list.extend(probes)
 
         self.probe_layout_selector.addItems([""] + probes_list + ["[new]", "other..."])
@@ -585,7 +647,7 @@ class SettingsBox(QtWidgets.QGroupBox):
             memmap_data = np.memmap(self.data_file_path, dtype=np.int16)
             data_size = memmap_data.size
 
-            test_n_channels = np.arange(num_channels, num_channels+31)
+            test_n_channels = np.arange(num_channels, num_channels + 31)
             remainders = np.remainder(data_size, test_n_channels)
 
             possible_results = test_n_channels[np.where(remainders == 0)]
@@ -599,7 +661,9 @@ class SettingsBox(QtWidgets.QGroupBox):
                 result = possible_results[0]
                 text_message = f"The correct number of channels has been estimated to be {possible_results[0]}."
                 if possible_results.size > 1:
-                    text_message += f" Other possibilities could be {possible_results[1:]}"
+                    text_message += (
+                        f" Other possibilities could be {possible_results[1:]}"
+                    )
 
                 logger.info(text_message)
 
@@ -619,4 +683,3 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.set_default_field_values(None)
         self.disable_preview_probe()
         self.disable_load()
-
