@@ -402,6 +402,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
     d_feat = cp.zeros((Nnearest, maxFR), dtype=np.float32, order="F")
     d_featPC = cp.zeros((NchanU, Nrank, maxFR), dtype=np.float32, order="F")
 
+    d_idx = cp.zeros(maxFR, dtype=np.int32, order="F")
+
     counter = np.zeros(2, dtype=np.int32, order="F")
 
     tpF = (16, Nnearest)
@@ -469,7 +471,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         if params.deterministicmode_enabled:
             if params.stablemode_enabled:
                 d_stSort = d_st[counter[1]:counter[0]] # cudaMemcpy( d_stSort, d_st+counter[1], (counter[0] - counter[1])*sizeof(int), cudaMemcpyDeviceToDevice );
-                d_idx = cp.argsort(d_stSort) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
+                d_idx[:counter[0]-counter[1]] = cp.argsort(d_stSort) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
             else:
                 raise ValueError("Stablemode required for deterministic calculations.")
                 # This is allowed in the MATLAB version runtime but it doesn't really make sense
@@ -622,7 +624,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
 
     if params.stablemode_enabled:
         # d_idx = array of time sorted indices
-        d_idx = cp.argsort(d_st[:counter[0] - 1]) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
+        d_idx[:counter[0]] = cp.argsort(d_st[:counter[0]]) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
     else:
         d_idx = cp.arange(0, counter[0])
 
