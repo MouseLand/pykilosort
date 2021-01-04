@@ -1,5 +1,4 @@
-const int  Nthreads = 1024, maxFR = 10000, NrankMax = 3, nt0max=81, NchanMax = 17;
-
+const int  Nthreads = 1024, maxFR = 100000, NrankMax = 3, nt0max=81, NchanMax = 17;
 //////////////////////////////////////////////////////////////////////////////////////////
 __global__ void	Conv1D(const double *Params, const float *data, const float *W, float *conv_sig){
   volatile __shared__ float  sW[81*NrankMax], sdata[Nthreads+81];
@@ -44,6 +43,9 @@ __global__ void	Conv1D(const double *Params, const float *data, const float *W, 
 __global__ void  computeProjections(const double *Params, const float *dataraw,
         const int *iC, const int *st, const int *id, const float *W, float *feat){
 
+    //number of blocks = number of spikes to process minimum( number found, maxFR=100000)
+    //Thread grid = (NchanNear, NrankPC)
+
     float x;
     int tidx, nt0min, tidy, my_chan, this_chan, tid, bid, nt0, NchanNear, j, t, NT, NrankPC;
     volatile __shared__ float sW[nt0max*NrankMax], sD[nt0max*NchanMax];
@@ -54,9 +56,9 @@ __global__ void  computeProjections(const double *Params, const float *dataraw,
     NrankPC  = (int) Params[6];
     nt0min    = (int) Params[4];
 
-    tidx = threadIdx.x;
-    tidy = threadIdx.y;
-    bid = blockIdx.x;
+    tidx = threadIdx.x;        //PC index in W (column index)
+    tidy = threadIdx.y;        //channel index
+    bid = blockIdx.x;          //NchanNear*NrankPC; each spike gets NchanNear*NrankPC values in projection
 
     // move wPCA to shared memory
     while (tidx<nt0){
@@ -86,8 +88,12 @@ __global__ void  computeProjections(const double *Params, const float *dataraw,
     }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-__global__ void maxChannels(const double *Params, const float *dataraw, const float *data,
+__global__ void  maxChannels(const double *Params, const float *dataraw, const float *data,
 	const int *iC, int *st, int *id, int *counter){
+
+  //NT/Nthreads blocks, Nthreads threads
+  //dataraw = data convolved with templates
+  //data = max1D output = each data point replaced by the max value within nt0 points
 
   int nt0, indx, tid, tid0, i, bid, NT, Nchan, NchanNear,j,iChan, nt0min;
   double Cf, d;
