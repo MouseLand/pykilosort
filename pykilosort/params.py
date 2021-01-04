@@ -61,9 +61,13 @@ class DatashiftParams(BaseModel):
 class KilosortParams(BaseModel):
     fs: float = Field(30000.0, description="sample rate")
 
+    probe: Probe = Field(..., description="recording probe metadata")
+
     fshigh: float = Field(150.0, description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
-    minfr_goodchannels: float = Field(0.1, description="minimum firing rate on a 'good' channel (0 to skip)")
+    minfr_goodchannels: float = Field(
+        0.1, description="minimum firing rate on a 'good' channel (0 to skip)"
+    )
 
     genericSpkTh: float = Field(
         10.0, description="threshold for crossings with generic templates"
@@ -72,6 +76,15 @@ class KilosortParams(BaseModel):
         1,
         description="number of blocks used to segment the probe when tracking drift, 0 == don't track, 1 == rigid, > 1 == non-rigid",
     )
+
+    stablemode_enabled: bool = Field(False, description="make output more stable")
+    deterministicmode_enabled: bool = Field(False, description="make output deterministic by sorting spikes before applying kernels")
+
+    @validator("deterministicmode_enabled")
+    def validate_deterministicmode(v, values):
+        if values.get("stablemode_enabled"):
+            return deterministicmode_enabled
+        raise ValueError("stablemode must be enabled for deterministic results")
 
     datashift: t.Optional[DatashiftParams] = Field(
         None, description="parameters for 'datashift' drift correction. not required"
@@ -151,8 +164,12 @@ class KilosortParams(BaseModel):
     """,
     )
 
-    whiteningRange: int = Field(32, description="number of channels to use for whitening each channel")
-    nSkipCov: int = Field(25, description="compute whitening matrix from every N-th batch")
+    whiteningRange: int = Field(
+        32, description="number of channels to use for whitening each channel"
+    )
+    nSkipCov: int = Field(
+        25, description="compute whitening matrix from every N-th batch"
+    )
     scaleproc: int = Field(200, description="int16 scaling of whitened data")
     nPCs: int = Field(3, description="how many PCs to project the spikes into")
 
@@ -173,7 +190,7 @@ class KilosortParams(BaseModel):
     # Computed properties
     @property
     def NT(self) -> int:
-        return 64 * 1024 + self.ntbuff
+        return 32 * 1024 + self.ntbuff
 
     @property
     def NTbuff(self) -> int:
