@@ -81,10 +81,15 @@ class KilosortParams(BaseModel):
     deterministicmode_enabled: bool = Field(False, description="make output deterministic by sorting spikes before applying kernels")
 
     @validator("deterministicmode_enabled")
-    def validate_deterministicmode(v, values):
+    def validate_deterministicmode(cls, v, values):
         if values.get("stablemode_enabled"):
-            return deterministicmode_enabled
-        raise ValueError("stablemode must be enabled for deterministic results")
+            return v
+        else:
+            if v:
+                warning = "stablemode must be enabled for deterministic results; " \
+                          "disabling deterministicmode"
+                raise UserWarning(warning)
+            return False
 
     datashift: t.Optional[DatashiftParams] = Field(
         None, description="parameters for 'datashift' drift correction. not required"
