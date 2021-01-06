@@ -442,3 +442,55 @@ def create_prb(probe):
         probe_prb[channel_group]['graph'] = []
 
     return probe_prb
+
+
+def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
+    plot_widget.add_image(array=cp.asnumpy(ccb).T,
+                          plot_pos=0,
+                          labels={"left": "batches",
+                                  "bottom": "batches",
+                                  "title": "batch to batch distance"
+                                  })
+
+    plot_widget.add_image(array=cp.asnumpy(ccbsort).T,
+                          plot_pos=1,
+                          labels={"left": "sorted batches",
+                                  "bottom": "sorted batches",
+                                  "title": "AFTER sorting"
+                                  })
+    plot_widget.show()
+
+
+def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
+    plot_widget.add_image(array=cp.asnumpy(temporal_comp[:, :, 0]).T,
+                          plot_pos=0,
+                          labels={"left": "Time (samples)",
+                                  "bottom": "Unit Number",
+                                  "title": "Temporal Components"},
+                          )
+
+    plot_widget.add_image(array=cp.asnumpy(spatial_comp[:, :, 0]).T,
+                          plot_pos=1,
+                          labels={"left": "Channel Number",
+                                  "bottom": "Unit Number",
+                                  "title": "Spatial Components"},
+                          )
+
+    plot_widget.add_curve(x_data=np.arange(len(mu)),
+                          y_data=cp.asnumpy(mu),
+                          plot_pos=2,
+                          labels={"left": "Amplitude (arb. units)",
+                                  "bottom": "Unit Number",
+                                  "title": "Unit Amplitudes"},
+                          y_lim=(0, 100),
+                          )
+
+    plot_widget.add_scatter(x_data=cp.asnumpy(nsp),
+                            y_data=cp.asnumpy(mu),
+                            plot_pos=3,
+                            labels={"left": "Amplitude (arb. units)",
+                                    "bottom": "Spike Count",
+                                    "title": "Amplitude vs. Spike Count"},
+                            y_lim=(0, 100),
+                            )
+    plot_widget.show()

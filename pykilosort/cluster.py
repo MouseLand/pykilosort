@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from .preprocess import my_min, my_sum
 from .cptools import svdecon, zscore, ones
-from .utils import Bunch, get_cuda
+from .utils import Bunch, get_cuda, plot_dissimilarity_matrices
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +422,7 @@ def mexDistances2(Params, Ws, W, iMatch, iC, Wh, mus, mu):
     return d_id, d_x
 
 
-def clusterSingleBatches(ctx):
+def clusterSingleBatches(ctx, sanity_plots=False, plot_widgets=None, plot_pos=0):
     """
     outputs an ordering of the batches according to drift
     for each batch, it extracts spikes as threshold crossings and clusters them with kmeans
@@ -579,5 +579,9 @@ def clusterSingleBatches(ctx):
     ccbsort, iorig = sortBatches2(ccb0)
 
     logger.info("Finished clustering.")
+
+    if sanity_plots:
+        assert plot_widgets is not None
+        plot_dissimilarity_matrices(ccb0, ccbsort, plot_widgets[plot_pos])
 
     return Bunch(iorig=iorig, ccb0=ccb0, ccbsort=ccbsort)

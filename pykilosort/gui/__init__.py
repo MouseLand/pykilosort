@@ -6,7 +6,7 @@ from .data_view_box import DataViewBox
 from .header_box import HeaderBox
 from .message_log_box import MessageLogBox
 from .minor_gui_elements import ProbeBuilder
-from .palettes import COLORMAP_COLORS, DarkPalette
+from .palettes import COLORMAP_COLORS, DarkPalette, SANITY_PLOT_COLORS
 from .probe_view_box import ProbeViewBox
 from .run_box import RunBox
 from .settings_box import SettingsBox
