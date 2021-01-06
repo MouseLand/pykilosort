@@ -151,10 +151,14 @@ class RunBox(QtWidgets.QGroupBox):
         QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
 
         if self.sanity_plot_option.isChecked() and "spikesort" in steps:
-            dissimilarity_plot = SanityPlotWidget(parent=None, num_remote_plots=2, title="Dissimilarity Matrices")
+            dissimilarity_plot = SanityPlotWidget(parent=None,
+                                                  num_remote_plots=2,
+                                                  title="Dissimilarity Matrices")
             dissimilarity_plot.resize(600, 400)
 
-            diagnostic_plot = SanityPlotWidget(parent=None, num_remote_plots=4, title="Diagnostic Plots")
+            diagnostic_plot = SanityPlotWidget(parent=None,
+                                               num_remote_plots=4,
+                                               title="Diagnostic Plots")
             diagnostic_plot.resize(750, 600)
             sanity_plots = True
             self.remote_widgets = [dissimilarity_plot, diagnostic_plot]
