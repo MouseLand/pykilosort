@@ -200,8 +200,7 @@ class SanityPlotWidget(LayoutWidget):
                                  color=np.array(SANITY_PLOT_COLORS) * 255)
         self.lookup_table = self.colormap.getLookupTable(start=-1, stop=1, nPts=1024)
 
-        self.addLabel(title, colspan=2)
-        self.nextRow()
+        self.setWindowTitle(title)
 
         self.create_remote_views()
         self.arrange_views()
