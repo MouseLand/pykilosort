@@ -11,6 +11,7 @@ from .probe_view_box import ProbeViewBox
 from .run_box import RunBox
 from .settings_box import SettingsBox
 from .sorter import KiloSortWorker, filter_and_whiten, find_good_channels
+from .sanity_plots import SanityPlotWidget
 
 from .main import KiloSortGUI
 from .launch import launcher
