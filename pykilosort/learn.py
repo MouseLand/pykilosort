@@ -1199,7 +1199,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             )
 
             if sanity_plots:
-                assert plot_widgets is not None
+                assert plot_widgets is not None, "if sanity_plots is set, then plot_widgets cannot be None"
                 plot_diagnostics(W, U, mu, nsp, plot_widgets[plot_pos])
 
         free_gpu_memory()

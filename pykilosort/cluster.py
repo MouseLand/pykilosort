@@ -581,7 +581,7 @@ def clusterSingleBatches(ctx, sanity_plots=False, plot_widgets=None, plot_pos=0)
     logger.info("Finished clustering.")
 
     if sanity_plots:
-        assert plot_widgets is not None
+        assert plot_widgets is not None, "if sanity_plots is set, then plot_widgets cannot be None"
         plot_dissimilarity_matrices(ccb0, ccbsort, plot_widgets[plot_pos])
 
     return Bunch(iorig=iorig, ccb0=ccb0, ccbsort=ccbsort)
