@@ -23,7 +23,7 @@ class SanityPlotWidget(LayoutWidget):
         self.hide()
 
     def create_remote_views(self):
-        for i in range(self.num_remote_plots):
+        for _ in range(self.num_remote_plots):
             remote_plot = RemoteGraphicsView(useOpenGL=True)
             remote_plot_item = remote_plot.pg.PlotItem()
             remote_plot_item._setProxyOptions(deferGetattr=True)  # noqa
@@ -53,10 +53,10 @@ class SanityPlotWidget(LayoutWidget):
                     y_data: np.ndarray,
                     plot_pos: int,
                     labels: dict,
-                    x_lim: t.Union[tuple, None] = None,
-                    y_lim: t.Union[tuple, None] = None,
-                    semi_log_x: t.Union[bool, None] = None,
-                    semi_log_y: t.Union[bool, None] = None,
+                    x_lim: t.Optional[tuple] = None,
+                    y_lim: t.Optional[tuple] = None,
+                    semi_log_x: t.Optional[bool] = None,
+                    semi_log_y: t.Optional[bool] = None,
                     ) -> PlotItem:
         remote_plot = self.get_remote_plots()[plot_pos]
         remote_plot_item = remote_plot._view.centralWidget  # noqa
@@ -81,10 +81,10 @@ class SanityPlotWidget(LayoutWidget):
                   y_data: np.ndarray,
                   plot_pos: int,
                   labels: dict,
-                  x_lim: t.Union[tuple, None] = None,
-                  y_lim: t.Union[tuple, None] = None,
-                  semi_log_x: t.Union[bool, None] = None,
-                  semi_log_y: t.Union[bool, None] = None,
+                  x_lim: t.Optional[tuple] = None,
+                  y_lim: t.Optional[tuple] = None,
+                  semi_log_x: t.Optional[bool] = None,
+                  semi_log_y: t.Optional[bool] = None,
                   ) -> PlotItem:
         remote_plot = self.get_remote_plots()[plot_pos]
         remote_plot_item = remote_plot._view.centralWidget  # noqa
