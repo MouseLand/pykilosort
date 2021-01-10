@@ -192,9 +192,9 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     Nchan = probe.Nchan
 
     # Nchan is obtained after the bad channels have been removed
-    CC = cp.zeros((Nchan, Nchan))
+    CCall = np.zeros((len(range(0, Nbatch, nSkipCov)), Nchan, Nchan))
 
-    for ibatch in tqdm(range(0, Nbatch, nSkipCov), desc="Computing the whitening matrix"):
+    for ic, ibatch in enumerate(tqdm(range(0, Nbatch, nSkipCov), desc="Computing the whitening matrix")):
         i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
         # WARNING: we no longer use Fortran order, so raw_data is nsamples x NchanTOT
         buff = raw_data[i:i + NT - ntbuff]
@@ -211,10 +211,9 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
         # apply filters and median subtraction
         datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
         assert datr.flags.c_contiguous
+        CCall[ic, :, :] = (cp.dot(datr.T, datr) / NT).get()  # sample covariance
 
-        CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
-
-    CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
+    CC = cp.array(np.median(CCall, axis=0))
 
     if whiteningRange < np.inf:
         #  if there are too many channels, a finite whiteningRange is more robust to noise
