@@ -215,7 +215,7 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
 
     CC = cp.array(np.median(CCall, axis=0))
 
-    if whiteningRange < np.inf:
+    if whiteningRange < Nchan:
         #  if there are too many channels, a finite whiteningRange is more robust to noise
         # in the estimation of the covariance
         whiteningRange = min(whiteningRange, Nchan)
