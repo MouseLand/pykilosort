@@ -77,11 +77,8 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
     buffer = W.shape[0]
 
     predicted_traces = np.zeros(
-        (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0])),
-        dtype=np.int16
+        (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0]))
     )
-
-    sorting_result = np.asarray(sorting_result)
 
     all_spike_times = sorting_result[:, 0]
     included_spike_pos = np.asarray(
@@ -98,12 +95,12 @@ def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
         U_i = U[:, spike_templates[s], :]
         W_i = W[:, spike_templates[s], :]
 
-        addendum = (U_i @ W_i.T * amplitude).astype(np.int16)
+        addendum = U_i @ W_i.T * amplitude
 
         pred_pos = np.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
         predicted_traces[:, pred_pos] += addendum
 
-    output = predicted_traces[:, buffer * 2: -buffer * 2]
+    output = predicted_traces[:, buffer * 2: -buffer * 2].astype(np.int16)
 
     return output.T
 
