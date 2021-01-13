@@ -6,7 +6,6 @@ from pykilosort.gui.palettes import COLORMAP_COLORS
 from pykilosort.gui.sorter import filter_and_whiten, get_predicted_traces
 from pykilosort.preprocess import get_whitening_matrix
 from PyQt5 import QtCore, QtWidgets
-from pykilosort.gui.profiler import profile
 
 logger = setup_logger(__name__)
 
