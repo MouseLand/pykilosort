@@ -6,6 +6,7 @@ from pykilosort.gui.palettes import COLORMAP_COLORS
 from pykilosort.gui.sorter import filter_and_whiten, get_predicted_traces
 from pykilosort.preprocess import get_whitening_matrix
 from PyQt5 import QtCore, QtWidgets
+from pykilosort.gui.profiler import profile
 
 logger = setup_logger(__name__)
 
@@ -533,7 +534,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.plot_item.addItem(image_item)
 
     def get_whitened_traces(
-        self, raw_data, raw_traces, intermediate, params, probe, nSkipCov=None
+            self, raw_data, raw_traces, intermediate, params, probe, nSkipCov=None
     ):
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
