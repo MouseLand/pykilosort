@@ -502,7 +502,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def add_curves_to_plot(self, traces, color):
         traces = traces.T
-        traces += (np.arange(traces.shape[0]-1, -1, -1) * 200).reshape(traces.shape[0], 1)
+        traces += (np.arange(traces.shape[0] - 1, -1, -1) * 200).reshape(traces.shape[0], 1)
         connect = np.ones(traces.shape, dtype=bool)
         connect[:, -1] = 0
         x = np.tile([i for i in range(traces.shape[1])], traces.shape[0]).reshape(traces.shape)
@@ -576,239 +576,24 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.data_view_widget.setLimits(xMin=0, xMax=time_range)
 
             if self.traces_button.isChecked():
-                raw_traces = raw_data[start_time:end_time]
-
-                if self.raw_button.isChecked():
-                    for i in range(
-                        self.primary_channel + self.channels_displayed_traces,
-                        self.primary_channel,
-                        -1,
-                    ):
-                        try:
-                            color = (
-                                self.traces_curve_color["raw"]
-                                if good_channels[i]
-                                else self.bad_channel_color
-                            )
-                            self.add_curve_to_plot(raw_traces.T[i], color, i)
-                        except IndexError:
-                            continue
-
-                if self.whitened_button.isChecked():
-                    if self.whitened_traces is None:
-                        whitened_traces = self.get_whitened_traces(
-                            raw_data=raw_data,
-                            raw_traces=raw_traces,
-                            intermediate=intermediate,
-                            params=params,
-                            probe=probe,
-                            nSkipCov=100,
-                        )
-
-                        self.whitened_traces = whitened_traces
-                    else:
-                        whitened_traces = self.whitened_traces
-                    for i in range(
-                        self.primary_channel + self.channels_displayed_traces,
-                        self.primary_channel,
-                        -1,
-                    ):
-                        try:
-                            color = (
-                                self.traces_curve_color["whitened"]
-                                if good_channels[i]
-                                else self.bad_channel_color
-                            )
-                            self.add_curve_to_plot(
-                                whitened_traces.T[i] * self.processed_traces_scaling,
-                                color,
-                                i,
-                            )
-                        except IndexError:
-                            continue
-
-                if self.prediction_button.isChecked():
-                    if self.prediction_traces is None:
-                        prediction_traces = get_predicted_traces(
-                            matrix_U=intermediate.U_s,
-                            matrix_W=intermediate.Wphy,
-                            sorting_result=intermediate.st3,
-                            time_limits=(start_time, end_time),
-                        )
-                        self.prediction_traces = prediction_traces
-                    else:
-                        prediction_traces = self.prediction_traces
-
-                    for i in range(
-                        self.primary_channel + self.channels_displayed_traces,
-                        self.primary_channel,
-                        -1,
-                    ):
-                        try:
-                            color = (
-                                self.traces_curve_color["predicted"]
-                                if good_channels[i]
-                                else self.bad_channel_color
-                            )
-                            self.add_curve_to_plot(
-                                prediction_traces.T[i] * self.processed_traces_scaling,
-                                color,
-                                i,
-                            )
-                        except IndexError:
-                            continue
-
-                if self.residual_button.isChecked():
-                    if self.residual_traces is None:
-                        if self.whitened_traces is None:
-                            whitened_traces = self.get_whitened_traces(
-                                raw_data=raw_data,
-                                raw_traces=raw_traces,
-                                intermediate=intermediate,
-                                params=params,
-                                probe=probe,
-                                nSkipCov=100,
-                            )
-
-                            self.whitened_traces = whitened_traces
-
-                        else:
-                            whitened_traces = self.whitened_traces
-
-                        if self.prediction_traces is None:
-                            prediction_traces = get_predicted_traces(
-                                matrix_U=intermediate.U_s,
-                                matrix_W=intermediate.Wphy,
-                                sorting_result=intermediate.st3,
-                                time_limits=(start_time, end_time),
-                            )
-
-                            self.prediction_traces = prediction_traces
-
-                        else:
-                            prediction_traces = self.prediction_traces
-
-                        residual_traces = whitened_traces - prediction_traces
-
-                        self.residual_traces = residual_traces
-                    else:
-                        residual_traces = self.residual_traces
-
-                    for i in range(
-                        self.primary_channel + self.channels_displayed_traces,
-                        self.primary_channel,
-                        -1,
-                    ):
-                        try:
-                            color = (
-                                self.traces_curve_color["residual"]
-                                if good_channels[i]
-                                else self.bad_channel_color
-                            )
-                            self.add_curve_to_plot(
-                                residual_traces.T[i] * self.processed_traces_scaling,
-                                color,
-                                i,
-                            )
-                        except IndexError:
-                            continue
+                self._update_traces(params=params,
+                                    probe=probe,
+                                    raw_data=raw_data,
+                                    intermediate=intermediate,
+                                    good_channels=good_channels,
+                                    start_time=start_time,
+                                    end_time=end_time,
+                                    )
 
             if self.colormap_button.isChecked():
-                raw_traces = raw_data[start_time:end_time]
-                start_channel = self.primary_channel
-                displayed_channels = self.channels_displayed_colormap
-                if displayed_channels is None:
-                    displayed_channels = self.get_total_channels()
-                end_channel = start_channel + displayed_channels
-
-                if self.raw_button.isChecked():
-                    colormap_min, colormap_max = -32.0, 32.0
-                    self.add_image_to_plot(
-                        raw_traces[:, start_channel:end_channel],
-                        colormap_min,
-                        colormap_max,
-                    )
-
-                elif self.whitened_button.isChecked():
-                    if self.whitened_traces is None:
-                        whitened_traces = self.get_whitened_traces(
-                            raw_data=raw_data,
-                            raw_traces=raw_traces,
-                            intermediate=intermediate,
-                            params=params,
-                            probe=probe,
-                            nSkipCov=100,
-                        )
-
-                        self.whitened_traces = whitened_traces
-                    else:
-                        whitened_traces = self.whitened_traces
-                    colormap_min, colormap_max = -4.0, 4.0
-                    self.add_image_to_plot(
-                        whitened_traces[:, start_channel:end_channel],
-                        colormap_min,
-                        colormap_max,
-                    )
-
-                elif self.prediction_button.isChecked():
-                    if self.prediction_traces is None:
-                        prediction_traces = get_predicted_traces(
-                            matrix_U=intermediate.U_s,
-                            matrix_W=intermediate.Wphy,
-                            sorting_result=intermediate.st3,
-                            time_limits=(start_time, end_time),
-                        )
-                        self.prediction_traces = prediction_traces
-                    else:
-                        prediction_traces = self.prediction_traces
-                    colormap_min, colormap_max = -4.0, 4.0
-                    self.add_image_to_plot(
-                        prediction_traces[:, start_channel:end_channel],
-                        colormap_min,
-                        colormap_max,
-                    )
-
-                elif self.residual_button.isChecked():
-                    if self.residual_traces is None:
-                        if self.whitened_traces is None:
-                            whitened_traces = self.get_whitened_traces(
-                                raw_data=raw_data,
-                                raw_traces=raw_traces,
-                                intermediate=intermediate,
-                                params=params,
-                                probe=probe,
-                                nSkipCov=100,
-                            )
-
-                            self.whitened_traces = whitened_traces
-
-                        else:
-                            whitened_traces = self.whitened_traces
-
-                        if self.prediction_traces is None:
-                            prediction_traces = get_predicted_traces(
-                                matrix_U=intermediate.U_s,
-                                matrix_W=intermediate.Wphy,
-                                sorting_result=intermediate.st3,
-                                time_limits=(start_time, end_time),
-                            )
-
-                            self.prediction_traces = prediction_traces
-
-                        else:
-                            prediction_traces = self.prediction_traces
-
-                        residual_traces = whitened_traces - prediction_traces
-
-                        self.residual_traces = residual_traces
-                    else:
-                        residual_traces = self.residual_traces
-                    colormap_min, colormap_max = -4.0, 4.0
-                    self.add_image_to_plot(
-                        residual_traces[:, start_channel:end_channel],
-                        colormap_min,
-                        colormap_max,
-                    )
+                self._update_colormap(params=params,
+                                      probe=probe,
+                                      raw_data=raw_data,
+                                      intermediate=intermediate,
+                                      good_channels=good_channels,
+                                      start_time=start_time,
+                                      end_time=end_time,
+                                      )
 
             self.data_x_axis.setTicks(
                 [
@@ -820,6 +605,242 @@ class DataViewBox(QtWidgets.QGroupBox):
             )
 
             self.data_view_widget.autoRange()
+
+    def _update_traces(self, params, probe, raw_data, intermediate, good_channels, start_time, end_time):
+        raw_traces = raw_data[start_time:end_time]
+
+        if self.raw_button.isChecked():
+            for i in range(
+                    self.primary_channel + self.channels_displayed_traces,
+                    self.primary_channel,
+                    -1,
+            ):
+                try:
+                    color = (
+                        self.traces_curve_color["raw"]
+                        if good_channels[i]
+                        else self.bad_channel_color
+                    )
+                    self.add_curve_to_plot(raw_traces.T[i], color, i)
+                except IndexError:
+                    continue
+
+        if self.whitened_button.isChecked():
+            if self.whitened_traces is None:
+                whitened_traces = self.get_whitened_traces(
+                    raw_data=raw_data,
+                    raw_traces=raw_traces,
+                    intermediate=intermediate,
+                    params=params,
+                    probe=probe,
+                    nSkipCov=100,
+                )
+
+                self.whitened_traces = whitened_traces
+            else:
+                whitened_traces = self.whitened_traces
+            for i in range(
+                    self.primary_channel + self.channels_displayed_traces,
+                    self.primary_channel,
+                    -1,
+            ):
+                try:
+                    color = (
+                        self.traces_curve_color["whitened"]
+                        if good_channels[i]
+                        else self.bad_channel_color
+                    )
+                    self.add_curve_to_plot(
+                        whitened_traces.T[i] * self.processed_traces_scaling,
+                        color,
+                        i,
+                    )
+                except IndexError:
+                    continue
+
+        if self.prediction_button.isChecked():
+            if self.prediction_traces is None:
+                prediction_traces = get_predicted_traces(
+                    matrix_U=intermediate.U_s,
+                    matrix_W=intermediate.Wphy,
+                    sorting_result=intermediate.st3,
+                    time_limits=(start_time, end_time),
+                )
+                self.prediction_traces = prediction_traces
+            else:
+                prediction_traces = self.prediction_traces
+
+            for i in range(
+                    self.primary_channel + self.channels_displayed_traces,
+                    self.primary_channel,
+                    -1,
+            ):
+                try:
+                    color = (
+                        self.traces_curve_color["predicted"]
+                        if good_channels[i]
+                        else self.bad_channel_color
+                    )
+                    self.add_curve_to_plot(
+                        prediction_traces.T[i] * self.processed_traces_scaling,
+                        color,
+                        i,
+                    )
+                except IndexError:
+                    continue
+
+        if self.residual_button.isChecked():
+            if self.residual_traces is None:
+                if self.whitened_traces is None:
+                    whitened_traces = self.get_whitened_traces(
+                        raw_data=raw_data,
+                        raw_traces=raw_traces,
+                        intermediate=intermediate,
+                        params=params,
+                        probe=probe,
+                        nSkipCov=100,
+                    )
+
+                    self.whitened_traces = whitened_traces
+
+                else:
+                    whitened_traces = self.whitened_traces
+
+                if self.prediction_traces is None:
+                    prediction_traces = get_predicted_traces(
+                        matrix_U=intermediate.U_s,
+                        matrix_W=intermediate.Wphy,
+                        sorting_result=intermediate.st3,
+                        time_limits=(start_time, end_time),
+                    )
+
+                    self.prediction_traces = prediction_traces
+
+                else:
+                    prediction_traces = self.prediction_traces
+
+                residual_traces = whitened_traces - prediction_traces
+
+                self.residual_traces = residual_traces
+            else:
+                residual_traces = self.residual_traces
+
+            for i in range(
+                    self.primary_channel + self.channels_displayed_traces,
+                    self.primary_channel,
+                    -1,
+            ):
+                try:
+                    color = (
+                        self.traces_curve_color["residual"]
+                        if good_channels[i]
+                        else self.bad_channel_color
+                    )
+                    self.add_curve_to_plot(
+                        residual_traces.T[i] * self.processed_traces_scaling,
+                        color,
+                        i,
+                    )
+                except IndexError:
+                    continue
+
+    def _update_colormap(self, params, probe, raw_data, intermediate, good_channels, start_time, end_time):
+        raw_traces = raw_data[start_time:end_time]
+
+        start_channel = self.primary_channel
+        displayed_channels = self.channels_displayed_colormap
+        if displayed_channels is None:
+            displayed_channels = self.get_total_channels()
+        end_channel = start_channel + displayed_channels
+
+        if self.raw_button.isChecked():
+            colormap_min, colormap_max = -32.0, 32.0
+            self.add_image_to_plot(
+                raw_traces[:, start_channel:end_channel],
+                colormap_min,
+                colormap_max,
+            )
+
+        elif self.whitened_button.isChecked():
+            if self.whitened_traces is None:
+                whitened_traces = self.get_whitened_traces(
+                    raw_data=raw_data,
+                    raw_traces=raw_traces,
+                    intermediate=intermediate,
+                    params=params,
+                    probe=probe,
+                    nSkipCov=100,
+                )
+
+                self.whitened_traces = whitened_traces
+            else:
+                whitened_traces = self.whitened_traces
+            colormap_min, colormap_max = -4.0, 4.0
+            self.add_image_to_plot(
+                whitened_traces[:, start_channel:end_channel],
+                colormap_min,
+                colormap_max,
+            )
+
+        elif self.prediction_button.isChecked():
+            if self.prediction_traces is None:
+                prediction_traces = get_predicted_traces(
+                    matrix_U=intermediate.U_s,
+                    matrix_W=intermediate.Wphy,
+                    sorting_result=intermediate.st3,
+                    time_limits=(start_time, end_time),
+                )
+                self.prediction_traces = prediction_traces
+            else:
+                prediction_traces = self.prediction_traces
+            colormap_min, colormap_max = -4.0, 4.0
+            self.add_image_to_plot(
+                prediction_traces[:, start_channel:end_channel],
+                colormap_min,
+                colormap_max,
+            )
+
+        elif self.residual_button.isChecked():
+            if self.residual_traces is None:
+                if self.whitened_traces is None:
+                    whitened_traces = self.get_whitened_traces(
+                        raw_data=raw_data,
+                        raw_traces=raw_traces,
+                        intermediate=intermediate,
+                        params=params,
+                        probe=probe,
+                        nSkipCov=100,
+                    )
+
+                    self.whitened_traces = whitened_traces
+
+                else:
+                    whitened_traces = self.whitened_traces
+
+                if self.prediction_traces is None:
+                    prediction_traces = get_predicted_traces(
+                        matrix_U=intermediate.U_s,
+                        matrix_W=intermediate.Wphy,
+                        sorting_result=intermediate.st3,
+                        time_limits=(start_time, end_time),
+                    )
+
+                    self.prediction_traces = prediction_traces
+
+                else:
+                    prediction_traces = self.prediction_traces
+
+                residual_traces = whitened_traces - prediction_traces
+
+                self.residual_traces = residual_traces
+            else:
+                residual_traces = self.residual_traces
+            colormap_min, colormap_max = -4.0, 4.0
+            self.add_image_to_plot(
+                residual_traces[:, start_channel:end_channel],
+                colormap_min,
+                colormap_max,
+            )
 
 
 class KSPlotWidget(pg.PlotWidget):
