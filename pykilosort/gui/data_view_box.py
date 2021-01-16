@@ -1,5 +1,6 @@
 import numpy as np
 import pyqtgraph as pg
+from cupy import asnumpy
 from pykilosort.gui.logger import setup_logger
 from pykilosort.gui.minor_gui_elements import controls_popup_text
 from pykilosort.gui.palettes import COLORMAP_COLORS
@@ -661,8 +662,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.prediction_button.isChecked():
             if self.prediction_traces is None:
                 prediction_traces = get_predicted_traces(
-                    matrix_U=intermediate.U_s,
-                    matrix_W=intermediate.Wphy,
+                    matrix_U=asnumpy(intermediate.U_s),
+                    matrix_W=asnumpy(intermediate.Wphy),
                     sorting_result=intermediate.st3,
                     time_limits=(start_time, end_time),
                 )
@@ -708,8 +709,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.prediction_traces is None:
                     prediction_traces = get_predicted_traces(
-                        matrix_U=intermediate.U_s,
-                        matrix_W=intermediate.Wphy,
+                        matrix_U=asnumpy(intermediate.U_s),
+                        matrix_W=asnumpy(intermediate.Wphy),
                         sorting_result=intermediate.st3,
                         time_limits=(start_time, end_time),
                     )
@@ -785,8 +786,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         elif self.prediction_button.isChecked():
             if self.prediction_traces is None:
                 prediction_traces = get_predicted_traces(
-                    matrix_U=intermediate.U_s,
-                    matrix_W=intermediate.Wphy,
+                    matrix_U=asnumpy(intermediate.U_s),
+                    matrix_W=asnumpy(intermediate.Wphy),
                     sorting_result=intermediate.st3,
                     time_limits=(start_time, end_time),
                 )
@@ -819,8 +820,8 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 if self.prediction_traces is None:
                     prediction_traces = get_predicted_traces(
-                        matrix_U=intermediate.U_s,
-                        matrix_W=intermediate.Wphy,
+                        matrix_U=asnumpy(intermediate.U_s),
+                        matrix_W=asnumpy(intermediate.Wphy),
                         sorting_result=intermediate.st3,
                         time_limits=(start_time, end_time),
                     )

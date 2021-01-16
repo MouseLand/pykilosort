@@ -1,5 +1,6 @@
 import cupy as cp
 import numpy as np
+from numba import jit
 from pykilosort.main import run_export, run_preprocess, run_spikesort
 from pykilosort.preprocess import get_good_channels, get_whitening_matrix, gpufilter
 from PyQt5 import QtCore
@@ -70,37 +71,52 @@ def get_whitened_traces(raw_data, probe, params, whitening_matrix):
     return whitened_traces, whitening_matrix
 
 
-def get_predicted_traces(matrix_U, matrix_W, sorting_result, time_limits):
-    W = cp.asnumpy(matrix_W)
-    U = cp.asnumpy(matrix_U)
+@jit(nopython=True)
+def get_predicted_traces(
+        matrix_U: np.ndarray,
+        matrix_W: np.ndarray,
+        sorting_result: np.ndarray,
+        time_limits: tuple,
+) -> np.ndarray:
+    W = np.ascontiguousarray(matrix_W)
+    U = np.ascontiguousarray(matrix_U)
 
     buffer = W.shape[0]
 
     predicted_traces = np.zeros(
-        (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0]))
+        (U.shape[0], 4 * buffer + (time_limits[1] - time_limits[0])),
+        dtype=np.int16
     )
 
     all_spike_times = sorting_result[:, 0]
-    included_spike_pos = np.asarray(
-        (time_limits[0] - buffer // 2 < all_spike_times)
-        & (all_spike_times < time_limits[1] + buffer // 2)
-    ).nonzero()[0]
+    included_spike_pos = np.where(
+            (all_spike_times > time_limits[0] - buffer // 2) &
+            (all_spike_times < time_limits[1] + buffer // 2)
+        )[0]
 
-    spike_times = all_spike_times[included_spike_pos].astype(np.int32)
-    spike_templates = sorting_result[included_spike_pos, 1].astype(np.int32)
-    spike_amplitudes = sorting_result[included_spike_pos, 2]
+    spike_times = all_spike_times[
+        included_spike_pos
+    ].astype(np.int32)
+
+    spike_templates = sorting_result[
+        included_spike_pos, 1
+    ].astype(np.int32)
+
+    spike_amplitudes = sorting_result[
+        included_spike_pos, 2
+    ]
 
     for s, spike in enumerate(spike_times):
         amplitude = spike_amplitudes[s]
-        U_i = U[:, spike_templates[s], :]
-        W_i = W[:, spike_templates[s], :]
+        U_i = np.ascontiguousarray(U[:, spike_templates[s], :])
+        W_i = np.ascontiguousarray(W[:, spike_templates[s], :])
 
-        addendum = U_i @ W_i.T * amplitude
+        addendum = (U_i @ W_i.T * amplitude).astype(np.int16)
 
         pred_pos = np.arange(buffer) + spike - time_limits[0] + buffer + buffer // 2
         predicted_traces[:, pred_pos] += addendum
 
-    output = predicted_traces[:, buffer * 2: -buffer * 2].astype(np.int16)
+    output = predicted_traces[:, buffer * 2: -buffer * 2]
 
     return output.T
 
