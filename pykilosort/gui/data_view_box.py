@@ -1,4 +1,5 @@
 import numpy as np
+import typing as t
 import pyqtgraph as pg
 from cupy import asnumpy
 from pykilosort.gui.logger import setup_logger
@@ -76,6 +77,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.sorting_status = {"preprocess": False, "spikesort": False, "export": False}
 
         # traces settings
+        self.traces_plot_items = {
+            "raw": [],
+            "whitened": [],
+            "prediction": [],
+            "residual": [],
+        }
         self.good_channel_color = (255, 255, 255)
         self.bad_channel_color = (100, 100, 100)
         self.channels_displayed_traces = 32
@@ -83,11 +90,16 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.data_range = (0, 3000)
         self.seek_range = (0, 100)
         self.scale_factor = 1.0
-        self.processed_traces_scaling = 15
+        self.traces_scaling_factor = {
+            "raw": 1,
+            "whitened": 15,
+            "prediction": 15,
+            "residual": 15,
+        }
         self.traces_curve_color = {
             "raw": "w",
             "whitened": "c",
-            "predicted": "g",
+            "prediction": "g",
             "residual": "r",
         }
 
@@ -339,14 +351,20 @@ class DataViewBox(QtWidgets.QGroupBox):
         if 0 < new_count <= total_channels:
             self.set_currently_displayed_channel_count(new_count)
             self.channelChanged.emit()
+            self.plot_item.clear()
+            self.create_plot_items()
             self.update_plot()
         elif new_count <= 0 and current_count != 1:
             self.set_currently_displayed_channel_count(1)
             self.channelChanged.emit()
+            self.plot_item.clear()
+            self.create_plot_items()
             self.update_plot()
         elif new_count > total_channels:
             self.set_currently_displayed_channel_count(total_channels)
             self.channelChanged.emit()
+            self.plot_item.clear()
+            self.create_plot_items()
             self.update_plot()
 
     def shift_current_time(self, direction):
@@ -479,11 +497,13 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def reset(self):
         self.plot_item.clear()
+        self.delete_curve_plot_items()
         self.clear_cached_traces()
         self.clear_cached_whitening_matrix()
 
     def prepare_for_new_context(self):
         self.plot_item.clear()
+        self.delete_curve_plot_items()
         self.clear_cached_traces()
         self.clear_cached_whitening_matrix()
 
@@ -501,25 +521,103 @@ class DataViewBox(QtWidgets.QGroupBox):
         color_map = pg.ColorMap(pos=positions, color=self._colors)
         return color_map.getLookupTable(nPts=num_points)
 
-    def add_curves_to_plot(self, traces, color):
-        traces = traces.T
-        traces += (np.arange(traces.shape[0] - 1, -1, -1) * 200).reshape(traces.shape[0], 1)
-        connect = np.ones(traces.shape, dtype=bool)
-        connect[:, -1] = 0
-        x = np.tile([i for i in range(traces.shape[1])], traces.shape[0]).reshape(traces.shape)
-        path = pg.arrayToQPath(x.flatten(), traces.flatten(), connect.flatten())
-        curves = QtWidgets.QGraphicsPathItem(path)
-        curves.setPen(pg.mkPen(color=color, width=1))
-        self.plot_item.addItem(curves)
+    def create_plot_items(self):
+        """
+        Create curve plot items for each active view.
 
-    def add_curve_to_plot(self, trace, color, label):
-        curve = pg.PlotCurveItem(
-            parent=self.plot_item, clickable=True, pen=pg.mkPen(color=color, width=1)
-        )
+        Loops over all views and creates curve plot items for each view.
+        Creating plot items beforehand results in quicker plotting and a
+        smoother GUI experience when scrolling through data in traces
+        mode.
+        """
 
-        curve.label = label
-        curve.setData(trace * self.scale_factor + 200 * label)
-        self.plot_item.addItem(curve)
+        for view in self._keys:
+            self.traces_plot_items[view] = []
+            for c, channel in enumerate(
+                    range(
+                        self.primary_channel + self.channels_displayed_traces,
+                        self.primary_channel,
+                        -1
+                    )
+            ):
+                curve = pg.PlotCurveItem()
+                curve.setPos(0, 200 * c)
+                self.plot_item.addItem(curve)
+
+                self.traces_plot_items[view].append(curve)
+
+    def add_traces_to_plot_items(
+            self,
+            traces: np.ndarray,
+            good_channels: t.Union[list, np.ndarray],
+            view: str
+    ):
+        """
+        Update plot items with traces.
+        
+        Loops over traces and plots each trace using the setData() method
+        of pyqtgraph's PlotCurveItem. The color of the trace depends on
+        the mode requested (raw, whitened, prediction, residual). Bad
+        channels are plotted in a different color. Each trace is also
+        scaled by a certain factor defined in self.traces_scaling_factor.
+        
+        Parameters
+        ----------
+        traces : numpy.ndarray
+            Data to be plotted.
+        good_channels : list or numpy.ndarray
+            Iterable with boolean values for good (True) or bad (False)
+             channels, determined during the preprocessing step
+        view : str
+            One of "raw", "whitened", "prediction" and "residual" views
+        """
+        for c, channel in enumerate(
+                range(
+                    self.primary_channel,
+                    self.primary_channel + self.channels_displayed_traces,
+                )
+        ):
+            try:
+                curve = self.traces_plot_items[view][c]
+                color = (
+                    self.traces_curve_color[view]
+                    if good_channels[channel]
+                    else self.bad_channel_color
+                )
+                curve.setPen(color=color, width=1)
+                curve.setData(
+                    traces.T[channel] *
+                    self.scale_factor *
+                    self.traces_scaling_factor[view]
+                )
+            except IndexError:
+                continue
+
+    def hide_inactive_traces(self):
+        """
+        Use setData() on all PlotCurveItems belonging to inactive views.
+        """
+        for view in self._keys:
+            if not self.view_buttons[view].isChecked():
+                for curve_item in self.traces_plot_items[view]:
+                    curve_item.setData()
+
+    def hide_traces(self):
+        """
+        Use setData() on all PlotCurveItems in the plot.
+
+        Used when switching from traces mode to colormap mode.
+        """
+        for view in self._keys:
+            for curve_item in self.traces_plot_items[view]:
+                curve_item.setData()
+
+    def delete_curve_plot_items(self):
+        """
+        Deletes all PlotCurveItems in self.traces_plot_items.
+        """
+        for view in self.traces_plot_items.keys():
+            self.traces_plot_items[view] = []
 
     def add_image_to_plot(self, raw_traces, level_min, level_max):
         image_item = pg.ImageItem(setPxMode=False)
@@ -558,6 +656,10 @@ class DataViewBox(QtWidgets.QGroupBox):
             context = self.gui.context
 
         if context is not None:
+            if self.colormap_image is not None:
+                self.plot_item.removeItem(self.colormap_image)
+                self.colormap_image = None
+
             params = context.params
             probe = context.probe
             raw_data = context.raw_data
@@ -569,9 +671,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             start_time = int(self.current_time * sample_rate)
             time_range = int(self.plot_range * sample_rate)
             end_time = start_time + time_range
-
-            self.plot_item.clear()
-            self.colormap_image = None
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
             self.data_view_widget.setLimits(xMin=0, xMax=time_range)
@@ -608,23 +707,16 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.data_view_widget.autoRange()
 
     def _update_traces(self, params, probe, raw_data, intermediate, good_channels, start_time, end_time):
+        self.hide_inactive_traces()
+
         raw_traces = raw_data[start_time:end_time]
 
         if self.raw_button.isChecked():
-            for i in range(
-                    self.primary_channel + self.channels_displayed_traces,
-                    self.primary_channel,
-                    -1,
-            ):
-                try:
-                    color = (
-                        self.traces_curve_color["raw"]
-                        if good_channels[i]
-                        else self.bad_channel_color
-                    )
-                    self.add_curve_to_plot(raw_traces.T[i], color, i)
-                except IndexError:
-                    continue
+            self.add_traces_to_plot_items(
+                traces=raw_traces,
+                good_channels=good_channels,
+                view="raw",
+            )
 
         if self.whitened_button.isChecked():
             if self.whitened_traces is None:
@@ -640,24 +732,12 @@ class DataViewBox(QtWidgets.QGroupBox):
                 self.whitened_traces = whitened_traces
             else:
                 whitened_traces = self.whitened_traces
-            for i in range(
-                    self.primary_channel + self.channels_displayed_traces,
-                    self.primary_channel,
-                    -1,
-            ):
-                try:
-                    color = (
-                        self.traces_curve_color["whitened"]
-                        if good_channels[i]
-                        else self.bad_channel_color
-                    )
-                    self.add_curve_to_plot(
-                        whitened_traces.T[i] * self.processed_traces_scaling,
-                        color,
-                        i,
-                    )
-                except IndexError:
-                    continue
+
+            self.add_traces_to_plot_items(
+                traces=whitened_traces,
+                good_channels=good_channels,
+                view="whitened",
+            )
 
         if self.prediction_button.isChecked():
             if self.prediction_traces is None:
@@ -671,24 +751,11 @@ class DataViewBox(QtWidgets.QGroupBox):
             else:
                 prediction_traces = self.prediction_traces
 
-            for i in range(
-                    self.primary_channel + self.channels_displayed_traces,
-                    self.primary_channel,
-                    -1,
-            ):
-                try:
-                    color = (
-                        self.traces_curve_color["predicted"]
-                        if good_channels[i]
-                        else self.bad_channel_color
-                    )
-                    self.add_curve_to_plot(
-                        prediction_traces.T[i] * self.processed_traces_scaling,
-                        color,
-                        i,
-                    )
-                except IndexError:
-                    continue
+            self.add_traces_to_plot_items(
+                traces=prediction_traces,
+                good_channels=good_channels,
+                view="prediction",
+            )
 
         if self.residual_button.isChecked():
             if self.residual_traces is None:
@@ -726,26 +793,15 @@ class DataViewBox(QtWidgets.QGroupBox):
             else:
                 residual_traces = self.residual_traces
 
-            for i in range(
-                    self.primary_channel + self.channels_displayed_traces,
-                    self.primary_channel,
-                    -1,
-            ):
-                try:
-                    color = (
-                        self.traces_curve_color["residual"]
-                        if good_channels[i]
-                        else self.bad_channel_color
-                    )
-                    self.add_curve_to_plot(
-                        residual_traces.T[i] * self.processed_traces_scaling,
-                        color,
-                        i,
-                    )
-                except IndexError:
-                    continue
+            self.add_traces_to_plot_items(
+                traces=residual_traces,
+                good_channels=good_channels,
+                view="residual",
+            )
 
     def _update_colormap(self, params, probe, raw_data, intermediate, good_channels, start_time, end_time):
+        self.hide_traces()
+
         raw_traces = raw_data[start_time:end_time]
 
         start_channel = self.primary_channel
