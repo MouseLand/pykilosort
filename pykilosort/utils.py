@@ -493,12 +493,13 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
                           y_lim=(0, 100),
                           )
 
-    plot_widget.add_scatter(x_data=nsp,
+    plot_widget.add_scatter(x_data=np.log(nsp),
                             y_data=mu,
                             plot_pos=3,
                             labels={"left": "Amplitude (arb. units)",
                                     "bottom": "Spike Count",
                                     "title": "Amplitude vs. Spike Count"},
                             y_lim=(0, 100),
+                            semi_log_x=True
                             )
     plot_widget.show()
