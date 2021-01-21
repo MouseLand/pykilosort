@@ -445,14 +445,17 @@ def create_prb(probe):
 
 
 def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
-    plot_widget.add_image(array=cp.asnumpy(ccb).T,
+    ccb = cp.asnumpy(ccb)
+    ccbsort = cp.asnumpy(ccbsort)
+
+    plot_widget.add_image(array=ccb.T,
                           plot_pos=0,
                           labels={"left": "batches",
                                   "bottom": "batches",
                                   "title": "batch to batch distance"
                                   })
 
-    plot_widget.add_image(array=cp.asnumpy(ccbsort).T,
+    plot_widget.add_image(array=ccbsort.T,
                           plot_pos=1,
                           labels={"left": "sorted batches",
                                   "bottom": "sorted batches",
@@ -462,14 +465,19 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
 
 
 def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
-    plot_widget.add_image(array=cp.asnumpy(temporal_comp[:, :, 0]).T,
+    temporal_comp = cp.asnumpy(temporal_comp)
+    spatial_comp = cp.asnumpy(spatial_comp)
+    mu = cp.asnumpy(mu)
+    nsp = cp.asnumpy(nsp)
+
+    plot_widget.add_image(array=temporal_comp[:, :, 0].T,
                           plot_pos=0,
                           labels={"left": "Time (samples)",
                                   "bottom": "Unit Number",
                                   "title": "Temporal Components"},
                           )
 
-    plot_widget.add_image(array=cp.asnumpy(spatial_comp[:, :, 0]).T,
+    plot_widget.add_image(array=spatial_comp[:, :, 0].T,
                           plot_pos=1,
                           labels={"left": "Channel Number",
                                   "bottom": "Unit Number",
@@ -477,7 +485,7 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
                           )
 
     plot_widget.add_curve(x_data=np.arange(len(mu)),
-                          y_data=cp.asnumpy(mu),
+                          y_data=mu,
                           plot_pos=2,
                           labels={"left": "Amplitude (arb. units)",
                                   "bottom": "Unit Number",
@@ -485,8 +493,8 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
                           y_lim=(0, 100),
                           )
 
-    plot_widget.add_scatter(x_data=cp.asnumpy(nsp),
-                            y_data=cp.asnumpy(mu),
+    plot_widget.add_scatter(x_data=nsp,
+                            y_data=mu,
                             plot_pos=3,
                             labels={"left": "Amplitude (arb. units)",
                                     "bottom": "Spike Count",
