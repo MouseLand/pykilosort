@@ -56,6 +56,8 @@ class RunBox(QtWidgets.QGroupBox):
         self.spike_sort_button.setEnabled(False)
         self.export_button.setEnabled(False)
 
+        self.sanity_plot_option.setChecked(True)
+
         self.run_all_button.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
