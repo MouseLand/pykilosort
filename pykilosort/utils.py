@@ -448,19 +448,25 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
     ccb = cp.asnumpy(ccb)
     ccbsort = cp.asnumpy(ccbsort)
 
-    plot_widget.add_image(array=ccb.T,
-                          plot_pos=0,
-                          labels={"left": "batches",
-                                  "bottom": "batches",
-                                  "title": "batch to batch distance"
-                                  })
+    plot_widget.add_image(
+        array=ccb.T,
+        plot_pos=0,
+        labels={"left": "batches",
+                "bottom": "batches",
+                "title": "batch to batch distance"
+                },
+        cmap_style="diverging",
+    )
 
-    plot_widget.add_image(array=ccbsort.T,
-                          plot_pos=1,
-                          labels={"left": "sorted batches",
-                                  "bottom": "sorted batches",
-                                  "title": "AFTER sorting"
-                                  })
+    plot_widget.add_image(
+        array=ccbsort.T,
+        plot_pos=1,
+        labels={"left": "sorted batches",
+                "bottom": "sorted batches",
+                "title": "AFTER sorting"
+                },
+        cmap_style="diverging",
+    )
     plot_widget.show()
 
 
@@ -470,36 +476,50 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
     mu = cp.asnumpy(mu)
     nsp = cp.asnumpy(nsp)
 
-    plot_widget.add_image(array=temporal_comp[:, :, 0].T,
-                          plot_pos=0,
-                          labels={"left": "Time (samples)",
-                                  "bottom": "Unit Number",
-                                  "title": "Temporal Components"},
-                          )
+    plot_widget.add_image(
+        array=temporal_comp[:, :, 0].T,
+        plot_pos=0,
+        labels={"left": "Time (samples)",
+                "bottom": "Unit Number",
+                "title": "Temporal Components"},
+        cmap_style="sequential",
+        limits=(-0.25, 1.0),
+    )
 
-    plot_widget.add_image(array=spatial_comp[:, :, 0].T,
-                          plot_pos=1,
-                          labels={"left": "Channel Number",
-                                  "bottom": "Unit Number",
-                                  "title": "Spatial Components"},
-                          )
+    plot_widget.add_image(
+        array=spatial_comp[:, :, 0].T,
+        plot_pos=1,
+        labels={"left": "Channel Number",
+                "bottom": "Unit Number",
+                "title": "Spatial Components"},
+        cmap_style="sequential",
+        limits=(-1.0, 1.0),
+        levels=(-0.275, 0.1),
+    )
 
-    plot_widget.add_curve(x_data=np.arange(len(mu)),
-                          y_data=mu,
-                          plot_pos=2,
-                          labels={"left": "Amplitude (arb. units)",
-                                  "bottom": "Unit Number",
-                                  "title": "Unit Amplitudes"},
-                          y_lim=(0, 100),
-                          )
+    plot_widget.add_curve(
+        x_data=np.arange(len(mu)),
+        y_data=mu,
+        plot_pos=2,
+        labels={"left": "Amplitude (arb. units)",
+                "bottom": "Unit Number",
+                "title": "Unit Amplitudes"},
+        y_lim=(0, 100),
+    )
 
-    plot_widget.add_scatter(x_data=np.log(nsp),
-                            y_data=mu,
-                            plot_pos=3,
-                            labels={"left": "Amplitude (arb. units)",
-                                    "bottom": "Spike Count",
-                                    "title": "Amplitude vs. Spike Count"},
-                            y_lim=(0, 100),
-                            semi_log_x=True
-                            )
+    plot_widget.add_scatter(
+        x_data=np.log(1+nsp),
+        y_data=mu,
+        plot_pos=3,
+        labels={"left": "Amplitude (arb. units)",
+                "bottom": "Spike Count",
+                "title": "Amplitude vs. Spike Count"},
+        y_lim=(0, 1e2),
+        x_lim=(0, np.log(1e2)),
+        semi_log_x=True,
+        pxMode=True,
+        symbol="o",
+        size=2,
+        pen="w",
+    )
     plot_widget.show()
