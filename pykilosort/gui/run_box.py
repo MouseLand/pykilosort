@@ -7,6 +7,7 @@ from pykilosort.gui.sorter import KiloSortWorker
 class RunBox(QtWidgets.QGroupBox):
     updateContext = QtCore.pyqtSignal(object)
     sortingStepStatusUpdate = QtCore.pyqtSignal(dict)
+    disableInput = QtCore.pyqtSignal(bool)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -90,6 +91,13 @@ class RunBox(QtWidgets.QGroupBox):
             self.export_button.setEnabled(False)
         self.sanity_plot_option.setEnabled(True)
 
+    @QtCore.pyqtSlot(bool)
+    def disable_all_input(self, value):
+        if value:
+            self.disable_all_buttons()
+        else:
+            self.reenable_buttons()
+
     def set_data_path(self, data_path):
         self.data_path = data_path
 
@@ -149,7 +157,7 @@ class RunBox(QtWidgets.QGroupBox):
         self.reenable_buttons()
 
     def run_steps(self, steps):
-        self.disable_all_buttons()
+        self.disableInput.emit(True)
         QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
 
         if self.sanity_plot_option.isChecked() and "spikesort" in steps:
@@ -182,11 +190,13 @@ class RunBox(QtWidgets.QGroupBox):
         worker.finishedSpikesort.connect(self.finished_spikesort)
         worker.finishedAll.connect(self.finished_export)
 
+        QtWidgets.QApplication.restoreOverrideCursor()
+
         worker.start()
         while worker.isRunning():
             QtWidgets.QApplication.processEvents()
-        QtWidgets.QApplication.restoreOverrideCursor()
-        self.reenable_buttons()
+        else:
+            self.disableInput.emit(False)
 
     def prepare_for_new_context(self):
         self.set_sorting_step_status("preprocess", False)
