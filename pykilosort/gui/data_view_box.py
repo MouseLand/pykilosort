@@ -350,22 +350,19 @@ class DataViewBox(QtWidgets.QGroupBox):
         new_count = current_count + (direction * 5)
         if 0 < new_count <= total_channels:
             self.set_currently_displayed_channel_count(new_count)
-            self.channelChanged.emit()
-            self.plot_item.clear()
-            self.create_plot_items()
-            self.update_plot()
+            self.refresh_plot_on_displayed_channel_count_change()
         elif new_count <= 0 and current_count != 1:
             self.set_currently_displayed_channel_count(1)
-            self.channelChanged.emit()
-            self.plot_item.clear()
-            self.create_plot_items()
-            self.update_plot()
+            self.refresh_plot_on_displayed_channel_count_change()
         elif new_count > total_channels:
             self.set_currently_displayed_channel_count(total_channels)
-            self.channelChanged.emit()
-            self.plot_item.clear()
-            self.create_plot_items()
-            self.update_plot()
+            self.refresh_plot_on_displayed_channel_count_change()
+
+    def refresh_plot_on_displayed_channel_count_change(self):
+        self.channelChanged.emit()
+        self.plot_item.clear()
+        self.create_plot_items()
+        self.update_plot()
 
     def shift_current_time(self, direction):
         time_shift = direction * self.plot_range / 2  # seconds
