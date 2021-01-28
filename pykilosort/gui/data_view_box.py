@@ -111,6 +111,8 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.colormap_min, self.colormap_max
         )
 
+        self.thread_pool = QtCore.QThreadPool()
+
         self.setup()
 
     def setup(self):
@@ -452,6 +454,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.sorting_status = status_dict
         self.enable_view_buttons()
 
+    @QtCore.pyqtSlot()
     def enable_view_buttons(self):
         if self.colormap_mode_active():
             if self.prediction_button.isChecked() or self.residual_button.isChecked():
@@ -461,6 +464,17 @@ class DataViewBox(QtWidgets.QGroupBox):
                 self.prediction_button.click()
             if self.residual_button.isChecked():
                 self.residual_button.click()
+
+        if self.whitening_matrix is not None:
+            self.whitened_button.setEnabled(True)
+            self.whitened_button.setStyleSheet(
+                "QPushButton {background-color: black; color: white;}"
+            )
+        else:
+            self.whitened_button.setDisabled(True)
+            self.whitened_button.setStyleSheet(
+                "QPushButton {background-color: black; color: gray;}"
+            )
 
         if self.sorting_status["preprocess"] and self.sorting_status["spikesort"]:
             self.prediction_button.setEnabled(True)
@@ -614,17 +628,36 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def set_whitening_matrix(self, raw_data, intermediate, params, probe):
+    @QtCore.pyqtSlot(object)
+    def set_whitening_matrix(self, array):
+        self.whitening_matrix = array
+
+    def calculate_approx_whitening_matrix(self, context):
+        raw_data = context.raw_data
+        params = context.params
+        probe = context.probe
+        intermediate = context.intermediate
+
+        @QtCore.pyqtSlot()
+        def _call_enable_buttons():
+            self.enable_view_buttons()
+
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
             logger.info("Approx. whitening matrix loaded from existing context.")
+            _call_enable_buttons()
 
-        elif self.whitening_matrix is None:
-            logger.info("Calculating approx. whitening matrix.")
-            self.whitening_matrix = get_approx_whitening_matrix(
-                raw_data=raw_data, params=params, probe=probe
+        elif (self.whitening_matrix is None) and not (self.thread_pool.activeThreadCount() > 0):
+            whitening_worker = WhiteningMatrixCalculator(
+                raw_data=raw_data,
+                params=params,
+                probe=probe
             )
-            logger.info("Approx. whitening matrix calculated.")
+
+            whitening_worker.signals.result.connect(self.set_whitening_matrix)
+            whitening_worker.signals.finished.connect(_call_enable_buttons)
+
+            self.thread_pool.start(whitening_worker)
 
         good_channels = intermediate.igood.ravel() \
             if "igood" in intermediate \
@@ -663,13 +696,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             start_time = int(self.current_time * sample_rate)
             time_range = int(self.plot_range * sample_rate)
             end_time = start_time + time_range
-
-            self.set_whitening_matrix(
-                raw_data=raw_data,
-                intermediate=intermediate,
-                params=params,
-                probe=probe
-            )
 
             self.data_view_widget.setXRange(0, time_range, padding=0.0)
             self.data_view_widget.setLimits(xMin=0, xMax=time_range)
@@ -977,3 +1003,35 @@ class KSPlotWidget(pg.PlotWidget):
 
     def mouseMoveEvent(self, ev):
         pass
+
+
+class WhiteningMatrixCalculator(QtCore.QRunnable):
+
+    def __init__(self, raw_data, probe, params):
+        super(WhiteningMatrixCalculator, self).__init__()
+        self.raw_data = raw_data
+        self.params = params
+        self.probe = probe
+
+        self.signals = CalculatorSignals()
+
+    def run(self):
+        try:
+            logger.info("Calculating approx. whitening matrix.")
+            whitening_matrix = get_approx_whitening_matrix(
+                raw_data=self.raw_data,
+                params=self.params,
+                probe=self.probe,
+            )
+        except Exception as e:
+            logger.error(e)
+        else:
+            logger.info("Approx. whitening matrix calculated.")
+            self.signals.result.emit(whitening_matrix)
+        finally:
+            self.signals.finished.emit()
+
+
+class CalculatorSignals(QtCore.QObject):
+    finished = QtCore.pyqtSignal()
+    result = QtCore.pyqtSignal(object)
