@@ -456,6 +456,8 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
                 "title": "batch to batch distance"
                 },
         cmap_style="diverging",
+        levels=(0.55, 1.3),
+        limits=(1, -1),
     )
 
     plot_widget.add_image(
@@ -466,6 +468,8 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
                 "title": "AFTER sorting"
                 },
         cmap_style="diverging",
+        levels=(0.55, 1.3),
+        limits=(1, -1),
     )
     plot_widget.show()
 
