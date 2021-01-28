@@ -158,6 +158,7 @@ class RunBox(QtWidgets.QGroupBox):
 
     def run_steps(self, steps):
         self.disableInput.emit(True)
+        QtWidgets.QApplication.processEvents()
         QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
 
         if self.sanity_plot_option.isChecked() and "spikesort" in steps:
