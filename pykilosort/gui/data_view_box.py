@@ -591,6 +591,8 @@ class DataViewBox(QtWidgets.QGroupBox):
                     self.traces_scaling_factor[view]
                 )
             except IndexError:
+                # if primary_channel + channels_displayed_traces > total_channels
+                # then the index will exceed the length of traces.T
                 continue
 
     def hide_inactive_traces(self):
