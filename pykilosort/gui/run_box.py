@@ -21,7 +21,7 @@ class RunBox(QtWidgets.QGroupBox):
         self.preprocess_button = QtWidgets.QPushButton("Preprocess")
         self.spike_sort_button = QtWidgets.QPushButton("Spikesort")
         self.export_button = QtWidgets.QPushButton("Export for Phy")
-        self.sanity_plot_option = QtWidgets.QCheckBox("Sanity Plots")
+        self.sanity_plot_option = QtWidgets.QCheckBox("Show Sanity Plots")
 
         self.buttons = [
             self.run_all_button,
