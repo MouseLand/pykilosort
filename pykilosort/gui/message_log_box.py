@@ -7,6 +7,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class MessageLogBox(QtWidgets.QGroupBox):
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
+        self.setTitle("Message Log Box")
         self.gui = parent
         self.layout = QtWidgets.QHBoxLayout()
         self.log_box = QtWidgets.QPlainTextEdit()
