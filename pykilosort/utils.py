@@ -519,7 +519,7 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
                 "bottom": "Spike Count",
                 "title": "Amplitude vs. Spike Count"},
         y_lim=(0, 1e2),
-        x_lim=(0, np.log(1e2)),
+        x_lim=(0, np.log(1e5)),
         semi_log_x=True,
         pxMode=True,
         symbol="o",
