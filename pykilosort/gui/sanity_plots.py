@@ -11,11 +11,6 @@ class SanityPlotWidget(LayoutWidget):
         self.num_remote_plots = num_remote_plots
         self.remote_plots = []
 
-        self.seq_colormap = ColorMap(pos=np.linspace(0, 1, len(SANITY_PLOT_COLORS["sequential"])),
-                                     color=np.array(SANITY_PLOT_COLORS["sequential"]))
-        self.div_colormap = ColorMap(pos=np.linspace(0, 1, len(SANITY_PLOT_COLORS["diverging"])),
-                                     color=np.array(SANITY_PLOT_COLORS["diverging"]))
-
         self.setWindowTitle(title)
 
         self.create_remote_views()
@@ -133,16 +128,12 @@ class SanityPlotWidget(LayoutWidget):
                   normalize: bool = True,
                   invert_y: bool = True,
                   cmap_style: str = "diverging",
-                  limits: t.Optional[tuple] = None,
                   **kwargs: t.Optional[dict],
                   ) -> PlotItem:
         remote_plot = self.get_remote_plots()[plot_pos]
         remote_plot_item = remote_plot._view.centralWidget  # noqa
 
         remote_plot_item.clear()
-
-        if limits is None:
-            limits = (-1, 1)
 
         if "levels" in kwargs.keys():
             levels = kwargs.pop("levels")
@@ -154,18 +145,31 @@ class SanityPlotWidget(LayoutWidget):
         if normalize:
             array = self.normalize_array(array)
 
-        if cmap_style == "sequential":
-            colormap = self.seq_colormap
-        elif cmap_style == "diverging":
-            colormap = self.div_colormap
+        if cmap_style == "diagnostic":
+            colormap = ColorMap(
+                pos=np.linspace(
+                    -1, 1, len(SANITY_PLOT_COLORS[cmap_style])
+                ),
+                color=np.array(SANITY_PLOT_COLORS[cmap_style])
+            )
+
+            lut = colormap.getLookupTable(
+                start=-1, stop=1, nPts=1024,
+            )
+
+        elif cmap_style == "dissimilarity":
+            colormap = ColorMap(
+                pos=np.linspace(
+                    0, 1, len(SANITY_PLOT_COLORS[cmap_style])
+                ),
+                color=np.array(SANITY_PLOT_COLORS[cmap_style])
+            )
+
+            lut = colormap.getLookupTable(
+                start=1, stop=0, nPts=1024,
+            )
         else:
             raise ValueError("Invalid colormap style requested.")
-
-        lut = colormap.getLookupTable(
-            start=limits[0],
-            stop=limits[1],
-            nPts=1024,
-        )
 
         if auto_levels:
             image_item = remote_plot.pg.ImageItem(image=array,

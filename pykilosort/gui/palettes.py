@@ -144,7 +144,7 @@ COLORMAP_COLORS = np.array(
 )
 
 SANITY_PLOT_COLORS = {
-    "sequential":
+    "diagnostic":
         [
             [23, 41, 114],
             [24, 42, 117],
@@ -403,7 +403,7 @@ SANITY_PLOT_COLORS = {
             [105, 7, 3],
             [102, 7, 2]
         ],
-    "diverging":
+    "dissimilarity":
         [
             [8, 92, 248],
             [15, 95, 244],

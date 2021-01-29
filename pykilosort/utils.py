@@ -455,9 +455,8 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
                 "bottom": "batches",
                 "title": "batch to batch distance"
                 },
-        cmap_style="diverging",
-        levels=(0.55, 1.3),
-        limits=(1, -1),
+        cmap_style="dissimilarity",
+        levels=(0.5, 0.9),
     )
 
     plot_widget.add_image(
@@ -467,9 +466,8 @@ def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
                 "bottom": "sorted batches",
                 "title": "AFTER sorting"
                 },
-        cmap_style="diverging",
-        levels=(0.55, 1.3),
-        limits=(1, -1),
+        cmap_style="dissimilarity",
+        levels=(0.5, 0.9),
     )
     plot_widget.show()
 
@@ -486,8 +484,9 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
         labels={"left": "Time (samples)",
                 "bottom": "Unit Number",
                 "title": "Temporal Components"},
-        cmap_style="sequential",
-        limits=(-0.25, 1.0),
+        cmap_style="diagnostic",
+        levels=(-0.4, 0.4),
+        normalize=False,
     )
 
     plot_widget.add_image(
@@ -496,9 +495,9 @@ def plot_diagnostics(temporal_comp, spatial_comp, mu, nsp, plot_widget):
         labels={"left": "Channel Number",
                 "bottom": "Unit Number",
                 "title": "Spatial Components"},
-        cmap_style="sequential",
-        limits=(-1.0, 1.0),
-        levels=(-0.275, 0.1),
+        cmap_style="diagnostic",
+        levels=(-0.2, 0.2),
+        normalize=False,
     )
 
     plot_widget.add_curve(
