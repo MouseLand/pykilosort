@@ -369,20 +369,46 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.update_plot()
 
     def shift_current_time(self, direction):
-        time_shift = direction * self.plot_range / 2  # seconds
+        time_shift = direction * self.plot_range / 4  # seconds
         current_time = self.current_time
         new_time = current_time + time_shift
         seek_range_min = self.seek_range[0]
-        seek_range_max = self.seek_range[1]
+        seek_range_max = self.seek_range[1] - self.plot_range
         if seek_range_min <= new_time <= seek_range_max:
+            # if new time is in acceptable limits
             self.time_seek.setPos(new_time)
+        elif new_time <= seek_range_min:
+            # if new time exceeds lower bound of data
+            self.time_seek.setPos(seek_range_min)
+        elif new_time >= seek_range_max:
+            # if new time exceeds upper bound of data
+            self.time_seek.setPos(seek_range_max)
 
     def change_plot_range(self, direction):
-        plot_range = self.plot_range * (1.2 ** direction)
-        if 0.005 < plot_range < 1.0:
-            self.plot_range = plot_range
-            self.clear_cached_traces()
-            self.update_plot()
+        current_range = self.plot_range
+        # neg sign to reverse scrolling behaviour
+        new_range = current_range * (1.2 ** -direction)
+        if 0.005 < new_range < 1.0:
+            diff_range = new_range - current_range
+            current_time = self.current_time
+            new_time = current_time - diff_range/2.
+            seek_range_min = self.seek_range[0]
+            seek_range_max = self.seek_range[1]
+            if new_time < seek_range_min:
+                # if range exceeds lower limit on zooming
+                # set lower limit as current time
+                self.plot_range = new_range
+                self.time_seek.setPos(seek_range_min)
+            elif new_time + new_range > seek_range_max:
+                # if range exceeds upper limit on zooming
+                # set (upper limit - new time) as current range
+                alt_range = seek_range_max - new_time
+                self.plot_range = alt_range
+                self.time_seek.setPos(new_time)
+            else:
+                # if range is acceptable
+                self.plot_range = new_range
+                self.time_seek.setPos(new_time)
 
     def change_plot_scaling(self, direction):
         if self.traces_mode_active():
@@ -423,8 +449,11 @@ class DataViewBox(QtWidgets.QGroupBox):
             new_time = self.seek_view_box.mapSceneToView(ev.pos()).x()
             seek_range_min = self.seek_range[0]
             seek_range_max = self.seek_range[1]
-            if seek_range_min <= new_time <= seek_range_max:
+            if seek_range_min <= new_time < seek_range_max - self.plot_range:
                 self.time_seek.setPos(new_time)
+            elif seek_range_max - self.plot_range <= new_time < seek_range_max:
+                # make sure the plotted data is always as wide as the plot range
+                self.time_seek.setPos(seek_range_max - self.plot_range)
 
     def setup_seek(self, context):
         raw_data = context.raw_data
@@ -446,7 +475,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         position = seek.pos()[0]
         self.current_time = position
         self.clear_cached_traces()
-        self.update_plot()
+        try:
+            self.update_plot()
+        except ValueError:
+            self.time_seek.setPos(self.seek_range[1] - self.plot_range)
 
     def change_sorting_status(self, status_dict):
         self.sorting_status = status_dict
