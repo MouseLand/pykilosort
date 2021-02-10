@@ -81,6 +81,29 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.lambda_value = None
         self.auc_splits = None
 
+        self.input_fields = [
+            self.data_file_path_input,
+            self.results_directory_input,
+            self.working_directory_input,
+            self.probe_layout_selector,
+            self.num_channels_input,
+            self.time_range_min_input,
+            self.time_range_max_input,
+            self.min_firing_rate_input,
+            self.threshold_lower_input,
+            self.threshold_upper_input,
+            self.auc_splits_input,
+        ]
+
+        self.buttons = [
+            self.load_settings_button,
+            self.probe_preview_button,
+            self.select_data_file,
+            self.select_working_directory,
+            self.select_results_directory,
+            self.advanced_options_button,
+        ]
+
         default_params = KilosortParams()
         self.settings = {}
         self.advanced_options = default_params.parse_obj(
@@ -323,15 +346,11 @@ class SettingsBox(QtWidgets.QGroupBox):
             logger.exception("Please select a valid file path!")
             self.disable_load()
 
-    def disable_all_buttons(self):
-        self.load_settings_button.setDisabled(True)
-        self.probe_preview_button.setDisabled(True)
-        self.advanced_options_button.setDisabled(True)
-
-    def reenable_all_buttons(self):
-        self.load_settings_button.setDisabled(False)
-        self.probe_preview_button.setDisabled(False)
-        self.advanced_options_button.setDisabled(False)
+    def disable_all_input(self, value):
+        for button in self.buttons:
+            button.setDisabled(value)
+        for field in self.input_fields:
+            field.setDisabled(value)
 
     def enable_load(self):
         self.load_settings_button.setEnabled(True)

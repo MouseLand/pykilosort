@@ -161,6 +161,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         )
 
         self.run_box.updateContext.connect(self.update_context)
+        self.run_box.disableInput.connect(self.disable_all_input)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
 
     def change_channel_display(self, direction):
@@ -198,6 +199,11 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         else:
             raise ValueError("Invalid mode requested!")
 
+    @QtCore.pyqtSlot(bool)
+    def disable_all_input(self, value):
+        self.settings_box.disable_all_input(value)
+        self.run_box.disable_all_input(value)
+
     def set_parameters(self):
         settings = self.settings_box.settings
         advanced_options = self.settings_box.advanced_options
@@ -217,7 +223,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.params = params
 
-        self.settings_box.disable_all_buttons()
+        self.disable_all_input(True)
         QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
 
         self.prepare_for_new_context()
@@ -227,7 +233,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.setup_data_view()
         self.update_run_box()
 
-        self.settings_box.reenable_all_buttons()
+        self.disable_all_input(False)
         QtWidgets.QApplication.restoreOverrideCursor()
 
     def load_raw_data(self):
