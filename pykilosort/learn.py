@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from pykilosort.cptools import svdecon, svdecon_cpu, median, free_gpu_memory, ones
 from pykilosort.cluster import isolated_peaks_new, get_SpikeSample, getClosestChannels
-from pykilosort.utils import Bunch, get_cuda, _extend, LargeArrayWriter
+from pykilosort.utils import Bunch, get_cuda, _extend, LargeArrayWriter, plot_diagnostics
 
 logger = logging.getLogger(__name__)
 
@@ -785,7 +785,7 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     return W, U, dWU, mu, nsp, ndrop
 
 
-def learnAndSolve8b(ctx):
+def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     """This is the main optimization. Takes the longest time and uses the GPU heavily."""
 
     Nbatch = ctx.intermediate.Nbatch
@@ -1197,6 +1197,10 @@ def learnAndSolve8b(ctx):
                 st0.size,
                 *ndrop
             )
+
+            if sanity_plots:
+                assert plot_widgets is not None, "if sanity_plots is set, then plot_widgets cannot be None"
+                plot_diagnostics(W, U, mu, nsp, plot_widgets[plot_pos])
 
         free_gpu_memory()
 

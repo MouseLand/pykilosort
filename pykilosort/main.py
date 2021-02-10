@@ -341,7 +341,7 @@ def run_preprocess(ctx):
     return ctx
 
 
-def run_spikesort(ctx):
+def run_spikesort(ctx, sanity_plots=True, plot_widgets=None):
     raw_data = ctx.raw_data
     ir = ctx.intermediate
 
@@ -357,7 +357,7 @@ def run_spikesort(ctx):
     #
     if "iorig" not in ir:
         with ctx.time("reorder"):
-            out = clusterSingleBatches(ctx)
+            out = clusterSingleBatches(ctx, sanity_plots=sanity_plots, plot_widgets=plot_widgets, plot_pos=0)
         ctx.save(**out)
 
     # -------------------------------------------------------------------------
@@ -379,7 +379,7 @@ def run_spikesort(ctx):
     #
     if "st3" not in ir:
         with ctx.time("learn"):
-            out = learnAndSolve8b(ctx)
+            out = learnAndSolve8b(ctx, sanity_plots=sanity_plots, plot_widgets=plot_widgets, plot_pos=1)
         logger.info("%d spikes.", ir.st3.shape[0])
         ctx.save(**out)
     # Special care for cProj and cProjPC which are memmapped .dat files.

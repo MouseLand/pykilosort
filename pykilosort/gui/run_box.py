@@ -1,11 +1,13 @@
-from pykilosort.gui.sorter import KiloSortWorker
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+from pykilosort.gui.sanity_plots import SanityPlotWidget
+from pykilosort.gui.sorter import KiloSortWorker
 
 
 class RunBox(QtWidgets.QGroupBox):
-
     updateContext = QtCore.pyqtSignal(object)
     sortingStepStatusUpdate = QtCore.pyqtSignal(dict)
+    disableInput = QtCore.pyqtSignal(bool)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -19,12 +21,14 @@ class RunBox(QtWidgets.QGroupBox):
         self.preprocess_button = QtWidgets.QPushButton("Preprocess")
         self.spike_sort_button = QtWidgets.QPushButton("Spikesort")
         self.export_button = QtWidgets.QPushButton("Export for Phy")
+        self.sanity_plot_option = QtWidgets.QCheckBox("Show Sanity Plots")
 
         self.buttons = [
             self.run_all_button,
             self.preprocess_button,
             self.spike_sort_button,
             self.export_button,
+            self.sanity_plot_option,
         ]
 
         self.data_path = None
@@ -40,6 +44,8 @@ class RunBox(QtWidgets.QGroupBox):
         self.preprocess_done = False
         self.spikesort_done = False
 
+        self.remote_widgets = None
+
         self.setup()
 
     def setup(self):
@@ -51,14 +57,17 @@ class RunBox(QtWidgets.QGroupBox):
         self.spike_sort_button.setEnabled(False)
         self.export_button.setEnabled(False)
 
+        self.sanity_plot_option.setChecked(True)
+
         self.run_all_button.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
 
-        self.layout.addWidget(self.run_all_button, 0, 0, 3, 2)
+        self.layout.addWidget(self.run_all_button, 0, 0, 2, 2)
         self.layout.addWidget(self.preprocess_button, 0, 2, 1, 2)
         self.layout.addWidget(self.spike_sort_button, 1, 2, 1, 2)
         self.layout.addWidget(self.export_button, 2, 2, 1, 2)
+        self.layout.addWidget(self.sanity_plot_option, 2, 1, 1, 1)
 
         self.setLayout(self.layout)
 
@@ -80,6 +89,14 @@ class RunBox(QtWidgets.QGroupBox):
             self.export_button.setEnabled(True)
         else:
             self.export_button.setEnabled(False)
+        self.sanity_plot_option.setEnabled(True)
+
+    @QtCore.pyqtSlot(bool)
+    def disable_all_input(self, value):
+        if value:
+            self.disable_all_buttons()
+        else:
+            self.reenable_buttons()
 
     def set_data_path(self, data_path):
         self.data_path = data_path
@@ -140,21 +157,47 @@ class RunBox(QtWidgets.QGroupBox):
         self.reenable_buttons()
 
     def run_steps(self, steps):
+        self.disableInput.emit(True)
+        QtWidgets.QApplication.processEvents()
+        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
+
+        if self.sanity_plot_option.isChecked() and "spikesort" in steps:
+            dissimilarity_plot = SanityPlotWidget(parent=None,
+                                                  num_remote_plots=2,
+                                                  title="Dissimilarity Matrices")
+            dissimilarity_plot.resize(600, 400)
+
+            diagnostic_plot = SanityPlotWidget(parent=None,
+                                               num_remote_plots=4,
+                                               title="Diagnostic Plots")
+            diagnostic_plot.resize(750, 600)
+            sanity_plots = True
+            self.remote_widgets = [dissimilarity_plot, diagnostic_plot]
+
+        else:
+            sanity_plots = False
+            self.remote_widgets = None
+
         worker = KiloSortWorker(
-            self.get_current_context(), self.data_path, self.results_directory, steps
+            context=self.get_current_context(),
+            data_path=self.data_path,
+            output_directory=self.results_directory,
+            steps=steps,
+            sanity_plots=sanity_plots,
+            plot_widgets=self.remote_widgets,
         )
 
         worker.finishedPreprocess.connect(self.finished_preprocess)
         worker.finishedSpikesort.connect(self.finished_spikesort)
         worker.finishedAll.connect(self.finished_export)
 
-        self.disable_all_buttons()
-        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
+        QtWidgets.QApplication.restoreOverrideCursor()
+
         worker.start()
         while worker.isRunning():
             QtWidgets.QApplication.processEvents()
-        QtWidgets.QApplication.restoreOverrideCursor()
-        self.reenable_buttons()
+        else:
+            self.disableInput.emit(False)
 
     def prepare_for_new_context(self):
         self.set_sorting_step_status("preprocess", False)
