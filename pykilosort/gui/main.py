@@ -249,6 +249,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def setup_data_view(self):
         self.data_view_box.setup_seek(self.context)
+        self.data_view_box.create_plot_items()
         self.data_view_box.update_plot(self.context)
 
     def update_context_with_good_channels(self):
