@@ -1184,19 +1184,19 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
         if ibatch % 100 == 0:
             # this is some of the relevant diagnostic information to be printed during training
-            logger.info(
-                (
-                    "%d / %d batches, %d units, nspks: %2.4f, mu: %2.4f, "
-                    "nst0: %d, merges: %2.4f, %2.4f"
-                ),
-                ibatch,
-                niter,
-                Nfilt,
-                nsp.sum(),
-                median(mu),
-                st0.size,
-                *ndrop
-            )
+            # logger.info(
+            #     (
+            #         "%d / %d batches, %d units, nspks: %2.4f, mu: %2.4f, "
+            #         "nst0: %d, merges: %2.4f, %2.4f"
+            #     ),
+            #     ibatch,
+            #     niter,
+            #     Nfilt,
+            #     nsp.sum(),
+            #     median(mu),
+            #     st0.size,
+            #     *ndrop
+            # )
 
             if sanity_plots:
                 assert plot_widgets is not None, "if sanity_plots is set, then plot_widgets cannot be None"
