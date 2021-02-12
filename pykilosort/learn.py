@@ -1235,34 +1235,34 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # Number of spikes.
     assert ir.st3.shape[0] == fW.shape[-1] == fWpc.shape[-1]
 
-    # this whole next block is just done to compress the compressed templates
-    # we separately svd the time components of each template, and the spatial components
-    # this also requires a careful decompression function, available somewhere in the GUI code
-    nKeep = min(Nchan * 3, 20)  # how many PCs to keep
-    W_a = np.zeros((nt0 * Nrank, nKeep, Nfilt), dtype=np.float32)
-    W_b = np.zeros((nBatches, nKeep, Nfilt), dtype=np.float32)
-    U_a = np.zeros((Nchan * Nrank, nKeep, Nfilt), dtype=np.float32)
-    U_b = np.zeros((nBatches, nKeep, Nfilt), dtype=np.float32)
-
-    for j in tqdm(range(Nfilt), desc="Compressing templates"):
-        # do this for every template separately
-        WA = np.reshape(ir.WA[:, j, ...], (-1, nBatches), order="F")
-        # svd on the GPU was faster for this, but the Python randomized CPU version
-        # might be faster still
-        # WA = gpuArray(WA)
-        A, B, C = svdecon_cpu(WA)
-        # W_a times W_b results in a reconstruction of the time components
-        W_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
-        W_b[:, :, j] = C[:, :nKeep]
-
-        UA = np.reshape(ir.UA[:, j, ...], (-1, nBatches), order="F")
-        # UA = gpuArray(UA)
-        A, B, C = svdecon_cpu(UA)
-        # U_a times U_b results in a reconstruction of the time components
-        U_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
-        U_b[:, :, j] = C[:, :nKeep]
-
-    logger.info("Finished compressing time-varying templates.")
+    # # this whole next block is just done to compress the compressed templates
+    # # we separately svd the time components of each template, and the spatial components
+    # # this also requires a careful decompression function, available somewhere in the GUI code
+    # nKeep = min(Nchan * 3, 20)  # how many PCs to keep
+    # W_a = np.zeros((nt0 * Nrank, nKeep, Nfilt), dtype=np.float32)
+    # W_b = np.zeros((nBatches, nKeep, Nfilt), dtype=np.float32)
+    # U_a = np.zeros((Nchan * Nrank, nKeep, Nfilt), dtype=np.float32)
+    # U_b = np.zeros((nBatches, nKeep, Nfilt), dtype=np.float32)
+    #
+    # for j in tqdm(range(Nfilt), desc="Compressing templates"):
+    #     # do this for every template separately
+    #     WA = np.reshape(ir.WA[:, j, ...], (-1, nBatches), order="F")
+    #     # svd on the GPU was faster for this, but the Python randomized CPU version
+    #     # might be faster still
+    #     # WA = gpuArray(WA)
+    #     A, B, C = svdecon_cpu(WA)
+    #     # W_a times W_b results in a reconstruction of the time components
+    #     W_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
+    #     W_b[:, :, j] = C[:, :nKeep]
+    #
+    #     UA = np.reshape(ir.UA[:, j, ...], (-1, nBatches), order="F")
+    #     # UA = gpuArray(UA)
+    #     A, B, C = svdecon_cpu(UA)
+    #     # U_a times U_b results in a reconstruction of the time components
+    #     U_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
+    #     U_b[:, :, j] = C[:, :nKeep]
+    #
+    # logger.info("Finished compressing time-varying templates.")
 
     return Bunch(
         wPCA=wPCA[:, :Nrank],
@@ -1279,6 +1279,55 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         U=ir.U,
         dWU=ir.dWU,
         mu=ir.mu,
+        # W_a=W_a,
+        # W_b=W_b,
+        # U_a=U_a,
+        # U_b=U_b,
+    )
+
+def compress_templates(ctx):
+    """
+    Individually compress the temporal and spatial components of the spike templates
+    """
+    Nbatch = ctx.intermediate.Nbatch
+    params = ctx.params
+    probe = ctx.probe
+    ir = ctx.intermediate
+
+    Nchan = probe.Nchan
+    nt0 = params.nt0
+    Nfilt = ir.UA.shape[1]
+    Nbatch = ir.Nbatch
+
+    Nrank = 3
+
+    nKeep = min(Nchan * 3, 20)  # how many PCs to keep
+    W_a = np.zeros((nt0 * Nrank, nKeep, Nfilt), dtype=np.float32)
+    W_b = np.zeros((Nbatch, nKeep, Nfilt), dtype=np.float32)
+    U_a = np.zeros((Nchan * Nrank, nKeep, Nfilt), dtype=np.float32)
+    U_b = np.zeros((Nbatch, nKeep, Nfilt), dtype=np.float32)
+
+    for j in tqdm(range(Nfilt), desc="Compressing templates"):
+        # do this for every template separately
+        WA = np.reshape(ir.WA[:, j, ...], (-1, Nbatch), order="F")
+        # svd on the GPU was faster for this, but the Python randomized CPU version
+        # might be faster still
+        # WA = gpuArray(WA)
+        A, B, C = svdecon_cpu(WA)
+        # W_a times W_b results in a reconstruction of the time components
+        W_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
+        W_b[:, :, j] = C[:, :nKeep]
+
+        UA = np.reshape(ir.UA[:, j, ...], (-1, Nbatch), order="F")
+        # UA = gpuArray(UA)
+        A, B, C = svdecon_cpu(UA)
+        # U_a times U_b results in a reconstruction of the time components
+        U_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
+        U_b[:, :, j] = C[:, :nKeep]
+
+    logger.info("Finished compressing time-varying templates.")
+
+    return Bunch(
         W_a=W_a,
         W_b=W_b,
         U_a=U_a,

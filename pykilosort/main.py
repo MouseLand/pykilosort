@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch
 from .cluster import clusterSingleBatches
 from .datashift2 import datashift2
-from .learn import learnAndSolve8b
+from .learn import learnAndSolve8b, compress_templates
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
 from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch
 from .params import KilosortParams
@@ -200,6 +200,14 @@ def run(
         ctx.save(**out)
     if stop_after == "learn":
         return ctx
+
+    if "U_a" not in ir:
+        with ctx.time("compress"):
+            out = compress_templates(ctx)
+        ctx.save(**out)
+    if stop_after == "compress":
+        return ctx
+
     # Special care for cProj and cProjPC which are memmapped .dat files.
     ir.cProj = memmap_large_array(ctx.path("fW", ext=".dat")).T
     ir.cProjPC = memmap_large_array(ctx.path("fWpc", ext=".dat")).T  # transpose
