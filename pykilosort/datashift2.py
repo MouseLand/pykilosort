@@ -568,7 +568,7 @@ def datashift2(ctx):
     # Determine the average vertical spacing between channels.
     # Usually all the vertical spacings are the same, i.e. on Neuropixels probes.
     dmin = np.median(np.diff(np.unique(ir.yc)))
-    logger.info(f"pitch is {dmin} um\n")
+    logger.info(f"pitch is {dmin} um")
     yup = np.arange(
         start=ymin, step=dmin / 2, stop=ymax + (dmin / 2)
     )  # centers of the upsampled y positions
