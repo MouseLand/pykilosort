@@ -74,7 +74,7 @@ def run(
     assert dir_path.exists()
 
     # Create the context.
-    ctx_path = dir_path / ".kilosort" / raw_data.name
+    ctx_path = dir_path / ".kilosort" / Path(raw_data.name).name
     if clear_context:
         logger.info(f"Clearing context at {ctx_path} ...")
         shutil.rmtree(ctx_path, ignore_errors=True)
