@@ -253,7 +253,7 @@ def run(
         with ctx.time("split_1"):
             out = splitAllClusters(ctx, True)
         # Use a different name for both splitting steps.
-        out["st3_s0"] = out.pop("st3_s")
+        out["st3_s1"] = out.pop("st3_s")
         ctx.save(**out)
     if stop_after == "split_1":
         return ctx
