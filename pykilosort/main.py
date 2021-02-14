@@ -253,19 +253,19 @@ def run(
         with ctx.time("split_1"):
             out = splitAllClusters(ctx, True)
         # Use a different name for both splitting steps.
-        out["st3_s1"] = out.pop("st3_s")
+        out["st3_s0"] = out.pop("st3_s")
         ctx.save(**out)
     if stop_after == "split_1":
         return ctx
 
-    if "st3_s0" not in ir:
-        # final splits by amplitudes
-        with ctx.time("split_2"):
-            out = splitAllClusters(ctx, False)
-        out["st3_s0"] = out.pop("st3_s")
-        ctx.save(**out)
-    if stop_after == "split_2":
-        return ctx
+    #if "st3_s0" not in ir:
+    #    # final splits by amplitudes
+    #    with ctx.time("split_2"):
+    #        out = splitAllClusters(ctx, False)
+    #    out["st3_s0"] = out.pop("st3_s")
+    #    ctx.save(**out)
+    #if stop_after == "split_2":
+    #    return ctx
 
     # -------------------------------------------------------------------------
     # Decide on cutoff.
