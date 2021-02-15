@@ -384,6 +384,8 @@ def preprocess(ctx):
             #               - we should definitely scale as we could be hit badly by precision here.  
             datr = cp.dot(datr, Wrot)  # whiten the data and scale by 200 for int16 range
             assert datr.flags.c_contiguous
+            if datr.shape[0] != NT:
+                raise ValueError(f'Batch {ibatch} processed incorrectly')
 
             # convert to int16, and gather on the CPU side
             # WARNING: transpose because "tofile" always writes in C order, whereas we want
