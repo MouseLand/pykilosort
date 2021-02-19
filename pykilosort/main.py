@@ -153,7 +153,7 @@ def run(
     # Open the proc file.
     # NOTE: now we are always in Fortran order.
     assert ir.proc_path.exists()
-    ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r", order="F")
+    ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r+", order="F")
 
     # -------------------------------------------------------------------------
     # # Time-reordering as a function of drift.
@@ -258,6 +258,8 @@ def run(
     if stop_after == "split_1":
         return ctx
 
+    #TODO: memmap/save large arrays between stages
+
     #if "st3_s0" not in ir:
     #    # final splits by amplitudes
     #    with ctx.time("split_2"):
@@ -300,6 +302,9 @@ def run(
     # Show timing information.
     ctx.show_timer()
     ctx.write(timer=ctx.timer)
+
+    #TODO:
+    # Add optional deletion of temp files
 
     return ctx
 

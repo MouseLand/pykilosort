@@ -227,7 +227,7 @@ def align_block2(F, ysamp, nblocks):
     ##
 
     nblocks = len(ifirst)
-    yblk = np.zeros((len(ifirst), 1))
+    yblk = np.zeros(len(ifirst))
 
     # for each small block, we only look up and down this many samples to find
     # nonrigid shift
@@ -339,9 +339,10 @@ def shift_batch_on_disk2(
     if len(ysamp) > 1:
         # zero pad input so "extrapolation" tends to zero
         # MATLAB uses a "modified Akima" which is proprietry :(
-        _ysamp = extended(ysamp, 2, 10000)
-        _shifts_in = zero_pad(shifts_in, 2)
-        interpolation_function = Akima1DInterpolator(_ysamp, _shifts_in)
+        # _ysamp = extended(ysamp, 2, 10000)
+        # _shifts_in = zero_pad(shifts_in, 2)
+        # interpolation_function = Akima1DInterpolator(_ysamp, _shifts_in)
+        interpolation_function = Akima1DInterpolator(ysamp, shifts_in)
 
         # interpolation_function = interp1d(ysamp, shifts_in, kind='cubic', fill_value=([0],[0])) #'extrapolate')
         shifts = interpolation_function(probe.yc, nu=0, extrapolate="True")
@@ -384,13 +385,11 @@ def shift_batch_on_disk2(
                 ilast = params.NT - params.ntbuff + 1
             dat_cpu[ifirst:ilast, :].tofile(fid2)
 
-    # if overwrite:
-    #     with open(ops.fproc, "wb") as fid:
-    #         fid.seek(offset_bytes)
-    #         # normally we want to write the aligned data back to the same file
-    #         dat_cpu.tofile(fid)  # write this batch to binary file
+    if overwrite:
+        # normally we want to write the aligned data back to the same file
+        proc.flat[offset: offset + params.NT * probe.Nchan] = dat_cpu.flatten(order='F')
 
-    return dat_cpu, dat, shifts
+    # return dat_cpu, dat, shifts
 
 
 def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, params):
@@ -644,30 +643,22 @@ def datashift2(ctx):
     dshift = imin * dd
 
     # sort in case we still want to do "tracking"
-    ir.iorig = np.argsort(np.mean(dshift, axis=1))
+    iorig = np.argsort(np.mean(dshift, axis=1))
 
-    # for ibatch in range(Nbatches):
-    #     # register the data batch by batch
-    #     shift_batch_on_disk2(
-    #         ibatch,
-    #         dshift[ibatch, :],
-    #         yblk,
-    #         params.sig,
-    #         Nbatches,
-    #         params,
-    #         probe,
-    #         ir.proc,
-    #         shifted_fname=params.output_filename,
-    #         overwrite=params.overwrite,
-    #     )
-    # logger.info(f"Shifted up/down {Nbatches} batches")
+    for ibatch in tqdm(range(Nbatches), desc='Shifting Data'):
+        # register the data batch by batch
+        shift_batch_on_disk2(
+            ibatch,
+            dshift[ibatch, :],
+            yblk,
+            params.sig,
+            Nbatches,
+            params,
+            probe,
+            ir.proc,
+            shifted_fname=params.output_filename,
+            overwrite=params.overwrite,
+        )
+    logger.info(f"Shifted up/down {Nbatches} batches")
 
-    # keep track of dshift
-    ir.dshift = dshift
-    # keep track of original spikes
-    ir.st0 = st3
-
-    ir.F = F
-    ir.F0 = F0
-
-    return Bunch(iorig=ir.iorig, dshift=dshift, st0=st3, F=F, F0=F0)
+    return Bunch(iorig=iorig, dshift=dshift, st0=st3, F=F, F0=F0, yblk=yblk, ysamp=ysamp)

@@ -458,6 +458,10 @@ def find_merges(ctx, flag):
         R_CCG = cp.minimum(R_CCG, R_CCG.T)  # symmetrize the scores
         Q_CCG = cp.minimum(Q_CCG, Q_CCG.T)
 
+    #TODO
+    # Overwrite st3 and save
+    # Modify code so other three variables aren't even generated
+
     return Bunch(
         st3_m=st3,
         K_CCG=K_CCG,
@@ -767,6 +771,12 @@ def splitAllClusters(ctx, flag):
 
     # ir.isplit = isplit  # keep track of origins for each cluster
 
+    #TODO:
+    # st3, W, U, mu, simScore, iNeigh, iNeighPC overwrites
+    # isplit overwrites or saves
+    # Wphy saves
+    # iList is repeated and should be deleted (need to check this)
+
     return Bunch(
         st3_s=st3,
 
@@ -900,6 +910,9 @@ def set_cutoff(ctx):
     #     cProj = cProj[~ix, :]  # remove their template projections too
     #     cProjPC = cProjPC[~ix, :, :]  # and their PC projections
     #     assert st3.shape[0] == cProj.shape[0] == cProjPC.shape[0]
+
+    #TODO
+    # Ovewrite st3
 
     return Bunch(
         st3_c=st3,  # the spikes assigned to -1 have been removed here
@@ -1083,6 +1096,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     cProjPC_shape = ir.cProjPC.shape
     cProjPC_shape = (st3.shape[0],) + cProjPC_shape[1:]
 
+    #TODO:
     tfw = NpyWriter(join(savePath, 'template_features.npy'), cProj_shape, np.float32)
     pcw = NpyWriter(join(savePath, 'pc_features.npy'), cProjPC_shape, np.float32)
 
@@ -1122,7 +1136,11 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     def _save(name, arr, dtype=None):
         cp.save(join(savePath, name + '.npy'), arr.astype(dtype or arr.dtype))
 
+    #TODO: save drift output and times (check units), depths of drifts
+
     if savePath is not None:
+        _save('drift', ir.dshift)
+        _save('drift_y_coords', ir.yblk)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, cp.uint32)
         if st3.shape[1] > 4:

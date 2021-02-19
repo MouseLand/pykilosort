@@ -4,7 +4,7 @@ from pykilosort import Bunch, run
 import numpy as np
 
 
-def run_kilosort(dat_path, delete=True):
+def run_kilosort(dat_path, delete=False):
     dat_path = Path(dat_path)
     probe = Bunch()
     probe.NchanTOT = 385

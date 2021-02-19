@@ -1264,6 +1264,10 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     #
     # logger.info("Finished compressing time-varying templates.")
 
+    #TODO
+    # Keep st3, wPCA, wTEMP, simScore, iNeigh, iNeighPC, W, U, dWU
+    #
+
     return Bunch(
         wPCA=wPCA[:, :Nrank],
         wTEMP=wTEMP,
@@ -1326,6 +1330,9 @@ def compress_templates(ctx):
         U_b[:, :, j] = C[:, :nKeep]
 
     logger.info("Finished compressing time-varying templates.")
+
+    #TODO
+    # Write these to the disk
 
     return Bunch(
         W_a=W_a,

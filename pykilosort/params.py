@@ -73,9 +73,13 @@ class KilosortParams(BaseModel):
         10.0, description="threshold for crossings with generic templates"
     )
     nblocks: int = Field(
-        1,
+        5,
         description="number of blocks used to segment the probe when tracking drift, 0 == don't track, 1 == rigid, > 1 == non-rigid",
     )
+    output_filename: t.Optional[str] = Field(
+        None, description="optionally save registered data to a new binary file"
+    )
+    overwrite: bool = Field(True, description="overwrite proc file with shifted data")
 
     stablemode_enabled: bool = Field(False, description="make output more stable")
     deterministicmode_enabled: bool = Field(False, description="make output deterministic by sorting spikes before applying kernels")
