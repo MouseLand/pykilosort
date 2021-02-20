@@ -81,6 +81,8 @@ class KilosortParams(BaseModel):
     )
     overwrite: bool = Field(True, description="overwrite proc file with shifted data")
 
+    sig_datashift: float = Field(20.0, description="sigma for the Gaussian process smoothing")
+
     stablemode_enabled: bool = Field(False, description="make output more stable")
     deterministicmode_enabled: bool = Field(False, description="make output deterministic by sorting spikes before applying kernels")
 

@@ -651,7 +651,7 @@ def datashift2(ctx):
             ibatch,
             dshift[ibatch, :],
             yblk,
-            params.sig,
+            params.sig_datashift,
             Nbatches,
             params,
             probe,
