@@ -311,6 +311,22 @@ def kernel2D(xp, yp, sig):
     return K
 
 
+def shift_data(data, shift_matrix):
+    """
+    Applies the shift transformation to the data via matrix multiplication
+    :param data: Data matrix to be shifted, numpy memmap array, (n_time, n_channels)
+                dtype int16, f-contiguous
+    :param shift_matrix: Tranformation matrix, numpy array, (n_channels, n_channels)
+                dtype float64, c-contiguous
+    :return: Shifted data, numpy array, (n_time, n_channels)
+                dtype int16, f-contiguous
+    """
+
+    data_shifted = np.asfortranarray((data @ shift_matrix.T).astype("int16"))
+
+    return data_shifted
+
+
 def shift_batch_on_disk2(
     ibatch,
     shifts_in,
@@ -369,9 +385,8 @@ def shift_batch_on_disk2(
 
     # the multiplication has to be done on the GPU (but its not here)
     # dati = gpuArray(single(dat)) * gpuArray(M).T
-    dati = dat @ M.T
 
-    dat_cpu = np.asfortranarray(dati.astype("int16"))
+    data_shifted = shift_data(dat, M)
 
     if shifted_fname is not None:
         # if the user wants to have a registered version of the binary file
@@ -383,11 +398,11 @@ def shift_batch_on_disk2(
             if ibatch == 0:
                 ifirst = 0
                 ilast = params.NT - params.ntbuff + 1
-            dat_cpu[ifirst:ilast, :].tofile(fid2)
+            data_shifted[ifirst:ilast, :].tofile(fid2)
 
     if overwrite:
         # normally we want to write the aligned data back to the same file
-        proc.flat[offset: offset + params.NT * probe.Nchan] = dat_cpu.flatten(order='F')
+        proc.flat[offset: offset + params.NT * probe.Nchan] = data_shifted.flatten(order='F')
 
     # return dat_cpu, dat, shifts
 
