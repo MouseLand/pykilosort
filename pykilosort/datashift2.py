@@ -11,6 +11,7 @@ import numpy as np
 import cupy as cp
 import cupyx as cpx
 from scipy.interpolate import Akima1DInterpolator
+from scipy.sparse import coo_matrix
 
 from .postprocess import my_conv2_cpu
 from .cptools import ones, svdecon, var, mean, free_gpu_memory
@@ -179,7 +180,7 @@ def align_block2(F, ysamp, nblocks):
     # look up and down this many y bins to find best alignment
     n = 15
     dc = np.zeros((2 * n + 1, Nbatches))
-    dt = range(-n, n + 1)
+    dt = np.arange(-n, n + 1)
 
     # we do everything on the GPU for speed, but it's probably fast enough on
     # the CPU
@@ -189,26 +190,26 @@ def align_block2(F, ysamp, nblocks):
     Fg = Fg - np.mean(Fg, axis=0)
 
     # initialize the target "frame" for alignment with a single sample
-    F0 = Fg[:, :, min(300, np.floor(Fg.shape[2] / 2).astype("int")) - 1]
+    F0 = Fg[:, :, min(299, np.floor(Fg.shape[2] / 2).astype("int")) - 1]
     F0 = F0[:, :, np.newaxis]
 
     # first we do rigid registration by integer shifts
     # everything is iteratively aligned until most of the shifts become 0.
     niter = 10
     dall = np.zeros((niter, Nbatches))
-    for iter in range(niter):
+    for iteration in range(niter):
         for t in range(len(dt)):
             # for each NEW potential shift, estimate covariance
             Fs = np.roll(Fg, dt[t], axis=0)
-            dc[t, :] = np.mean(np.mean(Fs * F0, axis=0), axis=0)
-        if iter + 1 < niter:
+            dc[t, :] = np.mean(Fs * F0, axis=(0,1))
+        if iteration + 1 < niter:
             # up until the very last iteration, estimate the best shifts
             imax = np.argmax(dc, axis=0)
             # align the data by these integer shifts
             for t in range(len(dt)):
                 ib = imax == t
                 Fg[:, :, ib] = np.roll(Fg[:, :, ib], dt[t], axis=0)
-                dall[iter, ib] = dt[t]
+                dall[iteration, ib] = dt[t]
             # new target frame based on our current best alignment
             F0 = np.mean(Fg, axis=2)[:, :, np.newaxis]
 
@@ -238,12 +239,12 @@ def align_block2(F, ysamp, nblocks):
     # shifting anything
     dcs = np.zeros((2 * n + 1, Nbatches, nblocks))
     for j in range(nblocks):
-        isub = np.arange(ifirst[j], ilast[j])
+        isub = np.arange(ifirst[j], ilast[j]+1)
         yblk[j] = np.mean(ysamp[isub])
         Fsub = Fg[isub, :, :]
         for t in range(len(dt)):
             Fs = np.roll(Fsub, dt[t], axis=0)
-            dcs[t, :, j] = np.mean(np.mean(Fs * F0[isub, :, :], axis=0), axis=0)
+            dcs[t, :, j] = np.mean(Fs * F0[isub, :, :], axis=(0,1))
 
     # to find sub-integer shifts for each block ,
     # we now use upsampling, based on kriging interpolation
@@ -299,8 +300,8 @@ def zero_pad(shifts_in, n):
 
 
 def kernel2D(xp, yp, sig):
-    distx = np.abs(xp[:, 0] - yp[:, 0][np.newaxis, :].T)
-    disty = np.abs(xp[:, 1] - yp[:, 1][np.newaxis, :].T)
+    distx = np.abs(xp[:, 0] - yp[:, 0][np.newaxis, :].T).T
+    disty = np.abs(xp[:, 1] - yp[:, 1][np.newaxis, :].T).T
 
     sigx = sig
     sigy = 1.5 * sig
@@ -381,7 +382,7 @@ def shift_batch_on_disk2(
     Kyx = kernel2D(yp, xp, sig)
 
     # kernel prediction matrix
-    M = np.linalg.solve((Kxx + 0.01 * np.eye(Kxx.shape[0])), Kyx)
+    M = Kyx @ np.linalg.pinv(Kxx + 0.01 * np.eye(Kxx.shape[0]))
 
     # the multiplication has to be done on the GPU (but its not here)
     # dati = gpuArray(single(dat)) * gpuArray(M).T
@@ -430,7 +431,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, par
     iC, dist = getClosestChannels2(ycup, xcup, probe.yc, probe.xc, NchanNear)
 
     # Templates with centers that are far from an active site are discarded
-    dNearActiveSite = 30
+    dNearActiveSite = np.median(np.diff(np.unique(probe.yc)))
     igood = dist[0, :] < dNearActiveSite
     iC = iC[:, igood]
     dist = dist[:, igood]
@@ -612,7 +613,7 @@ def datashift2(ctx):
     dep = st3[:, 1]
 
     # min and max for the range of depths
-    dmin = ymin
+    dmin = ymin - 1
     dep = dep - dmin
 
     dmax = int(1 + np.ceil(max(dep) / dd))
@@ -640,18 +641,17 @@ def datashift2(ctx):
         i, j, v, m, n = (
             np.ceil(dep / dd).astype("int"),
             np.ceil(1e-5 + amp * 20).astype("int"),
-            np.ones((len(ix), 1)),
+            np.ones(len(ix)),
             dmax,
             20,
         )
-        M = np.zeros((m, n))
-        M[i - 1, j - 1] += 1
+        M = coo_matrix((v, (i-1, j-1)), shape=(m,n)).toarray()
 
         # the counts themselves are taken on a logarithmic scale (some neurons
         # fire too much!)
         F[:, :, t] = np.log2(1 + M)
 
-    ysamp = dmin + dd * np.arange(1, dmax) - dd / 2
+    ysamp = dmin + dd * np.arange(1, dmax+1) - dd / 2
     imin, yblk, F0 = align_block2(F, ysamp, params.nblocks)
 
     # convert to um
