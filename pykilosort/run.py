@@ -17,3 +17,5 @@ def run_kilosort(dat_path, delete=False):
 
     if delete:
         os.system(f'rm -rf {str(dat_path.parent / ".kilosort")}')
+        os.system(f'rm -rf {str(dat_path.parent / "output" / "pc_features.npy")}')
+        os.system(f'rm -rf {str(dat_path.parent / "output" / "template_features.npy")}')
