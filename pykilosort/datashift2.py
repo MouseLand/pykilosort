@@ -639,7 +639,7 @@ def datashift2(ctx):
         # multiply by 20 to distribute a [0,1] variable into 20 bins
         # sparse is very useful here to do this binning quickly
         i, j, v, m, n = (
-            np.ceil(dep / dd).astype("int"),
+            np.ceil(1e-5 + dep / dd).astype("int"),
             np.ceil(1e-5 + amp * 20).astype("int"),
             np.ones(len(ix)),
             dmax,
