@@ -63,6 +63,10 @@ class KilosortParams(BaseModel):
 
     probe: t.Optional[Probe] = Field(None, description="recording probe metadata")
 
+    save_temp_files: bool = Field(
+        True, description="keep temporary files created while running"
+    )
+
     fshigh: float = Field(150.0, description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
     minfr_goodchannels: float = Field(

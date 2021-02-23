@@ -352,7 +352,7 @@ def clusterAverage(clu, spikeQuantity):
     return clusterQuantity
 
 
-def find_merges(ctx, flag):
+def find_merges(ctx):
     # this function merges clusters based on template correlation
     # however, a merge is veto-ed if refractory period violations are introduced
 
@@ -381,17 +381,6 @@ def find_merges(ctx, flag):
     isort = cp.argsort(nspk)
 
     logger.debug('Initialized spike counts.')
-
-    if not flag:
-        # if the flag is off, then no merges are performed
-        # this function is then just used to compute cross- and auto- correlograms
-        R_CCG = cp.inf * ones(Nk, order='F')
-        Q_CCG = cp.inf * ones(Nk, order='F')
-        K_CCG = cp.zeros((*Xsim.shape, 2 * nbins + 1), order='F')
-    else:
-        K_CCG = None
-        R_CCG = None
-        Q_CCG = None
 
     for j in tqdm(range(Nk), desc='Finding merges'):
         # find all spikes from this cluster
@@ -432,42 +421,24 @@ def find_merges(ctx, flag):
             # and kicks in when there are very few spikes
             R = rir.min()
 
-            if flag:
-                # TODO: move_to_config
-                if (Q < 0.2) and (R < 0.05):  # if both refractory criteria are met
-                    i = ix[k]
-                    # now merge j into i and move on
-                    # simply overwrite all the spikes of neuron j with i (i>j by construction)
-                    st3[:, 1][st3[:, 1] == isort[j]] = i
-                    nspk[i] = nspk[i] + nspk[isort[j]]  # update number of spikes for cluster i
-                    logger.debug(f'Merged {isort[j]} into {i}')
-                    # TODO: unclear - the comment below looks important :)
-                    # YOU REALLY SHOULD MAKE SURE THE PC CHANNELS MATCH HERE
-                    # break % if a pair is found, we don't need to keep going
-                    # (we'll revisit this cluster when we get to the merged cluster)
-                    break
-            else:
-                # sometimes we just want to get the refractory scores and CCG
-                R_CCG[isort[j], ix[k]] = R
-                Q_CCG[isort[j], ix[k]] = Q
+            # TODO: move_to_config
+            if (Q < 0.2) and (R < 0.05):  # if both refractory criteria are met
+                i = ix[k]
+                # now merge j into i and move on
+                # simply overwrite all the spikes of neuron j with i (i>j by construction)
+                st3[:, 1][st3[:, 1] == isort[j]] = i
+                nspk[i] = nspk[i] + nspk[isort[j]]  # update number of spikes for cluster i
+                logger.debug(f'Merged {isort[j]} into {i}')
+                # TODO: unclear - the comment below looks important :)
+                # YOU REALLY SHOULD MAKE SURE THE PC CHANNELS MATCH HERE
+                # break % if a pair is found, we don't need to keep going
+                # (we'll revisit this cluster when we get to the merged cluster)
+                break
 
-                K_CCG[isort[j], ix[k]] = K
-                K_CCG[ix[k], isort[j]] = K[::-1]
+    ctx.save(st3=st3)
 
-    if not flag:
-        R_CCG = cp.minimum(R_CCG, R_CCG.T)  # symmetrize the scores
-        Q_CCG = cp.minimum(Q_CCG, Q_CCG.T)
-
-    #TODO
-    # Overwrite st3 and save
-    # Modify code so other three variables aren't even generated
-
-    return Bunch(
-        st3_m=st3,
-        K_CCG=K_CCG,
-        R_CCG=R_CCG,
-        Q_CCG=Q_CCG,
-    )
+    if params.save_temp_files:
+        ctx.write(st3_m=st3)
 
 
 def splitAllClusters(ctx, flag):
@@ -487,7 +458,7 @@ def splitAllClusters(ctx, flag):
     assert wPCA.shape[1] == 3
 
     # Take intermediate arrays from context.
-    st3 = cp.asnumpy(ir.st3_m)
+    st3 = cp.asnumpy(ir.st3)
     cProjPC = ir.cProjPC
     dWU = ir.dWU
 
@@ -777,8 +748,8 @@ def splitAllClusters(ctx, flag):
     # Wphy saves
     # iList is repeated and should be deleted (need to check this)
 
-    return Bunch(
-        st3_s=st3,
+    ctx.save(
+        st3=st3,
 
         W_s=W,
         U_s=U,
@@ -792,6 +763,9 @@ def splitAllClusters(ctx, flag):
         isplit=isplit,
     )
 
+    if params.save_temp_files:
+        ctx.write(st3_s=st3)
+
 
 def set_cutoff(ctx):
     # after everything else is done, this function takes spike trains and cuts off
@@ -803,7 +777,7 @@ def set_cutoff(ctx):
     ir = ctx.intermediate
     params = ctx.params
 
-    st3 = cp.asarray(ir.st3_s1)  # st3_s1 is saved by the first splitting step
+    st3 = cp.asarray(ir.st3)  # st3_s1 is saved by the first splitting step
     # cProj = ir.cProj
     # cProjPC = ir.cProjPC
 
@@ -911,11 +885,8 @@ def set_cutoff(ctx):
     #     cProjPC = cProjPC[~ix, :, :]  # and their PC projections
     #     assert st3.shape[0] == cProj.shape[0] == cProjPC.shape[0]
 
-    #TODO
-    # Ovewrite st3
-
-    return Bunch(
-        st3_c=st3,  # the spikes assigned to -1 have been removed here
+    ctx.save(
+        st3=st3,  # the spikes assigned to -1 have been removed here
         spikes_to_remove=cp.asnumpy(ix),
         # cProj_c=cProj,
         # cProjPC_c=cProjPC,
@@ -924,6 +895,9 @@ def set_cutoff(ctx):
         Ths=Ths,
         good=good,
     )
+
+    if params.save_temp_files:
+        ctx.write(st3_c=st3)
 
 
 def checkClusters(ctx):
@@ -934,8 +908,8 @@ def checkClusters(ctx):
     # 3) Remove these indices from every variable that has n_clusters
 
     ir = ctx.intermediate
-    max_id = int(np.max(ir.st3_c[:, 1])) + 1
-    ids = cp.asnumpy(np.unique(ir.st3_c[:, 1]).astype(np.int))
+    max_id = int(np.max(ir.st3[:, 1])) + 1
+    ids = cp.asnumpy(np.unique(ir.st3[:, 1]).astype(np.int))
     # Check if the max cluster id is equal to the number of cluster ids assigned to spikes.
     if max_id != len(ids):  # see which cluster ids are missing
         good_units_mask = np.isin(np.arange(max_id), ids)
@@ -964,8 +938,8 @@ def checkClusters(ctx):
         empty_cl = np.nonzero(~good_units_mask)[0]
         for cl in empty_cl[::-1]:
             logger.debug("Removing empty cluster %d.", cl)
-            mislabeled_cl = np.where(ir.st3_c[:, 1] > cl)[0]
-            ir.st3_c[mislabeled_cl, 1] -= 1
+            mislabeled_cl = np.where(ir.st3[:, 1] > cl)[0]
+            ir.st3[mislabeled_cl, 1] -= 1
 
     ctx.ir = ir
     return ctx
@@ -994,7 +968,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     good = ir.good
     Ths = ir.Ths
 
-    st3 = cp.asarray(ir.st3_c)
+    st3 = cp.asarray(ir.st3)
 
     U = cp.asarray(ir.U_s).astype(np.float32)
     iNeigh = ir.iNeigh_s
@@ -1115,11 +1089,11 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
 
     k = int(ceil(float(N) / 100))  # 100 chunks
     assert k >= 1
-    for i in tqdm(range(0, N, k), desc="Saving template and PC features"):
+    for i in tqdm(range(0, N, 100000), desc="Saving template and PC features"):
         # NOTE: cProj and cProjPC still have the spikes assigned to -1 that have yet to be removed
 
         # spike indices in cProj that need to be kept in this chunk
-        ind = spikes_to_keep[isort[i:i + k]]
+        ind = spikes_to_keep[isort[i:i + 100000]]
 
         cProj = ir.cProj[ind]
         cProjPC = ir.cProjPC[ind]

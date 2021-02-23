@@ -100,7 +100,7 @@ def run(
     # in Fortran order.
     params.minfr_goodchannels = 0
     if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-        if "igood" not in ir:
+        if "good_channels" not in ctx.timer.keys():
             # determine bad channels
             with ctx.time("good_channels"):
                 ir.igood = get_good_channels(
@@ -128,7 +128,7 @@ def run(
 
     # -------------------------------------------------------------------------
     # Find the whitening matrix.
-    if "Wrot" not in ir:
+    if "whitening_matrix" not in ctx.timer.keys():
         # outputs a rotation matrix (Nchan by Nchan) which whitens the zero-timelag covariance
         # of the data
         with ctx.time("whitening_matrix"):
@@ -143,7 +143,7 @@ def run(
     # -------------------------------------------------------------------------
     # Preprocess data to create proc.dat
     ir.proc_path = ctx.path("proc", ".dat")
-    if not ir.proc_path.exists():
+    if "preprocess" not in ctx.timer.keys():
         # Do not preprocess again if the proc.dat file already exists.
         with ctx.time("preprocess"):
             preprocess(ctx)
@@ -169,7 +169,7 @@ def run(
     # if stop_after == "reorder":
     #     return ctx
 
-    if "iorig" not in ir:
+    if "drift_correction" not in ctx.timer.keys():
         with ctx.time("drift_correction"):
             out = datashift2(ctx)
         ctx.save(**out)
@@ -193,7 +193,7 @@ def run(
     #         WA, UA, W, U, dWU, mu,
     #         W_a, W_b, U_a, U_b
     #
-    if "st3" not in ir:
+    if "learn" not in ctx.timer.keys():
         with ctx.time("learn"):
             out = learnAndSolve8b(ctx)
         logger.info("%d spikes.", ir.st3.shape[0])
@@ -201,7 +201,7 @@ def run(
     if stop_after == "learn":
         return ctx
 
-    if "U_a" not in ir:
+    if "compress" not in ctx.timer.keys():
         with ctx.time("compress"):
             out = compress_templates(ctx)
         ctx.save(**out)
@@ -224,10 +224,10 @@ def run(
     #         st3_m,
     #         R_CCG, Q_CCG, K_CCG [optional]
     #
-    if "st3_m" not in ir:
+    if "merge" not in ctx.timer.keys():
         with ctx.time("merge"):
-            out = find_merges(ctx, True)
-        ctx.save(**out)
+            find_merges(ctx)
+
     if stop_after == "merge":
         return ctx
 
@@ -248,13 +248,11 @@ def run(
     #       iNeigh_s, iNeighPC_s,
     #       Wphy, iList, isplit
     #
-    if "st3_s1" not in ir:
+    if "split_1" not in ctx.timer.keys():
         # final splits by SVD
         with ctx.time("split_1"):
-            out = splitAllClusters(ctx, True)
-        # Use a different name for both splitting steps.
-        out["st3_s1"] = out.pop("st3_s")
-        ctx.save(**out)
+            splitAllClusters(ctx, True)
+
     if stop_after == "split_1":
         return ctx
 
@@ -283,14 +281,13 @@ def run(
     #       st3_c, spikes_to_remove,
     #       est_contam_rate, Ths, good
     #
-    if "st3_c" not in ir:
+    if "cutoff" not in ctx.timer.keys():
         with ctx.time("cutoff"):
-            out = set_cutoff(ctx)
-        ctx.save(**out)
+            set_cutoff(ctx)
     if stop_after == "cutoff":
         return ctx
 
-    logger.info("%d spikes after cutoff.", ir.st3_c.shape[0])
+    logger.info("%d spikes after cutoff.", ir.st3.shape[0])
     logger.info("Found %d good units.", np.sum(ir.good > 0))
 
     # write to Phy
@@ -301,7 +298,6 @@ def run(
 
     # Show timing information.
     ctx.show_timer()
-    ctx.write(timer=ctx.timer)
 
     #TODO:
     # Add optional deletion of temp files

@@ -260,7 +260,7 @@ class Context(Bunch):
         self.context_path = context_path
         self.intermediate = Bunch()
         self.context_path.mkdir(exist_ok=True, parents=True)
-        self.timer = {}
+        self.timer = self.load_timer()
 
     @property
     def metadata_path(self):
@@ -355,6 +355,7 @@ class Context(Bunch):
         t1 = perf_counter()
         self.timer[name] = t1 - t0
         self.show_timer(name)
+        self.save_timer()
 
     def show_timer(self, name=None):
         """Display the results of the timer."""
@@ -363,6 +364,23 @@ class Context(Bunch):
             return
         for name in self.timer.keys():
             self.show_timer(name)
+        logger.info("Total time taken was {:.2f}s".format(self.total_time))
+
+    def save_timer(self):
+        """Save the results of the time"""
+        self.write(timer=self.timer)
+
+    def load_timer(self):
+        """Load timer from a previous run"""
+        metadata = self.read_metadata()
+        if 'timer' in metadata.keys():
+            return metadata['timer']
+        return {}
+
+    @property
+    def total_time(self):
+        """Total time taken across all steps"""
+        return sum(self.timer.values())
 
 
 # TODO: design - let's move this to an io module
