@@ -370,8 +370,6 @@ def get_kernel_matrix(probe, shifts, sig):
 
     # 2D coordinates of the new channel positions
     coords_new = np.copy(coords_old)
-    print(coords_new)
-    print(shifts)
     coords_new[:, 1] = coords_new[:, 1] - shifts
 
     # 2D kernel of the original channel positions
