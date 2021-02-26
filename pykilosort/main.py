@@ -196,7 +196,6 @@ def run(
     if "learn" not in ctx.timer.keys():
         with ctx.time("learn"):
             out = learnAndSolve8b(ctx)
-        logger.info("%d spikes.", ir.st3.shape[0])
         ctx.save(**out)
     if stop_after == "learn":
         return ctx
