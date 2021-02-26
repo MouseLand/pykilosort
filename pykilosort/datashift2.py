@@ -328,6 +328,64 @@ def shift_data(data, shift_matrix):
     return data_shifted
 
 
+def interpolate_1D(sample_shifts, sample_coords, probe_coords):
+    """
+    Interpolates the shifts found in one dimension to estimate the shifts for each channel
+    :param sample_shifts: Detected shifts, numpy array
+    :param sample_coords: Coordinates at which the detected shifts were found, numpy array
+    :param probe_coords: Coordinates of the probe channels, numpy array
+    :return: Upsampled shifts for each channel, numpy array
+    """
+
+    assert len(sample_coords) == len(sample_shifts)
+
+    if len(sample_coords) == 1:
+        return np.full(len(probe_coords), sample_shifts[0])
+
+    else:
+        # zero pad input so "extrapolation" tends to zero
+        # MATLAB uses a "modified Akima" which is proprietry :(
+        # _ysamp = extended(ysamp, 2, 10000)
+        # _shifts_in = zero_pad(shifts_in, 2)
+        # interpolation_function = Akima1DInterpolator(_ysamp, _shifts_in)
+        interpolation_function = Akima1DInterpolator(sample_coords, sample_shifts)
+
+        # interpolation_function = interp1d(ysamp, shifts_in, kind='cubic', fill_value=([0],[0])) #'extrapolate')
+        shifts = interpolation_function(probe_coords, nu=0, extrapolate="True")
+
+        return shifts
+
+
+def get_kernel_matrix(probe, shifts, sig):
+    """
+    Calculate kernel prediction matrix for Gaussian Kriging interpolation
+    :param probe: Bunch object with individual numpy arrays for the channel coordinates
+    :param shifts: Numpy array of the estimated shift for each channel
+    :param sig: Standard deviation used in Gaussian interpolation, float value
+    :return: Prediction matrix, numpy array
+    """
+
+    # 2D coordinates of the original channel positions
+    coords_old = np.vstack([probe.xc, probe.yc]).T
+
+    # 2D coordinates of the new channel positions
+    coords_new = np.copy(coords_old)
+    print(coords_new)
+    print(shifts)
+    coords_new[:, 1] = coords_new[:, 1] - shifts
+
+    # 2D kernel of the original channel positions
+    Kxx = kernel2D(coords_old, coords_old, sig)
+
+    # 2D kernel of the new channel positions
+    Kyx = kernel2D(coords_new, coords_old, sig)
+
+    # kernel prediction matrix
+    prediction_matrix = Kyx @ np.linalg.pinv(Kxx + 0.01 * np.eye(Kxx.shape[0]))
+
+    return prediction_matrix
+
+
 def shift_batch_on_disk2(
     ibatch,
     shifts_in,
@@ -353,41 +411,18 @@ def shift_batch_on_disk2(
     offset_bytes = 2 * offset  # binary file offset in bytes
 
     # upsample the shift for each channel using interpolation
-    if len(ysamp) > 1:
-        # zero pad input so "extrapolation" tends to zero
-        # MATLAB uses a "modified Akima" which is proprietry :(
-        # _ysamp = extended(ysamp, 2, 10000)
-        # _shifts_in = zero_pad(shifts_in, 2)
-        # interpolation_function = Akima1DInterpolator(_ysamp, _shifts_in)
-        interpolation_function = Akima1DInterpolator(ysamp, shifts_in)
-
-        # interpolation_function = interp1d(ysamp, shifts_in, kind='cubic', fill_value=([0],[0])) #'extrapolate')
-        shifts = interpolation_function(probe.yc, nu=0, extrapolate="True")
-
+    shifts = interpolate_1D(shifts_in, ysamp, probe.yc)
 
     # load the batch
     dat = proc.flat[offset : offset + params.NT * probe.Nchan].reshape(
         (-1, probe.Nchan), order="F"
     )  # / params.scaleproc
 
-    # 2D coordinates for interpolation
-    xp = np.vstack([probe.xc, probe.yc]).T
-
-    # 2D kernel of the original channel positions
-    Kxx = kernel2D(xp, xp, sig)
-
-    # 2D kernel of the new channel positions
-    yp = xp
-    yp[:, 1] = yp[:, 1] - shifts  # * sig
-    Kyx = kernel2D(yp, xp, sig)
-
     # kernel prediction matrix
-    M = Kyx @ np.linalg.pinv(Kxx + 0.01 * np.eye(Kxx.shape[0]))
+    kernel_matrix = get_kernel_matrix(probe, shifts, sig)
 
-    # the multiplication has to be done on the GPU (but its not here)
-    # dati = gpuArray(single(dat)) * gpuArray(M).T
-
-    data_shifted = shift_data(dat, M)
+    # apply shift transformation to the data
+    data_shifted = shift_data(dat, kernel_matrix)
 
     if shifted_fname is not None:
         # if the user wants to have a registered version of the binary file
