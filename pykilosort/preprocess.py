@@ -318,7 +318,7 @@ def get_good_channels(raw_data=None, probe=None, params=None):
 def get_Nbatch(raw_data, params):
     n_samples = max(raw_data.shape)
     # we assume raw_data as been already virtually split with the requested trange
-    return ceil(n_samples / (params.NT - params.ntbuff))  # number of data batches
+    return ceil(n_samples / params.NT)  # number of data batches
 
 
 def preprocess(ctx):
