@@ -389,32 +389,15 @@ def shift_batch_on_disk2(
     shifts_in,
     ysamp,
     sig,
-    Nbatch,
-    params,
     probe,
-    proc,
-    shifted_fname=None,
-    overwrite=False,
-    plot=False,
+    data_loader,
 ):
 
-    # register one batch of a whitened binary file
-    NT = params.NT
-    Nchan = probe.Nchan
-
-    batchstart = range(
-        0, params.NT * Nbatch, params.NT
-    )  # batches start at these timepoints
-    offset = Nchan * batchstart[ibatch]
-    offset_bytes = 2 * offset  # binary file offset in bytes
+    # load the batch
+    dat = data_loader.load_batch(ibatch, rescale=False)
 
     # upsample the shift for each channel using interpolation
     shifts = interpolate_1D(shifts_in, ysamp, probe.yc)
-
-    # load the batch
-    dat = proc.flat[offset : offset + params.NT * probe.Nchan].reshape(
-        (-1, probe.Nchan), order="F"
-    )  # / params.scaleproc
 
     # kernel prediction matrix
     kernel_matrix = get_kernel_matrix(probe, shifts, sig)
@@ -422,26 +405,11 @@ def shift_batch_on_disk2(
     # apply shift transformation to the data
     data_shifted = shift_data(dat, kernel_matrix)
 
-    if shifted_fname is not None:
-        # if the user wants to have a registered version of the binary file
-        # this one is not split into batches
-        mode = "ab" if ibatch == 0 else "wb"
-        with open(shifted_fname, mode) as fid2:
-            ifirst = params.ntbuff
-            ilast = params.NT + 1
-            if ibatch == 0:
-                ifirst = 0
-                ilast = params.NT - params.ntbuff + 1
-            data_shifted[ifirst:ilast, :].tofile(fid2)
-
-    if overwrite:
-        # normally we want to write the aligned data back to the same file
-        proc.flat[offset: offset + params.NT * probe.Nchan] = data_shifted.flatten(order='F')
-
-    # return dat_cpu, dat, shifts
+    # write the aligned data back to the same file
+    data_loader.write_batch(ibatch, data_shifted)
 
 
-def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, params):
+def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, probe, params):
     """
     Detects spikes across the entire recording using generic templates.
     Each generic template has rank one (in space-time).
@@ -497,7 +465,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, par
     )
 
     # preallocate the results we assume 50 spikes per channel per second max
-    rl = proc.size / probe.Nchan / params.fs   # record length
+    rl = data_loader.data.size / probe.Nchan / params.fs   # record length
     st3 = np.zeros((int(np.ceil(rl * 50 * probe.Nchan)), 5))
     st3[:, 4] = -1  # batch_id can be zero
     t0 = 0
@@ -505,7 +473,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, proc, probe, par
 
     for k in tqdm(range(0, Nbatch), desc="Detecting Spikes"):
         # get a batch of whitened and filtered data
-        dataRAW = get_batch(params, probe, k, Nbatch, proc)
+        dataRAW = data_loader.load_batch(k)
 
         # run the CUDA function on this batch
         dat, kkmax, st, cF = spikedetector3(
@@ -647,13 +615,13 @@ def datashift2(ctx):
 
     # determine prototypical timecourses by clustering of simple threshold crossings.
     wTEMP, wPCA = extractTemplatesfromSnippets(
-        proc=ir.proc, probe=probe, params=params, Nbatch=Nbatch
+        data_loader=ir.data_loader, probe=probe, params=params, Nbatch=Nbatch
     )
 
     # Extract all the spikes across the recording that are captured by the
     # generic templates. Very few real spikes are missed in this way.
     spikes = standalone_detector(
-        wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.proc, probe, params
+        wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.data_loader, probe, params
     )
 
     dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
@@ -668,12 +636,8 @@ def datashift2(ctx):
             dshift[ibatch, :],
             yblk,
             params.sig_datashift,
-            Nbatch,
-            params,
             probe,
-            ir.proc,
-            shifted_fname=params.output_filename,
-            overwrite=params.overwrite,
+            ir.data_loader,
         )
     logger.info(f"Shifted up/down {Nbatch} batches")
 

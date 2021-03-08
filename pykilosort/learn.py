@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def extractTemplatesfromSnippets(
-    proc=None, probe=None, params=None, Nbatch=None, nPCs=None
+    data_loader=None, probe=None, params=None, Nbatch=None, nPCs=None
 ):
     # this function is very similar to extractPCfromSnippets.
     # outputs not just the PC waveforms, but also the template "prototype",
@@ -24,8 +24,6 @@ def extractTemplatesfromSnippets(
     nskip = params.nskip
     nPCs = nPCs or params.nPCs
     nt0min = params.nt0min
-    Nchan = probe.Nchan
-    batchstart = np.arange(0, NT * Nbatch + 1, NT).astype(np.int64)
 
     k = 0
     # preallocate matrix to hold 1D spike snippets
@@ -33,11 +31,8 @@ def extractTemplatesfromSnippets(
     dds = []
 
     for ibatch in tqdm(range(0, Nbatch, nskip), desc="Extracting templates"):
-        offset = Nchan * batchstart[ibatch]
-        dat = proc.flat[offset : offset + NT * Nchan].reshape((-1, Nchan), order="F")
-
-        # move data to GPU and scale it back to unit variance
-        dataRAW = cp.asarray(dat, dtype=np.float32) / params.scaleproc
+        # load data to GPU
+        dataRAW = data_loader.load_batch(ibatch)
 
         # find isolated spikes from each batch
         row, col, mu = isolated_peaks_new(dataRAW, params)
@@ -792,7 +787,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     params = ctx.params
     probe = ctx.probe
     ir = ctx.intermediate
-    proc = ir.proc
+    data_loader = ir.data_loader
 
     iorig = ir.iorig
 
@@ -801,7 +796,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     Nrank = 3  # this one is the rank of the templates
 
     wTEMP, wPCA = extractTemplatesfromSnippets(
-        proc=proc, probe=probe, params=params, Nbatch=Nbatch, nPCs=NrankPC
+        data_loader=data_loader, probe=probe, params=params, Nbatch=Nbatch, nPCs=NrankPC
     )
 
     # move these to the GPU
@@ -950,10 +945,8 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             Params[8] = float(pmi[ibatch])
             pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order="F")
 
-        # loading a single batch (same as everywhere)
-        offset = Nchan * batchstart[k]
-        dat = proc.flat[offset : offset + NT * Nchan].reshape((-1, Nchan), order="F")
-        dataRAW = cp.asarray(dat, dtype=np.float32) / params.scaleproc
+        # loading a single batch
+        dataRAW = ir.data_loader.load_batch(k)
 
         if ibatch == 0:
             # only on the first batch, we first get a new set of spikes from the residuals,

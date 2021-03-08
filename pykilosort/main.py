@@ -12,7 +12,7 @@ from .cluster import clusterSingleBatches
 from .datashift2 import datashift2
 from .learn import learnAndSolve8b, compress_templates
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
-from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch
+from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch, DataLoader
 from .params import KilosortParams
 
 logger = logging.getLogger(__name__)
@@ -154,6 +154,7 @@ def run(
     # NOTE: now we are always in Fortran order.
     assert ir.proc_path.exists()
     ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r+", order="F")
+    ir.data_loader = DataLoader(ir.proc_path, params.NT, probe.Nchan, params.scaleproc)
 
     # -------------------------------------------------------------------------
     # # Time-reordering as a function of drift.

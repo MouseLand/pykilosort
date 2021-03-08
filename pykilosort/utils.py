@@ -249,6 +249,68 @@ class NpyWriter(object):
         self.fp.close()
 
 
+class DataLoader(object):
+    "Class for loading and writing batches in the binary pre-processed data file"
+    def __init__(self, data_path, batch_length, n_channels, scaling_factor, dtype=np.int16):
+        """
+        :param data_path: Path to binary file
+        :param batch_length: Number of time samples in each batch
+        :param n_channels: Number of channels
+        :param scaling_factor: Scaling factor data is multiplied by before saving
+        :param dtype: Data dtype
+        """
+        self.dtype = dtype
+        self.data = np.memmap(data_path, dtype=self.dtype, mode='r+', order='F')
+        self.batch_length = batch_length
+        self.n_channels = n_channels
+        self.batch_size = batch_length * n_channels
+        self.scaling_factor = scaling_factor
+
+        assert type(self.batch_length) == int
+        assert type(self.n_channels) == int
+        assert self.data.shape[0] % self.batch_size == 0, 'Some batches were only saved partially'
+
+    @property
+    def n_batches(self):
+        """Returns the number of batches in the dataset"""
+        return int(self.data.shape[0] / self.batch_size)
+
+    def load_batch(self, batch_number, rescale=True):
+        """
+        Loads a batch and optionally rescales it and move it to the GPU
+        :param batch_number: Specifies which batch to load
+        :param rescale: If true, rescales and moves the batch to the GPU
+        :return: Loaded batch
+        """
+        assert type(batch_number) == int
+        assert batch_number >= 0
+        assert batch_number < self.n_batches, \
+            f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
+
+        batch_cpu = self.data[batch_number * self.batch_size : (batch_number + 1) * self.batch_size].reshape(
+            (-1, self.n_channels), order='F'
+        )
+
+        if not rescale:
+            return batch_cpu
+
+        batch_gpu = cp.asarray(batch_cpu, dtype=np.float32) / self.scaling_factor
+
+        return batch_gpu
+
+    def write_batch(self, batch_number, batch_data):
+        """Saves batch data"""
+        assert type(batch_number) == int
+        assert batch_number >= 0
+        assert batch_number < self.n_batches, \
+            f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
+        assert batch_data.dtype == self.dtype
+        assert batch_data.shape == (self.batch_length, self.n_channels)
+
+        self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='F')
+
+
+
 # TODO: design - this is a nice pythonic-ish mirror of the MATLAB global context,
 #              - it might be nicer if it didn't inherit from Bunch (we can be more strict
 #              - about what attributes are guaranteed to be there etc.).
