@@ -1152,11 +1152,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             ir.muA[..., k] = cp.asnumpy(mu)
 
             # we carefully assign the correct absolute times to spikes found in this batch
-            ioffset = params.ntbuff - 1
-            if k == 0:
-                ioffset = 0  # the first batch is special (no pre-buffer)
-
-            toff = nt0min + t0 - ioffset + (NT - params.ntbuff) * k
+            toff = nt0min + t0 + NT*(k-1)
             st = toff + st0
 
             st30 = np.c_[
