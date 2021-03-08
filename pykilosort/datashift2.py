@@ -490,12 +490,9 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
         # build st for the current batch
         st[1, :] = yct
 
-        # the first batch is special (no pre-buffer)
-        ioffset = params.ntbuff if k > 0 else 0
-
-        toff = params.nt0min + t0 - ioffset + (params.NT - params.ntbuff) * k
+        # add time offset to get correct spike times
+        toff = t0 + params.nt0min + params.NT * k
         st[0, :] = st[0, :] + toff
-        # these offsets ensure the times are computed correctly
 
         # st[4, :] = k  # add batch number
         st = np.concatenate([st, np.full((1, st.shape[1]), k)])
