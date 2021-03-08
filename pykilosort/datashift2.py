@@ -5,7 +5,7 @@ from os.path import join
 from pathlib import Path
 import shutil
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import numba
 import numpy as np
 import cupy as cp
@@ -446,8 +446,8 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     # pregenerate the Gaussian weights used for spatial components
     nsizes = 5
     v2 = cp.zeros((5, dist.shape[1]), dtype=np.float32)
-    for k in range(0, nsizes):
-        v2[k, :] = np.sum(np.exp(-2 * (dist ** 2) / (sig * (k + 1)) ** 2), 0)
+    for ibatch in range(0, nsizes):
+        v2[ibatch, :] = np.sum(np.exp(-2 * (dist ** 2) / (sig * (ibatch + 1)) ** 2), 0)
 
     # build up Params
     NchanUp = iC.shape[1]
@@ -471,9 +471,10 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     t0 = 0
     nsp = 0  # counter for total number of spikes
 
-    for k in tqdm(range(0, Nbatch), desc="Detecting Spikes"):
+    pbar = trange(Nbatch, desc="Detecting Spikes, 0 batches, 0 spikes", leave=True)
+    for ibatch in pbar:
         # get a batch of whitened and filtered data
-        dataRAW = data_loader.load_batch(k)
+        dataRAW = data_loader.load_batch(ibatch)
 
         # run the CUDA function on this batch
         dat, kkmax, st, cF = spikedetector3(
@@ -491,11 +492,11 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
         st[1, :] = yct
 
         # add time offset to get correct spike times
-        toff = t0 + params.nt0min + params.NT * k
+        toff = t0 + params.nt0min + params.NT * ibatch
         st[0, :] = st[0, :] + toff
 
         # st[4, :] = k  # add batch number
-        st = np.concatenate([st, np.full((1, st.shape[1]), k)])
+        st = np.concatenate([st, np.full((1, st.shape[1]), ibatch)])
 
         nsp0 = st.shape[1]
         if nsp0 + nsp > st3.shape[0]:
@@ -505,8 +506,8 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
         st3[nsp : nsp0 + nsp, :] = st.T
         nsp = nsp + nsp0
 
-        if k % 100 == 0 | k == (Nbatch - 1):
-            logger.info(f"{k+1} batches, {nsp} spikes")
+        if ibatch % 10 == 0 or ibatch == (Nbatch - 1):
+            pbar.set_description(f"Detecting Spikes, {ibatch+1} batches, {nsp} spikes", refresh=True)
 
     spikes = Bunch()
     spikes.times = st3[:nsp, 0]
