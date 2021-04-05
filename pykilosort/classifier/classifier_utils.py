@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 
 # dt = maximum duration in the cross-correlogram
 # st1, st2 = spike train
-def computeCorrelogram(st1, st2, dt=3.):
+def compute_correlogram(st1, st2, dt=3.):
     spikediff = np.array([])
     T = (max(max(st1), max(st2))-min(min(st1), min(st2))); # total time range
     # we traverse both spike trains together, keeping track of the spikes in the first
@@ -48,10 +48,10 @@ def computeCorrelogram(st1, st2, dt=3.):
     return spikediff
 
 # st1, st2 = spike train
-def getLogBinnedAutoCorr(st1,st2,dt=3,nbins=50):
+def get_logBinned_autocorr(st1,st2,dt=3,nbins=50):
     # -3.25 value is a hack to get as close to 0 as possible
     bins = np.logspace(-3.25,np.log10(dt),nbins)
-    diffspike = computeCorrelogram(st1,st2,dt)
+    diffspike = compute_correlogram(st1,st2,dt)
     acorr, binedges = np.histogram(diffspike,bins)# log-spaced histogram
     # take difference between edges and divide the count 
     bedges_ = np.diff(binedges)
@@ -64,7 +64,7 @@ def getLogBinnedAutoCorr(st1,st2,dt=3,nbins=50):
     return acorr
 
 #calculate the confusion matrix
-def plotConfusionMatrix(y_pred, y_test):    
+def plot_confusion_matrix(y_pred, y_test):    
     confmat = metrics.confusion_matrix(y_true=y_test, y_pred=y_pred).T
     confmat = confmat/confmat.sum()
     

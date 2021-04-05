@@ -25,7 +25,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Activation
 
 
 # build ACG classifier
-def buildACGmodel(inputShape=49,activation="relu", activationop='softmax'):
+def build_ACGmodel(inputShape=49,activation="relu", activationop='softmax'):
     # deep linear neural network
     model = Sequential()
     model.add(Dense(48, activation = activation, kernel_regularizer='l2', 
@@ -42,7 +42,7 @@ def buildACGmodel(inputShape=49,activation="relu", activationop='softmax'):
     return model
 
 # compile ACG classifier
-def fitACGmodel(model, xTrain, yTrain, xVal=None, yVal=None, batchSize=64, numEpochs=10):
+def fit_ACGmodel(model, xTrain, yTrain, xVal=None, yVal=None, batchSize=64, numEpochs=10):
     # compile the model
     model.compile(optimizer=tf.keras.optimizers.Adam(),loss='sparse_categorical_crossentropy',
                   metrics=['sparse_categorical_accuracy'])   
@@ -56,13 +56,13 @@ def fitACGmodel(model, xTrain, yTrain, xVal=None, yVal=None, batchSize=64, numEp
     return model, history
 
 # predict using ACG classifier
-def predictACGmodel(model, xTest):
+def predict_ACGmodel(model, xTest):
     y_pred = model.predict_classes(xTest)
     return y_pred
 
 
 # build WF based classifier
-def buildWFmodel(inputShape=[32,82,1],activation="relu", activationop='softmax'):
+def build_WFmodel(inputShape=[32,82,1],activation="relu", activationop='softmax'):
     model = Sequential()
     # convolution block
     model.add(Conv2D(16, kernel_size=(3, 3), padding='same',input_shape=inputShape))
@@ -90,7 +90,7 @@ def buildWFmodel(inputShape=[32,82,1],activation="relu", activationop='softmax')
     return model
 
 # data augmentation
-def augmentWFmodel(xTrain):  
+def augment_WFmodel(xTrain):  
     datagen = ImageDataGenerator(width_shift_range=0.1,
                                  height_shift_range=0.1,
                                  vertical_flip=True,
@@ -100,7 +100,7 @@ def augmentWFmodel(xTrain):
 
 
 # compile and fit WF based model
-def fitWFmodel(model, datagen, xTrain, yTrain, xVal=None, yVal=None, batchSize=64, numEpochs=15):
+def fit_WFmodel(model, datagen, xTrain, yTrain, xVal=None, yVal=None, batchSize=64, numEpochs=15):
     # compile the model
     model.compile(optimizer=tf.keras.optimizers.Adam(),loss='sparse_categorical_crossentropy',
                   metrics=['sparse_categorical_accuracy'])  
@@ -114,7 +114,7 @@ def fitWFmodel(model, datagen, xTrain, yTrain, xVal=None, yVal=None, batchSize=6
     return model, history
 
 # predict WF based model
-def predictWFmodel(model, xTest):
+def predict_WFmodel(model, xTest):
     y_pred = model.predict_classes(xTest)
     return y_pred
 
