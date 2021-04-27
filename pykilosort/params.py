@@ -67,14 +67,14 @@ class KilosortParams(BaseModel):
         True, description="keep temporary files created while running"
     )
 
-    fshigh: float = Field(150.0, description="high pass filter frequency")
+    fshigh: float = Field(300.0, description="high pass filter frequency")
     fslow: t.Optional[float] = Field(None, description="low pass filter frequency")
     minfr_goodchannels: float = Field(
         0.1, description="minimum firing rate on a 'good' channel (0 to skip)"
     )
 
     genericSpkTh: float = Field(
-        10.0, description="threshold for crossings with generic templates"
+        8.0, description="threshold for crossings with generic templates"
     )
     nblocks: int = Field(
         5,

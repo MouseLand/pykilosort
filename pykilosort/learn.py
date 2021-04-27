@@ -833,18 +833,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # this batch order schedule goes through half of the data forward and backward during the model
     # fitting and then goes through the data symmetrically-out from the center during the final
     # pass
-    ischedule = np.concatenate(
-        (np.arange(nhalf, nBatches), np.arange(nBatches - 1, nhalf - 1, -1))
-    )
-    i1 = np.arange(nhalf - 1, -1, -1)
-    i2 = np.arange(nhalf, nBatches)
+    ischedule = np.random.permutation(nBatches)
+    i1 = np.arange(nBatches)
 
-    irounds = np.concatenate((ischedule, i1, i2))
+    irounds = np.concatenate((ischedule, i1))
 
     niter = irounds.size
-    if irounds[niter - nBatches - 1] != nhalf:
-        # this check is in here in case I do somehting weird when I try different schedules
-        raise ValueError("Mismatch between number of batches")
 
     # these two flags are used to keep track of what stage of model fitting we're at
     # flag_final = 0
@@ -1027,9 +1021,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # for each template
         fexp = np.exp(nsp0 * cp.log(pm[:Nfilt]))
         fexp = cp.reshape(fexp, (1, 1, -1), order="F")
-        dWU = dWU * fexp + (1 - fexp) * (
-            dWU0 / cp.reshape(cp.maximum(1, nsp0), (1, 1, -1), order="F")
-        )
+
+        # disable template updates during extraction phase
+        if ibatch <= niter - nBatches - 1:
+            dWU = dWU * fexp + (1 - fexp) * (
+                dWU0 / cp.reshape(cp.maximum(1, nsp0), (1, 1, -1), order="F")
+            )
 
         # nsp just gets updated according to the fixed factor p1
         nsp = nsp * p1 + (1 - p1) * nsp0
