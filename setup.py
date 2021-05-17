@@ -29,6 +29,7 @@ def _package_tree(pkgroot):
 
 
 readme = (Path(__file__).parent / 'README.md').read_text()
+install_requires = (Path(__file__).parent / 'requirements.txt').read_text()
 
 
 # Find version number from `__init__.py` without executing it.
@@ -41,6 +42,7 @@ setup(
     version=version,
     license="BSD",
     description='Python port of KiloSort 2',
+    install_requires=install_requires,
     long_description=readme,
     author='Cyrille Rossant',
     author_email='cyrille.rossant@gmail.com',
