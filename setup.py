@@ -51,6 +51,7 @@ setup(
     packages=_package_tree('pykilosort'),
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
+        '': ['*.prb'],
         'pykilosort': [],
     },
     include_package_data=True,
