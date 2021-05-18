@@ -12,4 +12,3 @@ tqdm
 pyqtgraph
 PyQt5
 phy==2.0b1
-phylib @ git+https://github.com/cortex-lab/phylib.git
