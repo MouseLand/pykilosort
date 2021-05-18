@@ -44,6 +44,7 @@ setup(
     description='Python port of KiloSort 2',
     install_requires=install_requires,
     long_description=readme,
+    long_description_content_type="text/markdown",
     author='Cyrille Rossant',
     author_email='cyrille.rossant@gmail.com',
     url='https://github.com/rossant/pykilosort',
