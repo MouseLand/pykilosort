@@ -29,8 +29,25 @@ def _package_tree(pkgroot):
 
 
 readme = (Path(__file__).parent / 'README.md').read_text()
-install_requires = (Path(__file__).parent / 'requirements.txt').read_text()
 
+install_requires = [
+    "tqdm",
+    "click",
+    "mock",
+    "cupy",
+    "numpy",
+    "numba",
+    "scipy",
+    "matplotlib",
+    "pyqtgraph",
+    "PtQt5",
+    "pydantic",
+    "spikeextractors",
+    "pytest",
+    "pytest-cov",
+    "phy==2.0b1",
+    "phylib @ git+https://github.com/cortex-lab/phylib.git",
+]
 
 # Find version number from `__init__.py` without executing it.
 with (Path(__file__).parent / 'pykilosort/__init__.py').open('r') as f:
