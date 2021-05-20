@@ -40,7 +40,7 @@ install_requires = [
     "scipy",
     "matplotlib",
     "pyqtgraph",
-    "PtQt5",
+    "PyQt5",
     "pydantic",
     "spikeextractors",
     "pytest",
