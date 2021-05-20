@@ -51,9 +51,13 @@ setup(
     packages=_package_tree('pykilosort'),
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
+        '': [
+            '*.txt',
+            '*.yml',
+        ],
         'pykilosort': [
             'gui/probes/*.prb',
-            'cuda/*.cu'
+            'cuda/*.cu',
         ],
     },
     include_package_data=True,
