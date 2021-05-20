@@ -55,7 +55,7 @@ setup(
             'requirements.txt',
             'test_requirements.txt',
             'pyks2.yml',
-            'pyks2_text.ymk',
+            'pyks2_test.yml',
         ],
         'pykilosort': [
             'gui/probes/*.prb',
