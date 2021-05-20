@@ -52,8 +52,10 @@ setup(
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
         '': [
-            '*.txt',
-            '*.yml',
+            'requirements.txt',
+            'test_requirements.txt',
+            'pyks2.yml',
+            'pyks2_text.ymk',
         ],
         'pykilosort': [
             'gui/probes/*.prb',
