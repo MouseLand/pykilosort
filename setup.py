@@ -51,11 +51,10 @@ setup(
     packages=_package_tree('pykilosort'),
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
-        '': [
-            '*.prb',
-            '*.cu'
+        'pykilosort': [
+            'gui/probes/*.prb',
+            'cuda/*.cu'
         ],
-        'pykilosort': [],
     },
     include_package_data=True,
     keywords='kilosort,spike sorting,electrophysiology,neuroscience',
