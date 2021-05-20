@@ -46,7 +46,6 @@ install_requires = [
     "pytest",
     "pytest-cov",
     "phy==2.0b1",
-    "phylib @ git+https://github.com/cortex-lab/phylib.git",
 ]
 
 # Find version number from `__init__.py` without executing it.
