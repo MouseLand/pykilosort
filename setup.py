@@ -81,14 +81,14 @@ setup(
         (
             probe_path,
             [
-                os.path.join('gui', 'probes', 'cortexlab-single-phase-3_chanMap.prb'),
-                os.path.join('gui', 'probes', 'Linear16x1_kilosortChanMap.prb'),
-                os.path.join('gui', 'probes', 'NeuropixelsPhase3A301_kilosortChanMap.prb'),
-                os.path.join('gui', 'probes', 'neuropixPhase3A_kilosortChanMap.prb'),
-                os.path.join('gui', 'probes', 'neuropixPhase3B1_kilosortChanMap.prb'),
-                os.path.join('gui', 'probes', 'neuropixPhase3B1_kilosortChanMap_all.prb'),
-                os.path.join('gui', 'probes', 'neuropixPhase3B2_kilosortChanMap.prb'),
-                os.path.join('gui', 'probes', 'NP2_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'cortexlab-single-phase-3_chanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'Linear16x1_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'NeuropixelsPhase3A301_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'neuropixPhase3A_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'neuropixPhase3B1_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'neuropixPhase3B1_kilosortChanMap_all.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'neuropixPhase3B2_kilosortChanMap.prb'),
+                os.path.join('pykilosort', 'gui', 'probes', 'NP2_kilosortChanMap.prb'),
             ]
         )
     ],
