@@ -69,7 +69,7 @@ setup(
     long_description_content_type="text/markdown",
     author='Cyrille Rossant',
     author_email='cyrille.rossant@gmail.com',
-    url='https://github.com/rossant/pykilosort',
+    url='https://github.com/MouseLand/pykilosort',
     packages=_package_tree('pykilosort'),
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
