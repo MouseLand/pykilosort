@@ -20,6 +20,12 @@ from setuptools import setup
 # Setup
 #------------------------------------------------------------------------------
 
+if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
+    # 'conda-build' configuration
+    probe_path = 'probes'
+else:
+    probe_path = os.path.join(os.path.expanduser('~'), '.pykilosort', 'probes')
+
 def _package_tree(pkgroot):
     path = op.dirname(__file__)
     subdirs = [op.relpath(i[0], path).replace(op.sep, '.')
@@ -68,10 +74,24 @@ setup(
     package_dir={'pykilosort': 'pykilosort'},
     package_data={
         'pykilosort': [
-            'gui/probes/*.prb',
             'cuda/*.cu',
         ],
     },
+    data_files=[
+        (
+            probe_path,
+            [
+                os.path.join('gui', 'probes', 'cortexlab-single-phase-3_chanMap.prb'),
+                os.path.join('gui', 'probes', 'Linear16x1_kilosortChanMap.prb'),
+                os.path.join('gui', 'probes', 'NeuropixelsPhase3A301_kilosortChanMap.prb'),
+                os.path.join('gui', 'probes', 'neuropixPhase3A_kilosortChanMap.prb'),
+                os.path.join('gui', 'probes', 'neuropixPhase3B1_kilosortChanMap.prb'),
+                os.path.join('gui', 'probes', 'neuropixPhase3B1_kilosortChanMap_all.prb'),
+                os.path.join('gui', 'probes', 'neuropixPhase3B2_kilosortChanMap.prb'),
+                os.path.join('gui', 'probes', 'NP2_kilosortChanMap.prb'),
+            ]
+        )
+    ],
     include_package_data=True,
     keywords='kilosort,spike sorting,electrophysiology,neuroscience',
     classifiers=[
