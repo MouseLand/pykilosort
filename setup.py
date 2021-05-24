@@ -10,6 +10,7 @@
 
 import os
 import os.path as op
+import sys
 from pathlib import Path
 import re
 
@@ -23,8 +24,10 @@ from setuptools import setup
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # 'conda-build' configuration
     probe_path = 'probes'
+    cuda_path = 'cuda'
 else:
     probe_path = os.path.join(os.path.expanduser('~'), '.pykilosort', 'probes')
+    cuda_path = os.path.join(sys.prefix, 'cuda')
 
 def _package_tree(pkgroot):
     path = op.dirname(__file__)
@@ -72,11 +75,6 @@ setup(
     url='https://github.com/MouseLand/pykilosort',
     packages=_package_tree('pykilosort'),
     package_dir={'pykilosort': 'pykilosort'},
-    package_data={
-        'pykilosort': [
-            'cuda/*.cu',
-        ],
-    },
     data_files=[
         (
             probe_path,
@@ -90,7 +88,19 @@ setup(
                 os.path.join('pykilosort', 'gui', 'probes', 'neuropixPhase3B2_kilosortChanMap.prb'),
                 os.path.join('pykilosort', 'gui', 'probes', 'NP2_kilosortChanMap.prb'),
             ]
-        )
+        ),
+        (
+            cuda_path,
+            [
+                os.path.join('pykilosort', 'cuda', 'mexClustering2.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexDistances2.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexGetSpikes2.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexMPnu8.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexSVDsmall2.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexThSpkPC.cu'),
+                os.path.join('pykilosort', 'cuda', 'mexWtW2.cu'),
+            ]
+        ),
     ],
     include_package_data=True,
     keywords='kilosort,spike sorting,electrophysiology,neuroscience',
