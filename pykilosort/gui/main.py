@@ -16,7 +16,7 @@ from pykilosort.gui import (
 )
 from pykilosort.gui.logger import setup_logger
 from pykilosort.params import KilosortParams
-from pykilosort.utils import Context, copy_bunch
+from pykilosort.utils import Context, copy_bunch, extend_probe
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 logger = setup_logger(__name__)
@@ -260,13 +260,11 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
         self.context = Context(context_path=context_path)
         probe_layout = self.probe_layout
-        probe_layout.Nchan = len(probe_layout.chanMap)
-        self.context.probe = probe_layout
-        self.context.raw_probe = copy_bunch(probe_layout)
+        probe_layout.Nchan = self.num_channels
+        self.context.probe = extend_probe(probe_layout)
+        self.context.raw_probe = extend_probe(copy_bunch(probe_layout))
         self.context.params = self.params
         self.context.raw_data = self.raw_data
-
-        self.context.intermediate.igood = np.ones_like(probe_layout.chanMap, dtype=bool)
 
         self.context.load()
 

@@ -96,7 +96,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         self.update_probe_view()
 
-    def set_active_layout(self, probe, good_channels):
+    def set_active_layout(self, probe, good_channels=None):
         self.active_layout = probe
         self.kcoords = self.active_layout.kcoords
         self.xc, self.yc = self.active_layout.xc, self.active_layout.yc
@@ -105,7 +105,13 @@ class ProbeViewBox(QtWidgets.QGroupBox):
             self.channel_map_dict[(xc, yc)] = ind
         self.total_channels = self.active_layout.NchanTOT
         self.channel_map = self.active_layout.chanMap
-        self.good_channels = good_channels
+        if good_channels is None:
+            self.good_channels = np.ones_like(
+                self.active_layout.chanMapBackup,
+                dtype=bool
+            )
+        else:
+            self.good_channels = good_channels
 
     def on_points_clicked(self, points):
         selected_point = points.ptsClicked[0]
@@ -163,8 +169,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot(object)
     def preview_probe(self, probe):
         self.probe_view.clear()
-        good_channels_dummy = np.ones_like(probe.chanMap, dtype=bool)
-        self.set_active_layout(probe, good_channels_dummy)
+        self.set_active_layout(probe)
         self.create_plot(connect=False)
 
     def create_plot(self, connect=True):

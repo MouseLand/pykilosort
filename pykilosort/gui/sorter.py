@@ -6,7 +6,7 @@ from pykilosort.preprocess import gpufilter
 from PyQt5 import QtCore
 
 
-def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
+def filter_and_whiten(raw_traces, params, probe, whitening_matrix, good_channels):
     sample_rate = params.fs
     high_pass_freq = params.fshigh
     low_pass_freq = params.fslow
@@ -18,7 +18,7 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
     filtered_data = gpufilter(
         buff=cp.asarray(raw_traces, dtype=np.float32),
-        chanMap=probe.chanMap,
+        chanMap=probe.chanMapBackup[good_channels],
         fs=sample_rate,
         fslow=low_pass_freq,
         fshigh=high_pass_freq,

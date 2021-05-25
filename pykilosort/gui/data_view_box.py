@@ -630,11 +630,16 @@ class DataViewBox(QtWidgets.QGroupBox):
                 raw_data=raw_data, params=params, probe=probe, nSkipCov=nSkipCov
             )
 
+        good_channels = intermediate.igood.ravel() \
+            if "igood" in intermediate \
+            else np.ones_like(probe.chanMapBackup)
+
         whitened_traces = filter_and_whiten(
             raw_traces=raw_traces,
             params=params,
             probe=probe,
             whitening_matrix=self.whitening_matrix,
+            good_channels=good_channels,
         )
 
         return whitened_traces
@@ -652,7 +657,10 @@ class DataViewBox(QtWidgets.QGroupBox):
             probe = context.probe
             raw_data = context.raw_data
             intermediate = context.intermediate
-            good_channels = intermediate.igood.ravel()
+            try:
+                good_channels = intermediate.igood.ravel()
+            except AttributeError:
+                good_channels = np.ones_like(probe.chanMapBackup, dtype=bool)
 
             sample_rate = raw_data.sample_rate
 
