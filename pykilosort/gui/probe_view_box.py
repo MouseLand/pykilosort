@@ -46,7 +46,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         }
 
         self.active_data_view_mode = "colormap"
-        self.primary_channel = None
+        self.primary_channel = 0
         self.active_channels = []
 
     def setup(self):
@@ -62,20 +62,13 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         layout.addWidget(self.probe_view, 95)
         self.setLayout(layout)
 
-    def set_active_channels(self):
-        if self.active_data_view_mode == "traces":
-            displayed_channels = self.gui.data_view_box.channels_displayed_traces
-        else:
-            displayed_channels = self.gui.data_view_box.channels_displayed_colormap
-            if displayed_channels is None:
-                displayed_channels = self.total_channels
-
+    def set_active_channels(self, channels_displayed):
         primary_channel = self.primary_channel
         channel_map = np.array(self.channel_map)
 
         primary_channel_position = int(np.where(channel_map == primary_channel)[0])
         end_channel_position = np.where(
-            channel_map == primary_channel + displayed_channels
+            channel_map == primary_channel + channels_displayed
         )[0]
         # prevent the last displayed channel would be set as the end channel in the case that
         # `primary_channel + displayed_channels` exceeds the total number of channels in the channel map
@@ -90,7 +83,10 @@ class ProbeViewBox(QtWidgets.QGroupBox):
     def set_layout(self, context):
         self.probe_view.clear()
         probe = context.raw_probe
-        good_channels = context.intermediate.igood
+        try:
+            good_channels = context.intermediate.igood
+        except AttributeError:
+            good_channels = None
 
         self.set_active_layout(probe, good_channels)
 
@@ -184,7 +180,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         self.clear_plot()
         self.reset_current_probe_layout()
         self.reset_active_data_view_mode()
-        self.primary_channel = None
+        self.primary_channel = 0
 
     def reset_active_data_view_mode(self):
         self.active_data_view_mode = "colormap"
