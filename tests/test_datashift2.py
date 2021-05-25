@@ -1,6 +1,7 @@
 import numpy as np
 
-from pykilosort.datashift2 import shift_data, align_block2
+from pykilosort.datashift2 import shift_data, align_block2, apply_drift_transform
+from pykilosort.utils import Bunch
 
 def test_shift_data():
     data = np.asfortranarray(np.random.randint(-100, 100, size=(65000, 384), dtype=np.int16))
@@ -21,3 +22,19 @@ def test_align_block2():
     imin, yblk, F0 = align_block2(spike_histograms, np.arange(20), 1)
     imin -= np.mean(imin)
     assert np.allclose(imin, np.array([[1],[0],[-1]]))
+
+
+def test_apply_drift_transform():
+
+    # Rigid Case
+    dat = np.zeros((50,10), order='F')
+    dat[:,4] = 10
+    shifts_in = np.array([1])
+    ysamp = np.array([5])
+    probe = Bunch()
+    probe.yc = np.arange(10)
+    probe.xc = np.zeros(10)
+    sig = 1
+
+    data_shifted = apply_drift_transform(dat, shifts_in, ysamp, probe, sig)
+    assert np.argmax(np.mean(data_shifted, axis=0)) == 5

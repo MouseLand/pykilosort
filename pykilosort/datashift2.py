@@ -384,6 +384,29 @@ def get_kernel_matrix(probe, shifts, sig):
     return prediction_matrix
 
 
+def apply_drift_transform(dat, shifts_in, ysamp, probe, sig):
+    """
+    Apply kriging interpolation on data batch
+    :param dat: Data batch, (n_time, n_channels)
+    :param shifts_in: Shifts per block (n_blocks)
+    :param ysamp: Y-coords for block centres (n_blocks)
+    :param probe: Bunch object with xc (xcoords) and yc (ycoords) attributes
+    :param sig: Standard deviation for Gaussian in kriging interpolation
+    :return: Shifted data batch via a kriging transformation
+    """
+
+    # upsample to get shifts for each channel
+    shifts = interpolate_1D(shifts_in, ysamp, probe.yc)
+
+    # kernel prediction matrix
+    kernel_matrix = get_kernel_matrix(probe, shifts, sig)
+
+    # apply shift transformation to the data
+    data_shifted = shift_data(dat, kernel_matrix)
+
+    return data_shifted
+
+
 def shift_batch_on_disk2(
     ibatch,
     shifts_in,
@@ -627,16 +650,18 @@ def datashift2(ctx):
     # sort in case we still want to do "tracking"
     iorig = np.argsort(np.mean(dshift, axis=1))
 
+    # register the data batch by batch
     for ibatch in tqdm(range(Nbatch), desc='Shifting Data'):
-        # register the data batch by batch
-        shift_batch_on_disk2(
-            ibatch,
-            dshift[ibatch, :],
-            yblk,
-            params.sig_datashift,
-            probe,
-            ir.data_loader,
-        )
+
+        # load the batch from binary file
+        dat = ir.data_loader.load_batch(ibatch, rescale=False)
+
+        # align via kriging interpolation
+        data_shifted = apply_drift_transform(dat, dshift[ibatch, :], yblk, probe, params.sig_datashift)
+
+        # write the aligned data back to the same file
+        ir.data_loader.write_batch(ibatch, data_shifted)
+
     logger.info(f"Shifted up/down {Nbatch} batches")
 
     return Bunch(iorig=iorig, dshift=dshift, yblk=yblk)
