@@ -414,12 +414,6 @@ class DataViewBox(QtWidgets.QGroupBox):
 
                 self.update_plot()
 
-    def change_channel_display(self, direction):
-        if self.traces_button.isChecked():
-            self.shift_primary_channel(direction)
-        else:
-            self.change_displayed_channel_count(direction)
-
     def scene_clicked(self, ev):
         if self.context_set():
             if self.traces_mode_active():
