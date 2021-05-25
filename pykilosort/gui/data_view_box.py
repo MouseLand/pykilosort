@@ -257,6 +257,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.context_set():
             self.change_plot_scaling(direction)
 
+    @QtCore.pyqtSlot()
     def toggle_mode_from_click(self):
         if self.traces_mode_active():
             self.modeChanged.emit("traces")

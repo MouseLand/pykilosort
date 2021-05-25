@@ -116,16 +116,12 @@ class ProbeViewBox(QtWidgets.QGroupBox):
         channel = self.channel_map[index]
         self.channelSelected.emit(channel)
 
-    def synchronize_data_view_mode(self, string):
-        old_mode = self.active_data_view_mode
-        self.active_data_view_mode = string
-
-        if old_mode != self.active_data_view_mode and self.primary_channel is not None:
+    @QtCore.pyqtSlot(str)
+    def synchronize_data_view_mode(self, mode: str):
+        if self.active_data_view_mode != mode:
             self.probe_view.clear()
             self.update_probe_view()
-
-    def synchronize_primary_channel(self):
-        self.primary_channel = self.gui.data_view_box.primary_channel
+            self.active_data_view_mode = mode
 
     def change_sorting_status(self, status_dict):
         self.sorting_status = status_dict
