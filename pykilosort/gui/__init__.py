@@ -10,7 +10,7 @@ from .palettes import COLORMAP_COLORS, DarkPalette, SANITY_PLOT_COLORS
 from .probe_view_box import ProbeViewBox
 from .run_box import RunBox
 from .settings_box import SettingsBox
-from .sorter import filter_and_whiten, KiloSortWorker
+from .sorter import filter_and_whiten, get_predicted_traces, KiloSortWorker
 from .sanity_plots import SanityPlotWidget
 
 from .main import KiloSortGUI
