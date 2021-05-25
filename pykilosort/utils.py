@@ -394,6 +394,7 @@ def load_probe(probe_path):
             probe.yc.append([pos[c][1] for c in ch])
             probe.kcoords.append([cg for c in ch])
         probe.chanMap = np.concatenate(probe.chanMap).ravel().astype(np.int32)
+        probe.chanMapBackup = probe.chanMap.copy()
         probe.xc = np.concatenate(probe.xc)
         probe.yc = np.concatenate(probe.yc)
         probe.kcoords = np.concatenate(probe.kcoords)
@@ -406,6 +407,7 @@ def load_probe(probe_path):
         probe.yc = mat['ycoords'].ravel().astype(np.float64)
         probe.kcoords = mat.get('kcoords', np.zeros(nc)).ravel().astype(np.float64)
         probe.chanMap = (mat['chanMap'] - 1).ravel().astype(np.int32)  # NOTE: 0-indexing in Python
+        probe.chanMapBackup = probe.chanMap.copy()
         probe.NchanTOT = len(probe.chanMap)  # NOTE: should match the # of columns in the raw data
 
     for n in _required_keys:
@@ -442,6 +444,79 @@ def create_prb(probe):
         probe_prb[channel_group]['graph'] = []
 
     return probe_prb
+
+
+def extend_probe(
+        probe_layout: Bunch
+) -> Bunch:
+    """
+    Extend  probe layout to account for extra num_channels.
+
+    The probe layout selected by the user may have a different
+    number of channels than the requested number of channels in
+    the dataset. The function attempts to smartly extend the
+    layout of the probe to match the requested number of
+    channels.
+
+    In case the requested number of channels is less than the
+    total channels on the layout, the original probe layout
+    is returned.
+
+    Parameters
+    ----------
+    probe_layout : Bunch
+        Input probe layout which might have to be extended.
+
+    Returns
+    -------
+    probe_layout : Bunch
+        Possibly extended probe layout.
+
+    """
+    if len(probe_layout["xc"]) >= probe_layout["Nchan"]:
+        # if the requested number of channels is less than the number of
+        # channels on the probe, return original probe
+        return probe_layout
+    else:
+        n_channels = probe_layout["Nchan"]
+        xc = probe_layout["xc"]
+        yc = probe_layout["yc"]
+
+        # the assumption here is that the probe layout has a repetitive pattern
+        unique_x = np.sort(np.unique(probe_layout["xc"]))  # unique values for the x-axis
+        unique_y = np.sort(np.unique(probe_layout["yc"]))  # unique values for the y-axis
+
+        kcoords = probe_layout["kcoords"]
+        chan_map = probe_layout["chanMap"]
+
+        new_channels = n_channels - len(xc)  # number of new channels to be added
+
+        # create new properties
+        # this will probably break if new_channels > len(unique_x/y)
+        append_x = unique_x[-new_channels]
+        append_y = unique_y[-new_channels]
+
+        append_chan_map = np.array([
+            i for i in np.arange(chan_map[-1],
+                                 chan_map[-1] + new_channels)
+        ]) + 1  # to account for 0-ordering
+        append_kcoords = np.zeros(new_channels)
+
+        # append new properties to existing properties
+        new_xc = np.append(xc, append_x)
+        new_yc = np.append(yc, append_y)
+        new_chan_map = np.append(chan_map, append_chan_map)
+        new_kcoords = np.append(kcoords, append_kcoords)
+
+        # save new properties into probe layout
+        probe_layout["xc"] = new_xc
+        probe_layout["yc"] = new_yc
+        probe_layout["chanMap"] = new_chan_map
+        probe_layout["chanMapBackup"] = new_chan_map.copy()
+        probe_layout["kcoords"] = new_kcoords
+        probe_layout["NchanTOT"] = len(new_chan_map)
+
+        return probe_layout
 
 
 def plot_dissimilarity_matrices(ccb, ccbsort, plot_widget):
