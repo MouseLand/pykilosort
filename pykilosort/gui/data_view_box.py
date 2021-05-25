@@ -14,7 +14,7 @@ logger = setup_logger(__name__)
 
 
 class DataViewBox(QtWidgets.QGroupBox):
-    channelChanged = QtCore.pyqtSignal()
+    channelChanged = QtCore.pyqtSignal(int, int)
     modeChanged = QtCore.pyqtSignal(str)
 
     def __init__(self, parent):
@@ -323,7 +323,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def change_primary_channel(self, channel):
         self.primary_channel = channel
-        self.channelChanged.emit()
+        self.channelChanged.emit(self.primary_channel, self.get_currently_displayed_channel_count())
         self.update_plot()
 
     def shift_primary_channel(self, shift):
@@ -332,7 +332,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         total_channels = self.get_total_channels()
         if (0 <= primary_channel < total_channels) and total_channels is not None:
             self.primary_channel = primary_channel
-            self.channelChanged.emit()
+            self.channelChanged.emit(self.primary_channel, self.get_currently_displayed_channel_count())
             self.update_plot()
 
     def get_currently_displayed_channel_count(self):
@@ -354,22 +354,25 @@ class DataViewBox(QtWidgets.QGroupBox):
         return self.gui.probe_view_box.total_channels
 
     def change_displayed_channel_count(self, direction):
+        current_channel = self.primary_channel
         total_channels = self.get_total_channels()
         current_count = self.get_currently_displayed_channel_count()
 
         new_count = current_count + (direction * 5)
-        if 0 < new_count <= total_channels:
+        if (current_channel + new_count) <= total_channels:
             self.set_currently_displayed_channel_count(new_count)
+            self.channelChanged.emit(self.primary_channel, new_count)
             self.refresh_plot_on_displayed_channel_count_change()
         elif new_count <= 0 and current_count != 1:
             self.set_currently_displayed_channel_count(1)
+            self.channelChanged.emit(self.primary_channel, 1)
             self.refresh_plot_on_displayed_channel_count_change()
-        elif new_count > total_channels:
-            self.set_currently_displayed_channel_count(total_channels)
+        elif (current_channel + new_count) > total_channels:
+            self.set_currently_displayed_channel_count(total_channels - current_channel)
+            self.channelChanged.emit(self.primary_channel, total_channels)
             self.refresh_plot_on_displayed_channel_count_change()
 
     def refresh_plot_on_displayed_channel_count_change(self):
-        self.channelChanged.emit()
         self.plot_item.clear()
         self.create_plot_items()
         self.update_plot()

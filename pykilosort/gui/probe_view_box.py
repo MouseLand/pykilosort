@@ -153,10 +153,15 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
         return spots
 
-    @QtCore.pyqtSlot()
-    def update_probe_view(self):
-        self.synchronize_primary_channel()
-        self.set_active_channels()
+    @QtCore.pyqtSlot(int, int)
+    def update_probe_view(self, primary_channel=None, channels_displayed=None):
+        if primary_channel is not None:
+            self.primary_channel = primary_channel
+
+        if channels_displayed is None:
+            channels_displayed = self.total_channels
+
+        self.set_active_channels(channels_displayed)
         self.create_plot()
 
     @QtCore.pyqtSlot(object)
