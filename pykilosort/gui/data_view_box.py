@@ -557,22 +557,17 @@ class DataViewBox(QtWidgets.QGroupBox):
         view : str
             One of "raw", "whitened", "prediction" and "residual" views
         """
-        for c, channel in enumerate(
-                range(
-                    self.primary_channel,
-                    self.primary_channel + self.channels_displayed_traces,
-                )
-        ):
+        for c, good in enumerate(good_channels):
             try:
                 curve = self.traces_plot_items[view][c]
                 color = (
                     self.traces_curve_color[view]
-                    if good_channels[channel]
+                    if good
                     else self.bad_channel_color
                 )
                 curve.setPen(color=color, width=1)
                 curve.setData(
-                    traces.T[channel] *
+                    traces[:, c] *
                     self.scale_factor *
                     self.traces_scaling_factor[view]
                 )
