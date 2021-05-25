@@ -167,7 +167,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     def change_channel_display(self, direction):
         if self.context is not None:
-            self.data_view_box.change_channel_display(direction)
+            self.data_view_box.shift_primary_channel(direction)
 
     def shift_data(self, time_shift):
         if self.context is not None:
