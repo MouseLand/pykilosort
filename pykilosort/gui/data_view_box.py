@@ -226,46 +226,46 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll(self, direction):
-        if self.gui.context is not None:
+        if self.context_set():
             self.shift_current_time(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_control(self, direction):
-        if self.gui.context is not None:
-            if self.traces_button.isChecked():
+        if self.context_set():
+            if self.traces_mode_active():
                 self.shift_primary_channel(direction)
             else:
                 self.change_displayed_channel_count(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_shift(self, direction):
-        if self.gui.context is not None:
+        if self.context_set():
             self.change_plot_range(direction)
 
     @QtCore.pyqtSlot(int)
     def on_wheel_scroll_plus_alt(self, direction):
-        if self.gui.context is not None:
+        if self.context_set():
             self.change_plot_scaling(direction)
 
     def toggle_mode_from_click(self):
-        if self.traces_button.isChecked():
+        if self.traces_mode_active():
             self.modeChanged.emit("traces")
             self.view_buttons_group.setExclusive(False)
             self.update_plot()
 
-        if self.colormap_button.isChecked():
+        if self.colormap_mode_active():
             self.modeChanged.emit("colormap")
             self._traces_to_colormap_toggle()
             self.update_plot()
 
     def toggle_mode(self):
-        if self.colormap_button.isChecked():
+        if self.colormap_mode_active():
             self.traces_button.toggle()
             self.modeChanged.emit("traces")
             self.view_buttons_group.setExclusive(False)
             self.update_plot()
 
-        elif self.traces_button.isChecked():
+        elif self.traces_mode_active():
             self.colormap_button.toggle()
             self.modeChanged.emit("colormap")
             self._traces_to_colormap_toggle()
@@ -302,6 +302,15 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.view_buttons_group.setExclusive(True)
 
+    def traces_mode_active(self):
+        return self.traces_button.isChecked()
+
+    def colormap_mode_active(self):
+        return self.colormap_button.isChecked()
+
+    def context_set(self):
+        return self.gui.context is not None
+
     def change_primary_channel(self, channel):
         self.primary_channel = channel
         self.channelChanged.emit()
@@ -317,7 +326,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.update_plot()
 
     def get_currently_displayed_channel_count(self):
-        if self.traces_button.isChecked():
+        if self.traces_mode_active():
             return self.channels_displayed_traces
         else:
             count = self.channels_displayed_colormap
@@ -326,7 +335,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             return count
 
     def set_currently_displayed_channel_count(self, count):
-        if self.traces_button.isChecked():
+        if self.traces_mode_active():
             self.channels_displayed_traces = count
         else:
             self.channels_displayed_colormap = count
@@ -372,14 +381,14 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.update_plot()
 
     def change_plot_scaling(self, direction):
-        if self.traces_button.isChecked():
+        if self.traces_mode_active():
             scale_factor = self.scale_factor * (1.1 ** direction)
             if 0.1 < scale_factor < 10.0:
                 self.scale_factor = scale_factor
 
                 self.update_plot()
 
-        if self.colormap_button.isChecked():
+        if self.colormap_mode_active():
             colormap_min = self.colormap_min + (direction * 0.05)
             colormap_max = self.colormap_max - (direction * 0.05)
             if 0.0 <= colormap_min < colormap_max <= 1.0:
@@ -398,8 +407,8 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.change_displayed_channel_count(direction)
 
     def scene_clicked(self, ev):
-        if self.gui.context is not None:
-            if self.traces_button.isChecked():
+        if self.context_set():
+            if self.traces_mode_active():
                 x_pos = ev.pos().x()
             else:
                 x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
@@ -412,7 +421,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                 self.shift_current_time(direction=-1)
 
     def seek_clicked(self, ev):
-        if self.gui.context is not None:
+        if self.context_set():
             new_time = self.seek_view_box.mapSceneToView(ev.pos()).x()
             seek_range_min = self.seek_range[0]
             seek_range_max = self.seek_range[1]
@@ -446,7 +455,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.enable_view_buttons()
 
     def enable_view_buttons(self):
-        if self.colormap_button.isChecked():
+        if self.colormap_mode_active():
             if self.prediction_button.isChecked() or self.residual_button.isChecked():
                 self.raw_button.click()
         else:
@@ -533,13 +542,13 @@ class DataViewBox(QtWidgets.QGroupBox):
     ):
         """
         Update plot items with traces.
-        
+
         Loops over traces and plots each trace using the setData() method
         of pyqtgraph's PlotCurveItem. The color of the trace depends on
         the mode requested (raw, whitened, prediction, residual). Bad
         channels are plotted in a different color. Each trace is also
         scaled by a certain factor defined in self.traces_scaling_factor.
-        
+
         Parameters
         ----------
         traces : numpy.ndarray
@@ -666,7 +675,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                                     end_time=end_time,
                                     )
 
-            if self.colormap_button.isChecked():
+            if self.colormap_mode_active():
                 self._update_colormap(params=params,
                                       probe=probe,
                                       raw_data=raw_data,
