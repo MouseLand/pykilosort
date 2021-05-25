@@ -2,7 +2,7 @@ import cupy as cp
 import numpy as np
 from numba import jit
 from pykilosort.main import run_export, run_preprocess, run_spikesort
-from pykilosort.preprocess import get_whitening_matrix, gpufilter
+from pykilosort.preprocess import gpufilter
 from PyQt5 import QtCore
 
 
@@ -30,20 +30,6 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
     array_stds = cp.std(whitened_data, axis=0)
     whitened_array = (whitened_data - array_means) / array_stds
     return whitened_array.get()
-
-
-def get_whitened_traces(raw_data, probe, params, whitening_matrix):
-    if whitening_matrix is None:
-        whitening_matrix = get_whitening_matrix(
-            raw_data=raw_data, probe=probe, params=params, nSkipCov=100
-        )
-    whitened_traces = filter_and_whiten(
-        raw_traces=raw_data,
-        params=params,
-        probe=probe,
-        whitening_matrix=whitening_matrix,
-    )
-    return whitened_traces, whitening_matrix
 
 
 @jit(nopython=True)
