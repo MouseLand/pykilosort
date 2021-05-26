@@ -295,14 +295,16 @@ class SettingsBox(QtWidgets.QGroupBox):
 
     def on_results_directory_changed(self):
         results_directory = Path(self.results_directory_input.text())
-        try:
-            assert results_directory.exists()
 
-            self.results_directory_path = results_directory
-            if self.check_settings():
-                self.enable_load()
-        except AssertionError:
-            logger.exception("Please select an existing directory for results!")
+        if not results_directory.exists():
+            logger.warning(f"The results directory {results_directory} does not exist.")
+            logger.warning("It will be (recursively) created upon data load.")
+
+        self.results_directory_path = results_directory
+
+        if self.check_settings():
+            self.enable_load()
+        else:
             self.disable_load()
 
     def on_data_file_path_changed(self):
@@ -312,11 +314,11 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             parent_folder = data_file_path.parent
             self.working_directory_input.setText(parent_folder.as_posix())
-            self.results_directory_input.setText(parent_folder.as_posix())
+            self.results_directory_input.setText((parent_folder / "phy").as_posix())
 
             self.data_file_path = data_file_path
             self.working_directory_path = parent_folder
-            self.results_directory_path = parent_folder
+            self.results_directory_path = parent_folder / "phy"
 
             if self.check_settings():
                 self.enable_load()
@@ -361,7 +363,13 @@ class SettingsBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot()
     def update_settings(self):
         if self.check_settings():
-            self.settingsUpdated.emit()
+            if not self.results_directory_path.exists():
+                try:
+                    os.makedirs(self.results_directory_path)
+                    self.settingsUpdated.emit()
+                except Exception as e:
+                    logger.exception(e)
+                    self.disable_load()
 
     @QtCore.pyqtSlot()
     def show_probe_layout(self):
