@@ -313,12 +313,13 @@ class SettingsBox(QtWidgets.QGroupBox):
             assert data_file_path.exists()
 
             parent_folder = data_file_path.parent
+            results_folder = parent_folder / "phy_export" / data_file_path.stem
             self.working_directory_input.setText(parent_folder.as_posix())
-            self.results_directory_input.setText((parent_folder / "phy_export").as_posix())
+            self.results_directory_input.setText(results_folder.as_posix())
 
             self.data_file_path = data_file_path
             self.working_directory_path = parent_folder
-            self.results_directory_path = parent_folder / "phy_export"
+            self.results_directory_path = results_folder
 
             if self.check_settings():
                 self.enable_load()
