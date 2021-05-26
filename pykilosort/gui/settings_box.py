@@ -656,13 +656,9 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             else:
                 result = possible_results[0]
-                text_message = f"The correct number of channels has been estimated to be {possible_results[0]}."
+                logger.info(f"The correct number of channels has been estimated to be {possible_results[0]}.")
                 if possible_results.size > 1:
-                    text_message += (
-                        f" Other possibilities could be {possible_results[1:]}"
-                    )
-
-                logger.info(text_message)
+                    logger.info(f"Other possibilities could be {possible_results[1:]}")
 
                 return result
 
