@@ -14,6 +14,7 @@ logger = setup_logger(__name__)
 class DataViewBox(QtWidgets.QGroupBox):
     channelChanged = QtCore.pyqtSignal(int, int)
     modeChanged = QtCore.pyqtSignal(str, int)
+    updateContext = QtCore.pyqtSignal(object)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -311,7 +312,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         return self.colormap_button.isChecked()
 
     def context_set(self):
-        return self.gui.context is not None
+        return self.get_context() is not None
+
+    def get_context(self):
+        return self.gui.context
 
     def change_primary_channel(self, channel):
         self.primary_channel = channel
@@ -433,17 +437,21 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def scene_clicked(self, ev):
         if self.context_set():
-            if self.traces_mode_active():
-                x_pos = self.data_view_box.mapSceneToView(ev.pos()).x()
-            else:
-                x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
-            range_min = self.data_range[0]
-            range_max = self.data_range[1]
-            fraction = (x_pos - range_min) / range_max
-            if fraction > 0.5:
-                self.shift_current_time(direction=1)
-            else:
-                self.shift_current_time(direction=-1)
+            if ev.button() == QtCore.Qt.LeftButton:
+                if self.traces_mode_active():
+                    x_pos = self.data_view_box.mapSceneToView(ev.pos()).x()
+                else:
+                    x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
+                range_min = self.data_range[0]
+                range_max = self.data_range[1]
+                fraction = (x_pos - range_min) / range_max
+                if fraction > 0.5:
+                    self.shift_current_time(direction=1)
+                else:
+                    self.shift_current_time(direction=-1)
+
+    def update_context(self, new_context):
+        self.updateContext.emit(new_context)
 
     def seek_clicked(self, ev):
         if self.context_set():
