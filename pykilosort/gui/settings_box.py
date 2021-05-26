@@ -92,6 +92,7 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.min_firing_rate_input,
             self.threshold_lower_input,
             self.threshold_upper_input,
+            self.lambda_value_input,
             self.auc_splits_input,
         ]
 
