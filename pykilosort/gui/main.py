@@ -164,6 +164,8 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box.disableInput.connect(self.disable_all_input)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
         self.run_box.updateProbeView.connect(self.update_probe_view)
+        self.run_box.updateDataView.connect(self.data_view_box.set_whitening_matrix)
+        self.run_box.updateDataView.connect(self.data_view_box.clear_cached_traces)
 
     def change_channel_display(self, direction):
         if self.context is not None:

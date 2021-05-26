@@ -505,7 +505,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.clear_cached_traces()
         self.clear_cached_whitening_matrix()
 
-    def clear_cached_traces(self):
+    @QtCore.pyqtSlot(object)
+    def clear_cached_traces(self, _=None):
         self.whitened_traces = None
         self.residual_traces = None
         self.prediction_traces = None
