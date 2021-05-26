@@ -702,7 +702,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             if self.traces_mode_active():
                 self._update_traces(params=params,
                                     probe=probe,
-                                    raw_data=raw_data,
                                     raw_traces=raw_traces,
                                     to_display=to_display,
                                     intermediate=intermediate,
@@ -714,7 +713,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             if self.colormap_mode_active():
                 self._update_colormap(params=params,
                                       probe=probe,
-                                      raw_data=raw_data,
                                       raw_traces=raw_traces,
                                       to_display=to_display,
                                       intermediate=intermediate,
@@ -738,7 +736,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             self,
             params,
             probe,
-            raw_data,
             raw_traces,
             to_display,
             intermediate,
@@ -844,7 +841,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             self,
             params,
             probe,
-            raw_data,
             raw_traces,
             to_display,
             intermediate,
