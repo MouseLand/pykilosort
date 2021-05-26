@@ -372,6 +372,9 @@ class SettingsBox(QtWidgets.QGroupBox):
                     logger.exception(e)
                     self.disable_load()
 
+            else:
+                self.settingsUpdated.emit()
+
     @QtCore.pyqtSlot()
     def show_probe_layout(self):
         self.previewProbe.emit(self.probe_layout)
