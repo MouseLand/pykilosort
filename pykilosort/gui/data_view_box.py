@@ -21,8 +21,6 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         self.gui = parent
 
-        self.controls_button = QtWidgets.QPushButton("Controls")
-
         self.data_view_widget = KSPlotWidget(useOpenGL=True)
         self.data_x_axis = self.data_view_widget.getAxis("bottom")
         self.plot_item = self.data_view_widget.getPlotItem()
@@ -119,13 +117,6 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         layout = QtWidgets.QVBoxLayout()
 
-        controls_button_layout = QtWidgets.QHBoxLayout()
-        self.controls_button.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
-        )
-        controls_button_layout.addWidget(self.controls_button)
-        self.controls_button.clicked.connect(self.show_controls_popup)
-
         data_view_layout = QtWidgets.QHBoxLayout()
         data_view_layout.addWidget(self.data_view_widget)
 
@@ -200,7 +191,6 @@ class DataViewBox(QtWidgets.QGroupBox):
         data_seek_layout = QtWidgets.QHBoxLayout()
         data_seek_layout.addWidget(self.data_seek_widget)
 
-        layout.addLayout(controls_button_layout, 2)
         layout.addLayout(data_view_layout, 85)
         layout.addLayout(data_controls_layout, 3)
         layout.addLayout(data_seek_layout, 10)
@@ -482,15 +472,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             self.residual_button.setStyleSheet(
                 "QPushButton {background-color: black; color: gray;}"
             )
-
-    def show_controls_popup(self):
-        QtWidgets.QMessageBox.information(
-            self,
-            "Controls",
-            controls_popup_text,
-            QtWidgets.QMessageBox.Ok,
-            QtWidgets.QMessageBox.Ok,
-        )
 
     def reset(self):
         self.plot_item.clear()
