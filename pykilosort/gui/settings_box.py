@@ -27,12 +27,12 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.data_file_path_input = QtWidgets.QLineEdit("")
 
         self.select_working_directory = QtWidgets.QPushButton(
-            "Select Working Directory"
+            "Select Working Dir."
         )
         self.working_directory_input = QtWidgets.QLineEdit("")
 
         self.select_results_directory = QtWidgets.QPushButton(
-            "Select Results Directory"
+            "Select Results Dir."
         )
         self.results_directory_input = QtWidgets.QLineEdit("")
 
