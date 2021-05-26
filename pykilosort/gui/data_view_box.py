@@ -611,24 +611,20 @@ class DataViewBox(QtWidgets.QGroupBox):
         view : str
             One of "raw", "whitened", "prediction" and "residual" views
         """
-        for c, good in enumerate(good_channels):
+        for i, curve in enumerate(self.traces_plot_items[view]):
             try:
-                curve = self.traces_plot_items[view][c]
+                trace = traces[:, i] * self.scale_factor * self.traces_scaling_factor[view]
+                good = good_channels[i]
+
                 color = (
                     self.traces_curve_color[view]
                     if good
                     else self.bad_channel_color
                 )
                 curve.setPen(color=color, width=1)
-                curve.setData(
-                    traces[:, c] *
-                    self.scale_factor *
-                    self.traces_scaling_factor[view]
-                )
+                curve.setData(trace)
             except IndexError:
-                # if primary_channel + channels_displayed_traces > total_channels
-                # then the index will exceed the length of traces.T
-                continue
+                curve.setData()
 
     def hide_inactive_traces(self):
         """
