@@ -283,11 +283,11 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
 
         self.okay_button.setDisabled(True)
 
-        layout.addWidget(parameter_edit_label, 1)
-        layout.addWidget(self.error_label, 1)
-        layout.addWidget(self.parameter_edit_box, 6)
-        layout.addLayout(main_button_layout, 1)
-        layout.addLayout(reset_button_layout, 1)
+        layout.addWidget(parameter_edit_label)
+        layout.addWidget(self.error_label)
+        layout.addWidget(self.parameter_edit_box)
+        layout.addLayout(main_button_layout)
+        layout.addLayout(reset_button_layout)
 
         self.setLayout(layout)
 
@@ -319,7 +319,7 @@ class AdvancedOptionsEditor(QtWidgets.QDialog):
             self.okay_button.setDisabled(False)
         except Exception as e:
             self.error_label.setText(
-                "Invalid syntax! Refer to terminal for error message."
+                "Invalid syntax! Refer to Message Log Box for error message."
             )
             self.error_label.show()
             logger.exception(e)
