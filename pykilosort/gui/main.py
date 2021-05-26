@@ -16,7 +16,7 @@ from pykilosort.gui import (
 )
 from pykilosort.gui.logger import setup_logger
 from pykilosort.params import KilosortParams
-from pykilosort.utils import Context
+from pykilosort.utils import Context, copy_bunch, extend_probe
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 logger = setup_logger(__name__)
@@ -163,10 +163,11 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box.updateContext.connect(self.update_context)
         self.run_box.disableInput.connect(self.disable_all_input)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
+        self.run_box.updateProbeView.connect(self.update_probe_view)
 
     def change_channel_display(self, direction):
         if self.context is not None:
-            self.data_view_box.change_channel_display(direction)
+            self.data_view_box.shift_primary_channel(direction)
 
     def shift_data(self, time_shift):
         if self.context is not None:
@@ -229,7 +230,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.prepare_for_new_context()
         self.load_raw_data()
         self.setup_context()
-        self.setup_probe_view()
+        self.update_probe_view()
         self.setup_data_view()
         self.update_run_box()
 
@@ -252,38 +253,27 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.data_view_box.create_plot_items()
         self.data_view_box.update_plot(self.context)
 
-    def update_context_with_good_channels(self):
-        worker = KiloSortWorker(
-            self.context, self.data_path, self.results_directory, ["goodchannels"]
-        )
-
-        worker.foundGoodChannels.connect(self.update_context)
-
-        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor))
-        worker.start()
-        while worker.isRunning():
-            QtWidgets.QApplication.processEvents()
-        QtWidgets.QApplication.restoreOverrideCursor()
-
     def setup_context(self):
         context_path = Path(
             os.path.join(self.working_directory, ".kilosort", self.raw_data.name)
         )
 
         self.context = Context(context_path=context_path)
-        self.context.probe = self.probe_layout
+        probe_layout = self.probe_layout
+        probe_layout.Nchan = self.num_channels
+        self.context.probe = extend_probe(probe_layout)
+        self.context.raw_probe = extend_probe(copy_bunch(probe_layout))
         self.context.params = self.params
         self.context.raw_data = self.raw_data
 
         self.context.load()
 
-        self.update_context_with_good_channels()
-
     @QtCore.pyqtSlot(object)
     def update_context(self, context):
         self.context = context
 
-    def setup_probe_view(self):
+    @QtCore.pyqtSlot()
+    def update_probe_view(self):
         self.probe_view_box.set_layout(self.context)
 
     def update_run_box(self):
@@ -294,6 +284,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(dict)
     def update_sorting_status(self, status_dict):
         self.data_view_box.change_sorting_status(status_dict)
+        self.probe_view_box.change_sorting_status(status_dict)
 
     def get_context(self):
         return self.context

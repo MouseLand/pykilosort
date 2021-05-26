@@ -2,36 +2,11 @@ import cupy as cp
 import numpy as np
 from numba import jit
 from pykilosort.main import run_export, run_preprocess, run_spikesort
-from pykilosort.preprocess import get_good_channels, get_whitening_matrix, gpufilter
+from pykilosort.preprocess import gpufilter
 from PyQt5 import QtCore
 
 
-def find_good_channels(context):
-    params = context.params
-    probe = context.probe
-    raw_data = context.raw_data
-    intermediate = context.intermediate
-
-    if "igood" not in intermediate:
-        if params.minfr_goodchannels > 0:  # discard channels that have very few spikes
-            # determine bad channels
-            with context.time("good_channels"):
-                intermediate.igood = get_good_channels(
-                    raw_data=raw_data, probe=probe, params=params
-                )
-                intermediate.igood = intermediate.igood.ravel()
-            # Cache the result.
-            context.write(igood=intermediate.igood)
-
-        else:
-            intermediate.igood = np.ones_like(probe.chanMap, dtype=bool)
-
-    probe.Nchan = len(probe.chanMap)
-    context.probe = probe
-    return context
-
-
-def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
+def filter_and_whiten(raw_traces, params, probe, whitening_matrix, good_channels):
     sample_rate = params.fs
     high_pass_freq = params.fshigh
     low_pass_freq = params.fslow
@@ -43,7 +18,7 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
     filtered_data = gpufilter(
         buff=cp.asarray(raw_traces, dtype=np.float32),
-        chanMap=probe.chanMap,
+        chanMap=probe.chanMapBackup[good_channels],
         fs=sample_rate,
         fslow=low_pass_freq,
         fshigh=high_pass_freq,
@@ -55,20 +30,6 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
     array_stds = cp.std(whitened_data, axis=0)
     whitened_array = (whitened_data - array_means) / array_stds
     return whitened_array.get()
-
-
-def get_whitened_traces(raw_data, probe, params, whitening_matrix):
-    if whitening_matrix is None:
-        whitening_matrix = get_whitening_matrix(
-            raw_data=raw_data, probe=probe, params=params, nSkipCov=100
-        )
-    whitened_traces = filter_and_whiten(
-        raw_traces=raw_data,
-        params=params,
-        probe=probe,
-        whitening_matrix=whitening_matrix,
-    )
-    return whitened_traces, whitening_matrix
 
 
 @jit(nopython=True)
@@ -122,7 +83,6 @@ def get_predicted_traces(
 
 
 class KiloSortWorker(QtCore.QThread):
-    foundGoodChannels = QtCore.pyqtSignal(object)
     finishedPreprocess = QtCore.pyqtSignal(object)
     finishedSpikesort = QtCore.pyqtSignal(object)
     finishedAll = QtCore.pyqtSignal(object)
@@ -162,7 +122,3 @@ class KiloSortWorker(QtCore.QThread):
         if "export" in self.steps:
             run_export(self.context, self.data_path, self.output_directory)
             self.finishedAll.emit(self.context)
-
-        if "goodchannels" in self.steps:
-            self.context = find_good_channels(self.context)
-            self.foundGoodChannels.emit(self.context)

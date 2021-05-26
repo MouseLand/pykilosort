@@ -199,6 +199,7 @@ class ProbeBuilder(QtWidgets.QDialog):
         probe.yc = self.y_coords
         probe.kcoords = self.k_coords
         probe.chanMap = self.channel_map
+        probe.chanMapBackup = probe.chanMap.copy()
         probe.bad_channels = self.bad_channels
         probe.NchanTOT = len(self.x_coords)
 
