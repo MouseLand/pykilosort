@@ -627,7 +627,7 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         good_channels = intermediate.igood.ravel() \
             if "igood" in intermediate \
-            else np.ones_like(probe.chanMapBackup)
+            else np.ones_like(probe.chanMapBackup, dtype=bool)
 
         whitened_traces = filter_and_whiten(
             raw_traces=raw_traces,
