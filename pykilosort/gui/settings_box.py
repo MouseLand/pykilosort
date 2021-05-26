@@ -314,11 +314,11 @@ class SettingsBox(QtWidgets.QGroupBox):
 
             parent_folder = data_file_path.parent
             self.working_directory_input.setText(parent_folder.as_posix())
-            self.results_directory_input.setText((parent_folder / "phy").as_posix())
+            self.results_directory_input.setText((parent_folder / "phy_export").as_posix())
 
             self.data_file_path = data_file_path
             self.working_directory_path = parent_folder
-            self.results_directory_path = parent_folder / "phy"
+            self.results_directory_path = parent_folder / "phy_export"
 
             if self.check_settings():
                 self.enable_load()
@@ -348,7 +348,7 @@ class SettingsBox(QtWidgets.QGroupBox):
         self.settings = {
             "data_file_path": self.data_file_path,
             "working_directory": self.working_directory_path,
-            "results_directory": self.working_directory_path,
+            "results_directory": self.results_directory_path,
             "probe_layout": self.probe_layout,
             "num_channels": self.num_channels,
             "lam": self.lambda_value,
