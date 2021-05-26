@@ -128,6 +128,9 @@ class ProbeViewBox(QtWidgets.QGroupBox):
     def change_sorting_status(self, status_dict):
         self.sorting_status = status_dict
 
+    def change_sorting_status(self, status_dict):
+        self.sorting_status = status_dict
+
     def generate_spots_list(self):
         spots = []
         size = 10
