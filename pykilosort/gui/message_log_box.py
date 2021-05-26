@@ -16,6 +16,11 @@ class MessageLogBox(QtWidgets.QGroupBox):
         self.log_box.setFont(QtGui.QFont("Monospace"))
         self.layout.addWidget(self.log_box)
 
+        log_box_document = self.log_box.document()
+        default_font = log_box_document.defaultFont()
+        default_font.setPointSize(8)
+        log_box_document.setDefaultFont(default_font)
+
         XStream.stdout().messageWritten.connect(self.update_text)
         XStream.stderr().messageWritten.connect(self.update_text)
 
