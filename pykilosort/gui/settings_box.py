@@ -115,26 +115,25 @@ class SettingsBox(QtWidgets.QGroupBox):
     def setup(self):
         self.setTitle("Settings")
 
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QGridLayout()
 
         font = self.load_settings_button.font()
-        font.setPointSize(20)
+        font.setPointSize(18)
         self.load_settings_button.setFont(font)
         self.load_settings_button.setDisabled(True)
         self.load_settings_button.clicked.connect(self.update_settings)
+        layout.addWidget(self.load_settings_button, 0, 0, 1, 5)
 
-        select_data_file_layout = QtWidgets.QHBoxLayout()
-        select_data_file_layout.addWidget(self.select_data_file, 70)
-        select_data_file_layout.addWidget(self.data_file_path_input, 30)
+        layout.addWidget(self.select_data_file, 1, 0, 1, 3)
+        layout.addWidget(self.data_file_path_input, 1, 3, 1, 2)
         self.select_data_file.clicked.connect(self.on_select_data_file_clicked)
         self.data_file_path_input.textChanged.connect(self.on_data_file_path_changed)
         self.data_file_path_input.editingFinished.connect(
             self.on_data_file_path_changed
         )
 
-        select_working_directory_layout = QtWidgets.QHBoxLayout()
-        select_working_directory_layout.addWidget(self.select_working_directory, 70)
-        select_working_directory_layout.addWidget(self.working_directory_input, 30)
+        layout.addWidget(self.select_working_directory, 2, 0, 1, 3)
+        layout.addWidget(self.working_directory_input, 2, 3, 1, 2)
         self.select_working_directory.clicked.connect(
             self.on_select_working_dir_clicked
         )
@@ -145,9 +144,8 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.on_working_directory_changed
         )
 
-        select_results_directory_layout = QtWidgets.QHBoxLayout()
-        select_results_directory_layout.addWidget(self.select_results_directory, 70)
-        select_results_directory_layout.addWidget(self.results_directory_input, 30)
+        layout.addWidget(self.select_results_directory, 3, 0, 1, 3)
+        layout.addWidget(self.results_directory_input, 3, 3, 1, 2)
         self.select_results_directory.clicked.connect(
             self.on_select_results_dir_clicked
         )
@@ -158,9 +156,8 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.on_results_directory_changed
         )
 
-        probe_layout_layout = QtWidgets.QHBoxLayout()
-        probe_layout_layout.addWidget(self.probe_layout_text, 70)
-        probe_layout_layout.addWidget(self.probe_layout_selector, 30)
+        layout.addWidget(self.probe_layout_text, 4, 0, 1, 3)
+        layout.addWidget(self.probe_layout_selector, 4, 3, 1, 2)
         self.probe_layout_selector.setSizeAdjustPolicy(
             QtWidgets.QComboBox.AdjustToMinimumContentsLength
         )
@@ -168,61 +165,42 @@ class SettingsBox(QtWidgets.QGroupBox):
             self.on_probe_layout_selected
         )
 
-        probe_preview_layout = QtWidgets.QHBoxLayout()
         self.probe_preview_button.setDisabled(True)
         self.probe_preview_button.clicked.connect(self.show_probe_layout)
-        probe_preview_layout.addWidget(
-            self.probe_preview_button, 30, alignment=QtCore.Qt.AlignRight
-        )
+        layout.addWidget(
+            self.probe_preview_button, 5, 3, 1, 2)
 
-        num_channels_layout = QtWidgets.QHBoxLayout()
-        num_channels_layout.addWidget(self.num_channels_text, 70)
-        num_channels_layout.addWidget(self.num_channels_input, 30)
+        layout.addWidget(self.num_channels_text, 6, 0, 1, 3)
+        layout.addWidget(self.num_channels_input, 6, 3, 1, 2)
         self.num_channels_input.textChanged.connect(self.on_number_of_channels_changed)
 
-        time_range_layout = QtWidgets.QHBoxLayout()
-        time_range_layout.addWidget(self.time_range_text, 70)
-        time_range_layout.addWidget(self.time_range_min_input, 15)
-        time_range_layout.addWidget(self.time_range_max_input, 15)
+        layout.addWidget(self.time_range_text, 7, 0, 1, 3)
+        layout.addWidget(self.time_range_min_input, 7, 3, 1, 1)
+        layout.addWidget(self.time_range_max_input, 7, 4, 1, 1)
         self.time_range_min_input.textChanged.connect(self.on_time_range_changed)
         self.time_range_max_input.textChanged.connect(self.on_time_range_changed)
 
-        min_firing_rate_layout = QtWidgets.QHBoxLayout()
-        min_firing_rate_layout.addWidget(self.min_firing_rate_text, 70)
-        min_firing_rate_layout.addWidget(self.min_firing_rate_input, 30)
+        layout.addWidget(self.min_firing_rate_text, 8, 0, 1, 3)
+        layout.addWidget(self.min_firing_rate_input, 8, 3, 1, 2)
         self.min_firing_rate_input.textChanged.connect(self.on_min_firing_rate_changed)
 
-        threshold_layout = QtWidgets.QHBoxLayout()
-        threshold_layout.addWidget(self.threshold_text, 70)
-        threshold_layout.addWidget(self.threshold_lower_input, 15)
-        threshold_layout.addWidget(self.threshold_upper_input, 15)
+        layout.addWidget(self.threshold_text, 9, 0, 1, 3)
+        layout.addWidget(self.threshold_lower_input, 9, 3, 1, 1)
+        layout.addWidget(self.threshold_upper_input, 9, 4, 1, 1)
         self.threshold_upper_input.textChanged.connect(self.on_thresholds_changed)
         self.threshold_lower_input.textChanged.connect(self.on_thresholds_changed)
 
-        lambda_layout = QtWidgets.QHBoxLayout()
-        lambda_layout.addWidget(self.lambda_text, 70)
-        lambda_layout.addWidget(self.lambda_value_input, 30)
+        layout.addWidget(self.lambda_text, 10, 0, 1, 3)
+        layout.addWidget(self.lambda_value_input, 10, 3, 1, 2)
         self.lambda_value_input.textChanged.connect(self.on_lambda_changed)
 
-        auc_splits_layout = QtWidgets.QHBoxLayout()
-        auc_splits_layout.addWidget(self.auc_splits_text, 70)
-        auc_splits_layout.addWidget(self.auc_splits_input, 30)
+        layout.addWidget(self.auc_splits_text, 11, 0, 1, 3)
+        layout.addWidget(self.auc_splits_input, 11, 3, 1, 2)
         self.auc_splits_input.textChanged.connect(self.on_auc_splits_changed)
 
         self.advanced_options_button.clicked.connect(self.on_advanced_options_clicked)
 
-        layout.addWidget(self.load_settings_button)
-        layout.addLayout(select_data_file_layout)
-        layout.addLayout(select_working_directory_layout)
-        layout.addLayout(select_results_directory_layout)
-        layout.addLayout(probe_layout_layout)
-        layout.addLayout(probe_preview_layout)
-        layout.addLayout(num_channels_layout)
-        layout.addLayout(time_range_layout)
-        layout.addLayout(min_firing_rate_layout)
-        layout.addLayout(threshold_layout)
-        layout.addLayout(auc_splits_layout)
-        layout.addWidget(self.advanced_options_button)
+        layout.addWidget(self.advanced_options_button, 12, 0, 1, 5)
 
         self.setLayout(layout)
 
