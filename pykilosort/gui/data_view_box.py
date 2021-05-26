@@ -23,6 +23,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.data_view_widget = KSPlotWidget(useOpenGL=True)
         self.data_x_axis = self.data_view_widget.getAxis("bottom")
         self.plot_item = self.data_view_widget.getPlotItem()
+        self.data_view_box = self.data_view_widget.getViewBox()
         self.colormap_image = None
 
         self.data_seek_widget = pg.PlotWidget(useOpenGL=True)
@@ -433,7 +434,7 @@ class DataViewBox(QtWidgets.QGroupBox):
     def scene_clicked(self, ev):
         if self.context_set():
             if self.traces_mode_active():
-                x_pos = ev.pos().x()
+                x_pos = self.data_view_box.mapSceneToView(ev.pos()).x()
             else:
                 x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
             range_min = self.data_range[0]
