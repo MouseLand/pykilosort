@@ -15,7 +15,7 @@ logger = setup_logger(__name__)
 
 class DataViewBox(QtWidgets.QGroupBox):
     channelChanged = QtCore.pyqtSignal(int, int)
-    modeChanged = QtCore.pyqtSignal(str)
+    modeChanged = QtCore.pyqtSignal(str, int)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -250,25 +250,25 @@ class DataViewBox(QtWidgets.QGroupBox):
     @QtCore.pyqtSlot()
     def toggle_mode_from_click(self):
         if self.traces_mode_active():
-            self.modeChanged.emit("traces")
+            self.modeChanged.emit("traces", self.get_currently_displayed_channel_count())
             self.view_buttons_group.setExclusive(False)
             self.update_plot()
 
         if self.colormap_mode_active():
-            self.modeChanged.emit("colormap")
+            self.modeChanged.emit("colormap", self.get_currently_displayed_channel_count())
             self._traces_to_colormap_toggle()
             self.update_plot()
 
     def toggle_mode(self):
         if self.colormap_mode_active():
             self.traces_button.toggle()
-            self.modeChanged.emit("traces")
+            self.modeChanged.emit("traces", self.get_currently_displayed_channel_count())
             self.view_buttons_group.setExclusive(False)
             self.update_plot()
 
         elif self.traces_mode_active():
             self.colormap_button.toggle()
-            self.modeChanged.emit("colormap")
+            self.modeChanged.emit("colormap", self.get_currently_displayed_channel_count())
             self._traces_to_colormap_toggle()
             self.update_plot()
 
