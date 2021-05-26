@@ -233,6 +233,67 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     return Wrot
 
 
+def get_approx_whitening_matrix(raw_data, params, probe):
+    Nbatch = get_Nbatch(raw_data, params)
+    max_batches = 2
+    if Nbatch < max_batches:
+        batches = np.arange(Nbatch)
+    else:
+        batches = np.random.choice(Nbatch, size=max_batches)
+
+    ntbuff = params.ntbuff
+    NTbuff = params.NTbuff
+    whiteningRange = params.whiteningRange
+    scaleproc = params.scaleproc
+    NT = params.NT
+    fs = params.fs
+    fshigh = params.fshigh
+
+    xc = probe.xc
+    yc = probe.yc
+    chanMap = probe.chanMap
+    Nchan = probe.Nchan
+
+    # Nchan is obtained after the bad channels have been removed
+    CC = cp.zeros((Nchan, Nchan))
+
+    for ibatch in batches:
+        i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
+        # WARNING: we no longer use Fortran order, so raw_data is nsamples x NchanTOT
+        buff = raw_data[i:i + NT - ntbuff]
+        assert buff.shape[0] > buff.shape[1]
+        assert buff.flags.c_contiguous
+
+        nsampcurr = buff.shape[0]
+        if nsampcurr < NTbuff:
+            buff = np.concatenate(
+                (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
+
+        buff_g = cp.asarray(buff, dtype=np.float32)
+
+        # apply filters and median subtraction
+        datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
+        assert datr.flags.c_contiguous
+
+        CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
+
+    CC = CC / batches.size
+
+    if whiteningRange < np.inf:
+        #  if there are too many channels, a finite whiteningRange is more robust to noise
+        # in the estimation of the covariance
+        whiteningRange = min(whiteningRange, Nchan)
+        # this function performs the same matrix inversions as below, just on subsets of
+        # channels around each channel
+        Wrot = whiteningLocal(CC, yc, xc, whiteningRange)
+    else:
+        Wrot = whiteningFromCovariance(CC)
+
+    Wrot = Wrot * scaleproc
+
+    return Wrot
+
+
 def get_good_channels(raw_data=None, probe=None, params=None):
     """
     of the channels indicated by the user as good (chanMap)

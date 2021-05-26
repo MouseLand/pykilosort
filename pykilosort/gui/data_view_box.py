@@ -2,12 +2,10 @@ import numpy as np
 import typing as t
 import pyqtgraph as pg
 from cupy import asnumpy
-from datetime import datetime
 from pykilosort.gui.logger import setup_logger
-from pykilosort.gui.minor_gui_elements import controls_popup_text
 from pykilosort.gui.palettes import COLORMAP_COLORS
 from pykilosort.gui.sorter import filter_and_whiten, get_predicted_traces
-from pykilosort.preprocess import get_whitening_matrix
+from pykilosort.preprocess import get_approx_whitening_matrix
 from PyQt5 import QtCore, QtWidgets
 
 logger = setup_logger(__name__)
@@ -110,6 +108,8 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.lookup_table = self.generate_lookup_table(
             self.colormap_min, self.colormap_max
         )
+
+        self.thread_pool = QtCore.QThreadPool()
 
         self.setup()
 
@@ -452,6 +452,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.sorting_status = status_dict
         self.enable_view_buttons()
 
+    @QtCore.pyqtSlot()
     def enable_view_buttons(self):
         if self.colormap_mode_active():
             if self.prediction_button.isChecked() or self.residual_button.isChecked():
@@ -461,6 +462,17 @@ class DataViewBox(QtWidgets.QGroupBox):
                 self.prediction_button.click()
             if self.residual_button.isChecked():
                 self.residual_button.click()
+
+        if self.whitening_matrix is not None:
+            self.whitened_button.setEnabled(True)
+            self.whitened_button.setStyleSheet(
+                "QPushButton {background-color: black; color: white;}"
+            )
+        else:
+            self.whitened_button.setDisabled(True)
+            self.whitened_button.setStyleSheet(
+                "QPushButton {background-color: black; color: gray;}"
+            )
 
         if self.sorting_status["preprocess"] and self.sorting_status["spikesort"]:
             self.prediction_button.setEnabled(True)
@@ -614,30 +626,36 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
 
-    def get_whitened_traces(
-            self, raw_data, raw_traces, intermediate, params, probe, nSkipCov=None
-    ):
+    @QtCore.pyqtSlot(object)
+    def set_whitening_matrix(self, array):
+        self.whitening_matrix = array
+
+    def calculate_approx_whitening_matrix(self, context):
+        raw_data = context.raw_data
+        params = context.params
+        probe = context.probe
+        intermediate = context.intermediate
+
+        @QtCore.pyqtSlot()
+        def _call_enable_buttons():
+            self.enable_view_buttons()
+
         if "Wrot" in intermediate and self.whitening_matrix is None:
             self.whitening_matrix = intermediate.Wrot
+            logger.info("Approx. whitening matrix loaded from existing context.")
+            _call_enable_buttons()
 
-        elif self.whitening_matrix is None:
-            self.whitening_matrix = get_whitening_matrix(
-                raw_data=raw_data, params=params, probe=probe, nSkipCov=nSkipCov
+        elif (self.whitening_matrix is None) and not (self.thread_pool.activeThreadCount() > 0):
+            whitening_worker = WhiteningMatrixCalculator(
+                raw_data=raw_data,
+                params=params,
+                probe=probe
             )
 
-        good_channels = intermediate.igood.ravel() \
-            if "igood" in intermediate \
-            else np.ones_like(probe.chanMapBackup, dtype=bool)
+            whitening_worker.signals.result.connect(self.set_whitening_matrix)
+            whitening_worker.signals.finished.connect(_call_enable_buttons)
 
-        whitened_traces = filter_and_whiten(
-            raw_traces=raw_traces,
-            params=params,
-            probe=probe,
-            whitening_matrix=self.whitening_matrix,
-            good_channels=good_channels,
-        )
-
-        return whitened_traces
+            self.thread_pool.start(whitening_worker)
 
     def update_plot(self, context=None):
         if context is None:
@@ -684,7 +702,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             if self.traces_mode_active():
                 self._update_traces(params=params,
                                     probe=probe,
-                                    raw_data=raw_data,
                                     raw_traces=raw_traces,
                                     to_display=to_display,
                                     intermediate=intermediate,
@@ -696,7 +713,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             if self.colormap_mode_active():
                 self._update_colormap(params=params,
                                       probe=probe,
-                                      raw_data=raw_data,
                                       raw_traces=raw_traces,
                                       to_display=to_display,
                                       intermediate=intermediate,
@@ -720,7 +736,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             self,
             params,
             probe,
-            raw_data,
             raw_traces,
             to_display,
             intermediate,
@@ -739,13 +754,12 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         if self.whitened_button.isChecked():
             if self.whitened_traces is None:
-                whitened_traces = self.get_whitened_traces(
-                    raw_data=raw_data,
+                whitened_traces = filter_and_whiten(
                     raw_traces=raw_traces,
-                    intermediate=intermediate,
                     params=params,
                     probe=probe,
-                    nSkipCov=100,
+                    whitening_matrix=self.whitening_matrix,
+                    good_channels=good_channels,
                 )
 
                 self.whitened_traces = whitened_traces
@@ -783,13 +797,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         if self.residual_button.isChecked():
             if self.residual_traces is None:
                 if self.whitened_traces is None:
-                    whitened_traces = self.get_whitened_traces(
-                        raw_data=raw_data,
+                    whitened_traces = filter_and_whiten(
                         raw_traces=raw_traces,
-                        intermediate=intermediate,
                         params=params,
                         probe=probe,
-                        nSkipCov=100,
+                        whitening_matrix=self.whitening_matrix,
+                        good_channels=good_channels,
                     )
 
                     self.whitened_traces = whitened_traces
@@ -828,7 +841,6 @@ class DataViewBox(QtWidgets.QGroupBox):
             self,
             params,
             probe,
-            raw_data,
             raw_traces,
             to_display,
             intermediate,
@@ -851,13 +863,12 @@ class DataViewBox(QtWidgets.QGroupBox):
 
         elif self.whitened_button.isChecked():
             if self.whitened_traces is None:
-                whitened_traces = self.get_whitened_traces(
-                    raw_data=raw_data,
+                whitened_traces = filter_and_whiten(
                     raw_traces=raw_traces,
-                    intermediate=intermediate,
                     params=params,
                     probe=probe,
-                    nSkipCov=100,
+                    whitening_matrix=self.whitening_matrix,
+                    good_channels=good_channels,
                 )
 
                 self.whitened_traces = whitened_traces
@@ -893,13 +904,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         elif self.residual_button.isChecked():
             if self.residual_traces is None:
                 if self.whitened_traces is None:
-                    whitened_traces = self.get_whitened_traces(
-                        raw_data=raw_data,
+                    whitened_traces = filter_and_whiten(
                         raw_traces=raw_traces,
-                        intermediate=intermediate,
                         params=params,
                         probe=probe,
-                        nSkipCov=100,
+                        whitening_matrix=self.whitening_matrix,
+                        good_channels=good_channels,
                     )
 
                     self.whitened_traces = whitened_traces
@@ -977,3 +987,35 @@ class KSPlotWidget(pg.PlotWidget):
 
     def mouseMoveEvent(self, ev):
         pass
+
+
+class WhiteningMatrixCalculator(QtCore.QRunnable):
+
+    def __init__(self, raw_data, probe, params):
+        super(WhiteningMatrixCalculator, self).__init__()
+        self.raw_data = raw_data
+        self.params = params
+        self.probe = probe
+
+        self.signals = CalculatorSignals()
+
+    def run(self):
+        try:
+            logger.info("Calculating approx. whitening matrix.")
+            whitening_matrix = get_approx_whitening_matrix(
+                raw_data=self.raw_data,
+                params=self.params,
+                probe=self.probe,
+            )
+        except Exception as e:
+            logger.error(e)
+        else:
+            logger.info("Approx. whitening matrix calculated.")
+            self.signals.result.emit(whitening_matrix)
+        finally:
+            self.signals.finished.emit()
+
+
+class CalculatorSignals(QtCore.QObject):
+    finished = QtCore.pyqtSignal()
+    result = QtCore.pyqtSignal(object)
