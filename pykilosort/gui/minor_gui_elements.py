@@ -464,3 +464,15 @@ Controls <br>
 [right click]    - enable/disable channel for analysis <br>
 </font>
 """
+
+help_popup_text = """
+Welcome to Pykilosort!
+
+##### Documentation #####
+Pykilosort is the Python port of Kilosort2, which was originally written in Matlab. For a documentation of the underlying algorithm or the GUI, please visit https://github.com/MouseLand/Kilosort/wiki.
+
+##### Troubleshooting #####
+1. Click 'Reset GUI' to clear any GUI problems or strange errors. If the problem persists, consider restarting pykilosort.
+2. If the problem does not resolve on a restart, try deleting the '.pykilosort' directory situated in the same folder as your data file. Then restart the GUI and attempt the sorting again. [WARNING: you will lose all intermediate files which haven't been exported yet!]
+3. If the problem persists, visit https://github.com/MouseLand/pykilosort and create an issue there with as much detail about the problem as possible.  
+"""

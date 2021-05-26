@@ -1,5 +1,6 @@
 from pykilosort import __version__
-from PyQt5 import QtGui, QtWidgets
+from pykilosort.gui.minor_gui_elements import help_popup_text
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 class HeaderBox(QtWidgets.QWidget):
@@ -12,6 +13,7 @@ class HeaderBox(QtWidgets.QWidget):
         self.kilosort_text.setText(f"Kilosort {__version__[:3]}")
         self.kilosort_text.setFont(QtGui.QFont("Arial", 20, QtGui.QFont.Black))
         self.help_button = QtWidgets.QPushButton("Help")
+        self.help_button.clicked.connect(self.show_help_popup)
         self.reset_gui_button = QtWidgets.QPushButton("Reset GUI")
 
         self.layout.addWidget(self.kilosort_text)
@@ -20,3 +22,13 @@ class HeaderBox(QtWidgets.QWidget):
         self.layout.addWidget(self.reset_gui_button)
 
         self.setLayout(self.layout)
+
+    @QtCore.pyqtSlot()
+    def show_help_popup(self):
+        QtWidgets.QMessageBox.information(
+            self,
+            "Help",
+            help_popup_text,
+            QtWidgets.QMessageBox.Ok,
+            QtWidgets.QMessageBox.Ok,
+        )
