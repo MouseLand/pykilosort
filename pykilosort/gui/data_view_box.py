@@ -659,20 +659,6 @@ class DataViewBox(QtWidgets.QGroupBox):
 
             self.thread_pool.start(whitening_worker)
 
-        good_channels = intermediate.igood.ravel() \
-            if "igood" in intermediate \
-            else np.ones_like(probe.chanMapBackup, dtype=bool)
-
-        whitened_traces = filter_and_whiten(
-            raw_traces=raw_traces,
-            params=params,
-            probe=probe,
-            whitening_matrix=self.whitening_matrix,
-            good_channels=good_channels,
-        )
-
-        return whitened_traces
-
     def update_plot(self, context=None):
         if context is None:
             context = self.gui.context
@@ -778,6 +764,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                     params=params,
                     probe=probe,
                     whitening_matrix=self.whitening_matrix,
+                    good_channels=good_channels,
                 )
 
                 self.whitened_traces = whitened_traces
@@ -820,6 +807,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                         params=params,
                         probe=probe,
                         whitening_matrix=self.whitening_matrix,
+                        good_channels=good_channels,
                     )
 
                     self.whitened_traces = whitened_traces
@@ -882,11 +870,12 @@ class DataViewBox(QtWidgets.QGroupBox):
         elif self.whitened_button.isChecked():
             if self.whitened_traces is None:
                 whitened_traces = filter_and_whiten(
-                            raw_traces=raw_traces,
-                            params=params,
-                            probe=probe,
-                            whitening_matrix=self.whitening_matrix,
-                        )
+                    raw_traces=raw_traces,
+                    params=params,
+                    probe=probe,
+                    whitening_matrix=self.whitening_matrix,
+                    good_channels=good_channels,
+                )
 
                 self.whitened_traces = whitened_traces
             else:
@@ -926,6 +915,7 @@ class DataViewBox(QtWidgets.QGroupBox):
                         params=params,
                         probe=probe,
                         whitening_matrix=self.whitening_matrix,
+                        good_channels=good_channels,
                     )
 
                     self.whitened_traces = whitened_traces
