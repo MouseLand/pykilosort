@@ -1,0 +1,47 @@
+{% set name = "pykilosort" %}
+{% set version = "2.0.0a0" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: "../"
+  sha256: 04a507c2aa1c351ccfcf1e5a1dd81e62681a93667487b06ca41f41f03af8fd0f
+
+build:
+  number: 0
+  entry_points:
+    - kilosort = pykilosort.gui.launch:launcher
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - setuptools
+    - pip
+    - python
+  run:
+    - click
+    - cupy
+    - matplotlib
+    - mock
+    - numba
+    - numpy
+    - pydantic
+    - pyqt
+    - pyqtgraph
+    - pytest
+    - pytest-cov
+    - python
+    - scipy
+    - tqdm
+
+about:
+  home: "https://github.com/MouseLand/Kilosort/tree/v2.0"
+  license: GNU GPL v2.0
+  license_family: GPL2
+  license_file: LICENSE
+  summary: "Python port of KiloSort 2"
+  doc_url: "https://github.com/MouseLand/Kilosort/wiki"
+  dev_url: "https://github.com/MouseLand/pykilosort"
+
