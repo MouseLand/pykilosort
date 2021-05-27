@@ -48,7 +48,7 @@ install_requires = [
     "numba",
     "scipy",
     "matplotlib",
-    "pyqtgraph==0.11.1",
+    "pyqtgraph==0.11.*",
     "PyQt5",
     "pydantic",
     "spikeextractors",
