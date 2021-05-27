@@ -7,7 +7,6 @@ from pykilosort import __version__
 from pykilosort.gui import (
     DataViewBox,
     HeaderBox,
-    KiloSortWorker,
     MessageLogBox,
     ProbeViewBox,
     RunBox,
@@ -290,6 +289,7 @@ class KiloSortGUI(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(dict)
     def update_sorting_status(self, status_dict):
+        self.run_box.change_sorting_status(status_dict)
         self.data_view_box.change_sorting_status(status_dict)
         self.probe_view_box.change_sorting_status(status_dict)
 
