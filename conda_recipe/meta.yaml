@@ -20,16 +20,18 @@ requirements:
     - setuptools
     - pip
     - python
+    - numpy           x.x
   run:
     - click
     - cupy
     - matplotlib
     - mock
     - numba
-    - numpy
+    - numpy           x.x
     - pydantic
     - pyqt
-    - pyqtgraph
+    - qtpy
+    - pyqtgraph       0.11.*
     - pytest
     - pytest-cov
     - python
