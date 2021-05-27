@@ -163,9 +163,6 @@ class KiloSortGUI(QtWidgets.QMainWindow):
         self.run_box.updateContext.connect(self.update_context)
         self.run_box.disableInput.connect(self.disable_all_input)
         self.run_box.sortingStepStatusUpdate.connect(self.update_sorting_status)
-        self.run_box.updateProbeView.connect(self.update_probe_view)
-        self.run_box.updateDataView.connect(self.data_view_box.set_whitening_matrix)
-        self.run_box.updateDataView.connect(self.data_view_box.clear_cached_traces)
 
     def change_channel_display(self, direction):
         if self.context is not None:
@@ -274,10 +271,17 @@ class KiloSortGUI(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(object)
     def update_context(self, context):
         self.context = context
+        self.update_probe_view()
+        self.update_data_view()
 
     @QtCore.pyqtSlot()
     def update_probe_view(self):
         self.probe_view_box.set_layout(self.context)
+
+    def update_data_view(self):
+        self.data_view_box.set_whitening_matrix(self.context.intermediate.Wrot)
+        self.data_view_box.clear_cached_traces()
+        self.data_view_box.update_plot(self.context)
 
     def update_run_box(self):
         self.run_box.set_data_path(self.data_path)

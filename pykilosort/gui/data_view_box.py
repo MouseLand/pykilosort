@@ -14,6 +14,7 @@ logger = setup_logger(__name__)
 class DataViewBox(QtWidgets.QGroupBox):
     channelChanged = QtCore.pyqtSignal(int, int)
     modeChanged = QtCore.pyqtSignal(str, int)
+    updateContext = QtCore.pyqtSignal(object)
 
     def __init__(self, parent):
         QtWidgets.QGroupBox.__init__(self, parent=parent)
@@ -23,6 +24,7 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.data_view_widget = KSPlotWidget(useOpenGL=True)
         self.data_x_axis = self.data_view_widget.getAxis("bottom")
         self.plot_item = self.data_view_widget.getPlotItem()
+        self.data_view_box = self.data_view_widget.getViewBox()
         self.colormap_image = None
 
         self.data_seek_widget = pg.PlotWidget(useOpenGL=True)
@@ -310,7 +312,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         return self.colormap_button.isChecked()
 
     def context_set(self):
-        return self.gui.context is not None
+        return self.get_context() is not None
+
+    def get_context(self):
+        return self.gui.context
 
     def change_primary_channel(self, channel):
         self.primary_channel = channel
@@ -369,20 +374,46 @@ class DataViewBox(QtWidgets.QGroupBox):
         self.update_plot()
 
     def shift_current_time(self, direction):
-        time_shift = direction * self.plot_range / 2  # seconds
+        time_shift = direction * self.plot_range / 4  # seconds
         current_time = self.current_time
         new_time = current_time + time_shift
         seek_range_min = self.seek_range[0]
-        seek_range_max = self.seek_range[1]
+        seek_range_max = self.seek_range[1] - self.plot_range
         if seek_range_min <= new_time <= seek_range_max:
+            # if new time is in acceptable limits
             self.time_seek.setPos(new_time)
+        elif new_time <= seek_range_min:
+            # if new time exceeds lower bound of data
+            self.time_seek.setPos(seek_range_min)
+        elif new_time >= seek_range_max:
+            # if new time exceeds upper bound of data
+            self.time_seek.setPos(seek_range_max)
 
     def change_plot_range(self, direction):
-        plot_range = self.plot_range + 0.1 * direction
-        if 0.01 < plot_range < 2.0:
-            self.plot_range = plot_range
-            self.clear_cached_traces()
-            self.update_plot()
+        current_range = self.plot_range
+        # neg sign to reverse scrolling behaviour
+        new_range = current_range * (1.2 ** -direction)
+        if 0.005 < new_range < 1.0:
+            diff_range = new_range - current_range
+            current_time = self.current_time
+            new_time = current_time - diff_range/2.
+            seek_range_min = self.seek_range[0]
+            seek_range_max = self.seek_range[1]
+            if new_time < seek_range_min:
+                # if range exceeds lower limit on zooming
+                # set lower limit as current time
+                self.plot_range = new_range
+                self.time_seek.setPos(seek_range_min)
+            elif new_time + new_range > seek_range_max:
+                # if range exceeds upper limit on zooming
+                # set (upper limit - new time) as current range
+                alt_range = seek_range_max - new_time
+                self.plot_range = alt_range
+                self.time_seek.setPos(new_time)
+            else:
+                # if range is acceptable
+                self.plot_range = new_range
+                self.time_seek.setPos(new_time)
 
     def change_plot_scaling(self, direction):
         if self.traces_mode_active():
@@ -406,25 +437,32 @@ class DataViewBox(QtWidgets.QGroupBox):
 
     def scene_clicked(self, ev):
         if self.context_set():
-            if self.traces_mode_active():
-                x_pos = ev.pos().x()
-            else:
-                x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
-            range_min = self.data_range[0]
-            range_max = self.data_range[1]
-            fraction = (x_pos - range_min) / range_max
-            if fraction > 0.5:
-                self.shift_current_time(direction=1)
-            else:
-                self.shift_current_time(direction=-1)
+            if ev.button() == QtCore.Qt.LeftButton:
+                if self.traces_mode_active():
+                    x_pos = self.data_view_box.mapSceneToView(ev.pos()).x()
+                else:
+                    x_pos = self.colormap_image.mapFromScene(ev.pos()).x()
+                range_min = self.data_range[0]
+                range_max = self.data_range[1]
+                fraction = (x_pos - range_min) / range_max
+                if fraction > 0.5:
+                    self.shift_current_time(direction=1)
+                else:
+                    self.shift_current_time(direction=-1)
+
+    def update_context(self, new_context):
+        self.updateContext.emit(new_context)
 
     def seek_clicked(self, ev):
         if self.context_set():
             new_time = self.seek_view_box.mapSceneToView(ev.pos()).x()
             seek_range_min = self.seek_range[0]
             seek_range_max = self.seek_range[1]
-            if seek_range_min <= new_time <= seek_range_max:
+            if seek_range_min <= new_time < seek_range_max - self.plot_range:
                 self.time_seek.setPos(new_time)
+            elif seek_range_max - self.plot_range <= new_time < seek_range_max:
+                # make sure the plotted data is always as wide as the plot range
+                self.time_seek.setPos(seek_range_max - self.plot_range)
 
     def setup_seek(self, context):
         raw_data = context.raw_data
@@ -446,7 +484,10 @@ class DataViewBox(QtWidgets.QGroupBox):
         position = seek.pos()[0]
         self.current_time = position
         self.clear_cached_traces()
-        self.update_plot()
+        try:
+            self.update_plot()
+        except ValueError:
+            self.time_seek.setPos(self.seek_range[1] - self.plot_range)
 
     def change_sorting_status(self, status_dict):
         self.sorting_status = status_dict
@@ -570,24 +611,20 @@ class DataViewBox(QtWidgets.QGroupBox):
         view : str
             One of "raw", "whitened", "prediction" and "residual" views
         """
-        for c, good in enumerate(good_channels):
+        for i, curve in enumerate(self.traces_plot_items[view]):
             try:
-                curve = self.traces_plot_items[view][c]
+                trace = traces[:, i] * self.scale_factor * self.traces_scaling_factor[view]
+                good = good_channels[i]
+
                 color = (
                     self.traces_curve_color[view]
                     if good
                     else self.bad_channel_color
                 )
                 curve.setPen(color=color, width=1)
-                curve.setData(
-                    traces[:, c] *
-                    self.scale_factor *
-                    self.traces_scaling_factor[view]
-                )
+                curve.setData(trace)
             except IndexError:
-                # if primary_channel + channels_displayed_traces > total_channels
-                # then the index will exceed the length of traces.T
-                continue
+                curve.setData()
 
     def hide_inactive_traces(self):
         """
@@ -622,7 +659,7 @@ class DataViewBox(QtWidgets.QGroupBox):
             autoLevels=False,
             lut=self.lookup_table,
             levels=(level_min, level_max),
-            autoDownsample=True,
+            autoDownsample=False,
         )
         self.colormap_image = image_item
         self.plot_item.addItem(image_item)
