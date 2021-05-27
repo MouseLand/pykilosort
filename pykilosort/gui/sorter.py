@@ -110,6 +110,8 @@ class KiloSortWorker(QtCore.QThread):
 
     def run(self):
         if "preprocess" in self.steps:
+            self.context.reset()
+            self.context.probe = self.context.raw_probe.copy()
             self.context = run_preprocess(self.context)
             self.finishedPreprocess.emit(self.context)
 

@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from functools import reduce
 import json
@@ -7,7 +8,7 @@ from pathlib import Path
 import operator
 import os.path as op
 import re
-from time import perf_counter
+from time import perf_counter, strftime
 
 from tqdm import tqdm
 import numpy as np
@@ -330,6 +331,19 @@ class Context(Bunch):
         names = [f.stem for f in self.context_path.glob('*.npy')]
         self.intermediate.update(
             {name: self.read(name) for name in names if name not in self.intermediate})
+
+    def reset(self):
+        """Reset context to a clean state."""
+        for file in os.listdir(self.context_path):
+            if file.split(".")[-1] == "log":
+                log_file = Path(self.context_path / file)
+                log_file.rename(self.context_path / f"{log_file.stem}_backup_{strftime('%H%M_%d%m%Y')}.log")
+            else:
+                os.remove((self.context_path / file).as_posix())
+
+        self.intermediate = Bunch()
+        self.timer = {}
+        self.load()
 
     def save(self, **kwargs):
         """Save intermediate results to the ctx.intermediate dictionary, and to disk also.
