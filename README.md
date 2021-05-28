@@ -25,18 +25,37 @@ nvcc # This is the CUDA compiler
 
 ### Doing the install
 
-We don't currently provide a packaged version of pykilosort on pypy or conda-forge. Thus you will need to clone the repo first `git clone https://github.com/rossant/pykilosort.git && cd pykilosort`.
+You can download pykilosort from pypi. A packaged version for conda-forge is in the works. It is recommended to install pykilosort in a separate conda or venv environment.
 
-#### Conda (recomended)
+#### Conda
 
 If you don't already have conda installed you can follow the guide [here](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide).
 
-To create a conda environment with these dependencies, run the command: `conda env create -f pyks2.yml` inside your pykilosort directory.
+```shell
+conda create -n pyks2 python=3
+conda activate pyks2
+pip install pykilosort
+```
 
-#### Pip
+#### Venv
 
-You can also install the requirements via pip: `pip install -r requirements.txt`. This is not the tested path and so if you run into issues you may get less support.
+Navigate to the folder where you would like to create the virtual environment, and execute the following commands in order.
 
+```shell
+python -m venv pyks2
+source pyks2/bin/activate
+pip install pykilosort
+```
+
+#### (Important) Install phylib
+
+After installing pykilosort using either of the above methods, you will need to install phylib from github using the following command:
+
+```shell
+pip install git+https://github.com/cortex-lab/phylib
+```
+
+This step might become redundant in future releases.
 
 ## Usage
 
