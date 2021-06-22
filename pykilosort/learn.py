@@ -853,8 +853,8 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # schedule of learning rates for the model fitting part
     # starts small and goes high, it corresponds approximately to the number of spikes
     # from the past that were averaged to give rise to the current template
-    pmi = cp.exp(
-        -1.0 / cp.linspace(params.momentum[0], params.momentum[1], niter - nBatches)
+    pmi = np.exp(
+        -1.0 / np.linspace(params.momentum[0], params.momentum[1], niter - nBatches)
     )
 
     Nsum = min(Nchan, 7)  # how many channels to extend out the waveform in mexgetspikes
