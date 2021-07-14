@@ -1117,7 +1117,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         _save('drift_y_coords', ir.yblk)
         batch_size = params.NT / params.fs
         _save('drift_time_coords',
-              np.arange(0, ir.Nbatch * batch_size, params.NT / batch_size) + batch_size / 2)
+              np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, cp.uint32)
         if st3.shape[1] > 4:
