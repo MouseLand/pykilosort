@@ -1310,7 +1310,11 @@ def compress_templates(ctx):
 
         UA = np.reshape(ir.UA[:, j, ...], (-1, Nbatch), order="F")
         # UA = gpuArray(UA)
-        A, B, C = svdecon_cpu(UA)
+        try:
+            A, B, C = svdecon_cpu(UA)
+        except np.linalg.LinAlgError:
+            logger.error("SVD did not converge")
+            continue
         # U_a times U_b results in a reconstruction of the time components
         U_a[:, :, j] = np.dot(A[:, :nKeep], B[:nKeep, :nKeep])
         U_b[:, :, j] = C[:, :nKeep]
