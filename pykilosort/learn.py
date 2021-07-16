@@ -666,31 +666,44 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
     )
 
 
-def mexWtW2(Params, W1, W2, UtU):
-    code, constants = get_cuda("mexWtW2")
+def mexWtW2(W1, W2, UtU):
+    """
+    Calculates the correlations between two sets of temporal components at different time lags and
+    multiplies these by the correlations of their spatial components to get the template
+    correlations at all time lags
 
-    nblock = constants.nblock
-
-    Nfilt = int(Params[1])
-    nt0 = int(Params[9])
-
-    d_Params = cp.asarray(Params, dtype=np.float64, order="F")
+    :param W1: Temporal components,
+                cupy array with shape (n_times, n_templates)
+    :param W2: Temporal components,
+                cupy array with shape (n_times, n_templates)
+    :param UtU: Correlations between spatial components,
+                cupy array with shape (n_templates, n_templates)
+    :return: Template correlations across all time lags,
+                cupy array with shape (n_templates, n_templates, 2*n_times-1), fortran order
+    """
 
     d_W1 = cp.asarray(W1, dtype=np.float32, order="F")
     d_W2 = cp.asarray(W2, dtype=np.float32, order="F")
     d_UtU = cp.asarray(UtU, dtype=np.float32, order="F")
 
-    d_WtW = cp.zeros((Nfilt, Nfilt, 2 * nt0 - 1), dtype=np.float32, order="F")
+    code, constants = get_cuda("mexWtW2")
+    nblock = constants.nblock
 
-    grid = (1 + int(Nfilt // nblock), 1 + int(Nfilt // nblock))
+    n_times, n_templates = d_W1.shape
+
+    WtW = cp.zeros((n_templates, n_templates, 2 * n_times - 1), dtype=np.float32, order="F")
+
+    # Setting parameters for CUDA kernel
+    grid = (1 + int(n_templates // nblock), 1 + int(n_templates // nblock))
     block = (nblock, nblock)
 
+    # CUDA function that calculates the correlations
     crossFilter = cp.RawKernel(code, "crossFilter")
-    crossFilter(grid, block, (d_Params, d_W1, d_W2, d_UtU, d_WtW))
+    crossFilter(grid, block, (d_W1, d_W2, d_UtU, WtW, n_templates, n_times))
 
-    del d_Params, d_W1, d_W2, d_UtU
+    assert cp.sum(cp.isnan(WtW)) == 0
 
-    return d_WtW
+    return WtW
 
 
 def getMeWtW(W, U0, Nnearest=None):
@@ -712,7 +725,7 @@ def getMeWtW(W, U0, Nnearest=None):
             # the dot product factorizes into separable products for each spatio-temporal component
             utu0 = cp.dot(U0[:, :, i].T, U0[:, :, j])  # spatial products
             # temporal convolutions get multiplied with the spatial products
-            wtw0 = mexWtW2(Params, W[:, :, i], W[:, :, j], utu0)
+            wtw0 = mexWtW2(W[:, :, i], W[:, :, j], utu0)
             # add it to the full correlation array
             WtW = WtW + wtw0
 
