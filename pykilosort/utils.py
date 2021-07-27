@@ -250,7 +250,7 @@ class NpyWriter(object):
 
 
 class DataLoader(object):
-    "Class for loading and writing batches in the binary pre-processed data file"
+    """Class for loading and writing batches in the binary pre-processed data file"""
     def __init__(self, data_path, batch_length, n_channels, scaling_factor, dtype=np.int16):
         """
         :param data_path: Path to binary file
@@ -261,12 +261,12 @@ class DataLoader(object):
         """
         self.dtype = dtype
         self.data = np.memmap(data_path, dtype=self.dtype, mode='r+', order='F')
-        self.batch_length = batch_length
+        self.default_batch_length = batch_length
         self.n_channels = n_channels
         self.batch_size = batch_length * n_channels
         self.scaling_factor = scaling_factor
 
-        assert type(self.batch_length) == int
+        assert type(self.default_batch_length) == int
         assert type(self.n_channels) == int
         assert self.data.shape[0] % self.batch_size == 0, 'Some batches were only saved partially'
 
@@ -275,26 +275,32 @@ class DataLoader(object):
         """Returns the number of batches in the dataset"""
         return int(self.data.shape[0] / self.batch_size)
 
-    def load_batch(self, batch_number, rescale=True):
+    def load_batch(self, batch_number, batch_length=None, rescale=True):
         """
         Loads a batch and optionally rescales it and move it to the GPU
         :param batch_number: Specifies which batch to load
+        :param batch_length: Specifies which batch to load
         :param rescale: If true, rescales and moves the batch to the GPU
         :return: Loaded batch
         """
+        if not batch_length:
+            batch_size = self.batch_size
+        else:
+            batch_size = batch_length * self.n_channels
+
         assert type(batch_number) == int
         assert batch_number >= 0
-        assert batch_number < self.n_batches, \
-            f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
+        #assert batch_number < self.n_batches, \
+        #    f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
 
         batch_cpu = self.data[batch_number * self.batch_size : (batch_number + 1) * self.batch_size].reshape(
-            (-1, self.n_channels), order='F'
+            (-1, self.n_channels), order='C'
         )
 
         if not rescale:
-            return batch_cpu
+            return np.asfortranarray(batch_cpu)
 
-        batch_gpu = cp.asarray(batch_cpu, dtype=np.float32) / self.scaling_factor
+        batch_gpu = cp.asarray(batch_cpu, dtype=np.float32, order='F') / self.scaling_factor
 
         return batch_gpu
 
@@ -305,7 +311,7 @@ class DataLoader(object):
         assert batch_number < self.n_batches, \
             f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
         assert batch_data.dtype == self.dtype
-        assert batch_data.shape == (self.batch_length, self.n_channels)
+        assert batch_data.shape == (self.default_batch_length, self.n_channels)
 
         self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='F')
 
