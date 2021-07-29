@@ -12,7 +12,8 @@ from .cluster import clusterSingleBatches
 from .datashift2 import datashift2
 from .learn import learnAndSolve8b, compress_templates
 from .postprocess import find_merges, splitAllClusters, set_cutoff, rezToPhy
-from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch, DataLoader
+from .utils import Bunch, Context, memmap_large_array, load_probe, copy_bunch, DataLoader, \
+                RawDataLoader
 from .params import KilosortParams
 
 logger = logging.getLogger(__name__)
@@ -47,17 +48,8 @@ def run(
     if isinstance(probe, (str, Path)):
         probe = load_probe(probe)
 
-    raw_data = get_ephys_reader(dat_path, **kwargs)
-    assert raw_data.ndim == 2
+    raw_data = RawDataLoader(dat_path, **kwargs)
 
-    # Now, the initial raw data must be in C order, it will be converted to Fortran order
-    # in the proc file step, so as to use the existing CUDA kernels from MATLAB.
-    assert raw_data.shape[0] > raw_data.shape[1]  # nsamples > nchannels
-    n_samples, n_channels = raw_data.shape
-    logger.info("Loaded raw data with %d channels, %d samples.", n_channels, n_samples)
-
-    # TODO: design - let's pass in all of the config already parsed and ready into this function
-    #              - run should do 1 thing only - run the steps of the algorithm.
     # Get probe.
     probe = probe or default_probe(raw_data)
     assert probe
@@ -68,7 +60,10 @@ def run(
     assert params
 
     # dir path
-    dir_path = dir_path or Path(dat_path).parent
+    if type(dat_path) == list:
+        dir_path = dir_path or Path(dat_path[0]).parent
+    else:
+        dir_path = dir_path or Path(dat_path).parent
     assert dir_path, "Please provide a dir_path"
     dir_path.mkdir(exist_ok=True, parents=True)
     assert dir_path.exists()

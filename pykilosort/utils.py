@@ -3,7 +3,7 @@ from functools import reduce
 import json
 import logging
 from math import ceil
-from pathlib import Path
+from pathlib import Path, PurePath
 import operator
 import os.path as op
 import re
@@ -14,6 +14,8 @@ import numpy as np
 from numpy.lib.format import (
     _check_version, _write_array_header, header_data_from_array_1_0, dtype_to_descr)
 import cupy as cp
+
+from phylib.io.traces import get_ephys_reader
 
 from .event import emit, connect, unconnect  # noqa
 
@@ -249,6 +251,130 @@ class NpyWriter(object):
         self.fp.close()
 
 
+TAPER_LENGTH = 100
+
+
+class RawDataLoader(object):
+    """Class for reading raw data, automatically handles concatenation of multiple datasets as well
+    as zero tapering at the boundaries"""
+    def __init__(self, data_path, **kwargs):
+        """
+        :param data_path: Path/s to datasets, string, Pathlib object or list for multiple datasets
+        :param kwargs: Arguments for ephys reader
+        """
+        assert type(data_path) in [str, list] or isinstance(data_path, PurePath), \
+            'data_path must be a string, Pathlib path or a list of strings/Pathlib paths'
+
+        # Single dataset case
+        if (type(data_path) == str) or isinstance(data_path, PurePath):
+            self.multiple_datasets = False
+            self.raw_data = get_ephys_reader(data_path, **kwargs)
+            self.n_samples, self.n_channels = self.raw_data.shape
+            self.dtype = self.raw_data.dtype
+            assert self.n_samples > self.n_channels
+            logger.info(f"Loaded data with {self.n_channels} channels, {self.n_samples} samples")
+
+        # Multiple datasets case
+        else:
+            self.multiple_datasets = True
+            self.raw_data = []
+            self.n_samples = [0]
+            self.n_channels = None
+            self.dtype = None
+            self.n_datasets = len(data_path)
+            for path in data_path:
+                assert (type(path) == str) or isinstance(path, PurePath), \
+                    'Data paths must be strings or Pathlib paths'
+                raw_dataset = get_ephys_reader(path, **kwargs)
+                n_samples, n_channels = raw_dataset.shape
+                logger.info(f"Loaded data with {n_channels} channels, {n_samples} samples")
+                if not self.dtype:
+                    self.dtype = raw_dataset.dtype
+                else:
+                    assert self.dtype == raw_dataset.dtype, \
+                        'All datasets must have the same data type'
+                if not self.n_channels:
+                    self.n_channels = n_channels
+                else:
+                    assert self.n_channels == n_channels, \
+                        'All datasets must have the same number of channels'
+                self.n_samples.append(n_samples)
+                self.raw_data.append(raw_dataset)
+            self.n_samples = np.cumsum(np.array(self.n_samples))
+
+
+    @property
+    def total_length(self):
+        if not self.multiple_datasets:
+            return self.n_samples
+        else:
+            return self.n_samples[-1]
+
+    @property
+    def shape(self):
+        return self.total_length, self.n_channels
+
+    @property
+    def name(self):
+        if not self.multiple_datasets:
+            return Path(self.raw_data.name).name
+        else:
+            return Path(self.raw_data[0].name).name
+
+
+    # Slice implementation for ease of use
+    def __getitem__(self, indices):
+        time_start = indices.start or 0
+        time_end = indices.stop or self.total_length
+        return self.load(time_start, time_end)
+
+
+    def load(self, time_start, time_end):
+        assert type(time_start) == type(time_end) == int
+        assert time_start < time_end
+        if time_end > self.total_length:
+            time_end = self.total_length
+        if not self.multiple_datasets:
+            return self.raw_data[time_start:time_end]
+        else:
+            # Get ids of the dataset at the start and end points of the batch
+            start_id = np.where(self.n_samples <= time_start)[0][-1]
+            end_id = np.where(self.n_samples < time_end)[0][-1]
+
+            # Requested data batch comes from only one dataset
+            if start_id == end_id:
+                offset = self.n_samples[start_id]
+                return self.raw_data[start_id][time_start - offset: time_end - offset]
+
+            # Requested data batch is split across multiple datasets
+            else:
+                if end_id != start_id + 1:
+                    raise NotImplementedError('Unable to load more than two datasets in a batch')
+
+                sub_batch_0 = self.raw_data[start_id][time_start - self.n_samples[start_id]:]
+                sub_batch_1 = self.raw_data[end_id][:time_end - self.n_samples[end_id]]
+
+                # To prevent sudden changes at the break point between the two datasets that may
+                # lead to artefacts after filtering sine tapering is used
+
+                sub_length = min(TAPER_LENGTH, sub_batch_0.shape[0])
+                taper_window = np.sin(np.linspace(
+                    0, sub_length / TAPER_LENGTH * np.pi/2, sub_length
+                ))[::-1]
+                sub_batch_0[-sub_length:] = \
+                    (sub_batch_0[-sub_length:] * taper_window.reshape(-1,1)).astype('int16')
+
+                sub_length = min(TAPER_LENGTH, sub_batch_1.shape[0])
+                taper_window = np.sin(np.linspace(
+                    0, sub_length / TAPER_LENGTH * np.pi/2, sub_length
+                ))
+                sub_batch_1[:sub_length] = \
+                    (sub_batch_0[:sub_length] * taper_window.reshape(-1,1)).astype('int16')
+
+                return np.concatenate((sub_batch_0, sub_batch_1), axis=0)
+
+
+
 class DataLoader(object):
     """Class for loading and writing batches in the binary pre-processed data file"""
     def __init__(self, data_path, batch_length, n_channels, scaling_factor, dtype=np.int16):
@@ -293,7 +419,7 @@ class DataLoader(object):
         #assert batch_number < self.n_batches, \
         #    f'Batch {batch_number} is out of range for data with {self.n_batches} batches'
 
-        batch_cpu = self.data[batch_number * self.batch_size : (batch_number + 1) * self.batch_size].reshape(
+        batch_cpu = self.data[batch_number * batch_size : (batch_number + 1) * batch_size].reshape(
             (-1, self.n_channels), order='C'
         )
 
