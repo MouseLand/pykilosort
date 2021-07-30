@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 #              - to rely on CUDA.
 def make_kernel(kernel, name, **const_arrs):
     """Compile a kernel and pass optional constant ararys."""
-    mod = cp.core.core.compile_with_cache(kernel, prepend_cupy_headers=False)
-    b = cp.core.core.memory_module.BaseMemory()
+    mod = cp._core.core.compile_with_cache(kernel, prepend_cupy_headers=False)
+    b = cp._core.core.memory_module.BaseMemory()
     # Pass constant arrays.
     for n, arr in const_arrs.items():
         b.ptr = mod.get_global_var(n)
-        p = cp.core.core.memory_module.MemoryPointer(b, 0)
+        p = cp._core.core.memory_module.MemoryPointer(b, 0)
         p.copy_from_host(arr.ctypes.data_as(ctypes.c_void_p), arr.nbytes)
     return mod.get_function(name)
 
