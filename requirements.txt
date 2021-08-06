@@ -4,6 +4,7 @@ matplotlib
 mock
 numba
 numpy
+git+https://github.com/cortex-lab/phylib.git
 --pre phy
 pydantic
 pytest
