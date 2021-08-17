@@ -29,10 +29,9 @@ def run(
     dir_path: Path = None,
     output_dir: Path = None,
     probe=None,
-    params=None,
     stop_after=None,
     clear_context=False,
-    **kwargs,
+    **params,
 ):
     """Launch KiloSort 2.
 
@@ -48,7 +47,11 @@ def run(
     if isinstance(probe, (str, Path)):
         probe = load_probe(probe)
 
-    raw_data = RawDataLoader(dat_path, **kwargs)
+    # Get params.
+    params = KilosortParams(**params or {})
+    assert params
+
+    raw_data = RawDataLoader(dat_path, **params.ephys_reader_args)
 
     # Get probe.
     probe = probe or default_probe(raw_data)

@@ -61,6 +61,10 @@ class DatashiftParams(BaseModel):
 class KilosortParams(BaseModel):
     fs: float = Field(30000.0, description="sample rate")
 
+    data_dtype: str = Field('int16', description='data type of raw data')
+
+    n_channels: int = Field(385, description='number of channels in the data recording')
+
     probe: t.Optional[Probe] = Field(None, description="recording probe metadata")
 
     save_temp_files: bool = Field(
@@ -214,3 +218,12 @@ class KilosortParams(BaseModel):
     @property
     def nt0min(self) -> int:
         return int(ceil(20 * self.nt0 / 61))
+
+    @property
+    def ephys_reader_args(self):
+        "Key word arguments passed to ephys reader"
+        args = {}
+        args['n_channels'] = self.n_channels
+        args['dtype'] = self.data_dtype
+        args['sample_rate'] = self.fs
+        return args
