@@ -57,11 +57,6 @@ def run(
     probe = probe or default_probe(raw_data)
     assert probe
 
-    # Get params.
-    if not isinstance(params, BaseModel):
-        params = KilosortParams(**params or {})
-    assert params
-
     # dir path
     if type(dat_path) == list:
         dir_path = dir_path or Path(dat_path[0]).parent
