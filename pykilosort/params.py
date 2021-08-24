@@ -222,8 +222,9 @@ class KilosortParams(BaseModel):
     @property
     def ephys_reader_args(self):
         "Key word arguments passed to ephys reader"
-        args = {}
-        args['n_channels'] = self.n_channels
-        args['dtype'] = self.data_dtype
-        args['sample_rate'] = self.fs
+        args = {
+            'n_channels': self.n_channels,
+            'dtype': self.data_dtype,
+            'sample_rate': self.fs,
+        }
         return args
