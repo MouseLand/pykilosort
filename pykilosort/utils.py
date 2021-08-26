@@ -386,7 +386,7 @@ class DataLoader(object):
         :param dtype: Data dtype
         """
         self.dtype = dtype
-        self.data = np.memmap(data_path, dtype=self.dtype, mode='r+', order='F')
+        self.data = np.memmap(data_path, dtype=self.dtype, mode='r+', order='C')
         self.default_batch_length = batch_length
         self.n_channels = n_channels
         self.batch_size = batch_length * n_channels
