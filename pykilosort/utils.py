@@ -439,7 +439,7 @@ class DataLoader(object):
         assert batch_data.dtype == self.dtype
         assert batch_data.shape == (self.default_batch_length, self.n_channels)
 
-        self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='F')
+        self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='C')
 
 
 
