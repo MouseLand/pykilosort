@@ -59,6 +59,10 @@ class DatashiftParams(BaseModel):
 
 
 class KilosortParams(BaseModel):
+
+    do_whitening: bool = Field(True, description='whether or not to whiten data, if disabled \
+                                                 channels are individually z-scored')
+
     fs: float = Field(30000.0, description="sample rate")
 
     data_dtype: str = Field('int16', description='data type of raw data')

@@ -216,15 +216,19 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
 
     CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
 
-    if whiteningRange < np.inf:
-        #  if there are too many channels, a finite whiteningRange is more robust to noise
-        # in the estimation of the covariance
-        whiteningRange = min(whiteningRange, Nchan)
-        # this function performs the same matrix inversions as below, just on subsets of
-        # channels around each channel
-        Wrot = whiteningLocal(CC, yc, xc, whiteningRange)
+    if params.do_whitening:
+        if whiteningRange < np.inf:
+            #  if there are too many channels, a finite whiteningRange is more robust to noise
+            # in the estimation of the covariance
+            whiteningRange = min(whiteningRange, Nchan)
+            # this function performs the same matrix inversions as below, just on subsets of
+            # channels around each channel
+            Wrot = whiteningLocal(CC, yc, xc, whiteningRange)
+        else:
+            Wrot = whiteningFromCovariance(CC)
     else:
-        Wrot = whiteningFromCovariance(CC)
+        # Do single channel z-scoring instead of whitening
+        Wrot = cp.diag(cp.diag(CC) ** (-0.5))
 
     Wrot = Wrot * scaleproc
 
