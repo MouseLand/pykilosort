@@ -7,24 +7,25 @@ channels:
   - defaults
   - conda-forge
 dependencies:
- - python >=3.7
- - scipy=1.4.*
- - numpy=1.18.*
+ - python >= 3.8
+ - ipython
+ - scipy
+ - numpy
  # Cupy needs some thought on whether to pin and/or which version to pin.
  # It may be hard to get a version that works for a good range of hardware.
- - cupy
- - matplotlib=3.*
- - tqdm=4.45.*
- - click=7.*
- - pydantic=1.*
- - pytest=5.4.*
- - pytest-cov=2.*
- - mock=4.*
- - numba=0.49.*
- - pip=20.*
+ - cupy >= 9
+ - matplotlib
+ - tqdm
+ - click
+ - pydantic
+ - pytest
+ - pytest-cov
+ - mock
+ - numba
+ - pip
  - pyqtgraph
- - pyqt>=5.6
+ - pyqt
  - pip:
-    - spikeextractors==0.8.*
+    - spikeextractors
     - git+https://github.com/cortex-lab/phylib.git
     - phy --pre

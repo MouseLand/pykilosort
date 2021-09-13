@@ -1238,14 +1238,15 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     def _save(name, arr, dtype=None):
         cp.save(join(savePath, name + '.npy'), arr.astype(dtype or arr.dtype))
 
-    #TODO: save drift output and times (check units), depths of drifts
-
     if savePath is not None:
-        _save('drift', ir.dshift)
-        _save('drift_y_coords', ir.yblk)
+        # units um, dimension (ntimes, ndepths)
+        _save('drift.um', ir.dshift)
+        # units um, dimension (1, ndepths)
+        _save('drift_depths.um', ir.yblk[np.newaxis, :])
         batch_size = params.NT / params.fs
-        _save('drift_time_coords',
-              np.arange(0, ir.Nbatch * batch_size, params.NT / batch_size) + batch_size / 2)
+        # units secs, dimension (ntimes,)
+        _save('drift.times',
+              np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, cp.uint32)
         if st3.shape[1] > 4:
