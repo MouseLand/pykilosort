@@ -60,6 +60,10 @@ class DatashiftParams(BaseModel):
 
 class KilosortParams(BaseModel):
 
+    #TODO: Make algorithm deterministic for a fixed seed
+    seed: t.Optional[int] = Field(42, description="seed for deterministic output - \
+                                                   determinism coming soon")
+
     do_whitening: bool = Field(True, description='whether or not to whiten data, if disabled \
                                                  channels are individually z-scored')
 
