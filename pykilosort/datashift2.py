@@ -645,6 +645,14 @@ def datashift2(ctx):
         wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.data_loader, probe, params
     )
 
+    if params.save_drift_output:
+        drift_path = ctx.context_path / 'drift'
+        if not os.path.isdir(drift_path):
+            os.mkdir(drift_path)
+        np.save(drift_path / 'spike_times.npy', spikes.times)
+        np.save(drift_path / 'spike_depths.npy', spikes.depths)
+        np.save(drift_path / 'spike_amps.npy', spikes.amps)
+
     dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
 
     # sort in case we still want to do "tracking"
