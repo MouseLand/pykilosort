@@ -808,6 +808,9 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     NrankPC = 6  # this one is the rank of the PCs, used to detect spikes with threshold crossings
     Nrank = 3  # this one is the rank of the templates
 
+    if params.seed is not None:
+        np.random.seed(params.seed)
+
     wTEMP, wPCA = extractTemplatesfromSnippets(
         data_loader=data_loader, probe=probe, params=params, Nbatch=Nbatch, nPCs=NrankPC
     )
@@ -843,9 +846,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     isortbatches = iorig
     nhalf = int(ceil(nBatches / 2)) - 1  # halfway point
 
-    # this batch order schedule goes through half of the data forward and backward during the model
-    # fitting and then goes through the data symmetrically-out from the center during the final
-    # pass
+    # batch order schedule is a random permutation of all batches
     ischedule = np.random.permutation(nBatches)
     i1 = np.arange(nBatches)
 
