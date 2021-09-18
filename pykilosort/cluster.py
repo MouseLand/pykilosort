@@ -3,7 +3,7 @@ from math import ceil
 
 import numpy as np
 import cupy as cp
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .preprocess import my_min, my_sum
 from .cptools import svdecon, zscore, ones

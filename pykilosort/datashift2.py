@@ -1,22 +1,15 @@
 from math import floor
 import logging
 import os
-from os.path import join
-from pathlib import Path
-import shutil
 
-from tqdm import tqdm, trange
-import numba
+from tqdm.auto import tqdm, trange
 import numpy as np
 import cupy as cp
-import cupyx as cpx
 from scipy.interpolate import Akima1DInterpolator
 from scipy.sparse import coo_matrix
 
 from .postprocess import my_conv2_cpu
-from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .learn import extractTemplatesfromSnippets
-from .preprocess import convolve_gpu, _is_vect, _make_vect
 from .utils import get_cuda, Bunch
 
 logger = logging.getLogger(__name__)

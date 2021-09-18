@@ -5,7 +5,7 @@ from os.path import join
 from pathlib import Path
 import shutil
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import numba
 import numpy as np
 import cupy as cp

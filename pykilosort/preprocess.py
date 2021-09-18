@@ -5,7 +5,7 @@ from functools import lru_cache
 import numpy as np
 from scipy.signal import butter
 import cupy as cp
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .cptools import lfilter, _get_lfilter_fun, median, convolve_gpu
 from .utils import _make_fortran

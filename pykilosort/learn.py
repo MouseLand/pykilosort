@@ -3,7 +3,7 @@ from math import sqrt, ceil
 
 import numpy as np
 import cupy as cp
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from pykilosort.cptools import svdecon, svdecon_cpu, median, free_gpu_memory, ones
 from pykilosort.cluster import isolated_peaks_new, get_SpikeSample, getClosestChannels
