@@ -194,13 +194,6 @@ def run(
     if stop_after == "learn":
         return ctx
 
-    if "compress" not in ctx.timer.keys():
-        with ctx.time("compress"):
-            out = compress_templates(ctx)
-        ctx.save(**out)
-    if stop_after == "compress":
-        return ctx
-
     # Special care for cProj and cProjPC which are memmapped .dat files.
     ir.cProj = memmap_large_array(ctx.path("fW", ext=".dat")).T
     ir.cProjPC = memmap_large_array(ctx.path("fWpc", ext=".dat")).T  # transpose

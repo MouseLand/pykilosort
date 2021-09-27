@@ -1148,13 +1148,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         if ibatch > niter - nBatches - 1:
             # during the final extraction pass, this keeps track of all spikes and features
 
-            # we memorize the spatio-temporal decomposition of the waveforms at this batch
-            # this is currently only used in the GUI to provide an accurate reconstruction
-            # of the raw data at this time
-            ir.WA[..., k] = cp.asnumpy(W)
-            ir.UA[..., k] = cp.asnumpy(U)
-            ir.muA[..., k] = cp.asnumpy(mu)
-
             # we carefully assign the correct absolute times to spikes found in this batch
             toff = nt0min + t0 + NT*k
             st = toff + st0
@@ -1173,14 +1166,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             fWpc.append(featPC)
 
             ntot = ntot + x0.size  # keeps track of total number of spikes so far
-
-        if ibatch == niter - nBatches - 1:
-            # these next three store the low-d template decompositions
-            ir.WA = np.zeros((nt0, Nfilt, Nrank, nBatches), dtype=np.float32, order="F")
-            ir.UA = np.zeros(
-                (Nchan, Nfilt, Nrank, nBatches), dtype=np.float32, order="F"
-            )
-            ir.muA = np.zeros((Nfilt, nBatches), dtype=np.float32, order="F")
 
         if ibatch % 100 == 0:
             # this is some of the relevant diagnostic information to be printed during training
@@ -1277,8 +1262,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # cProjPC=ir.cProjPC,
         iNeigh=ir.iNeigh,
         iNeighPC=ir.iNeighPC,
-        WA=ir.WA,
-        UA=ir.UA,
         W=ir.W,
         U=ir.U,
         dWU=ir.dWU,
