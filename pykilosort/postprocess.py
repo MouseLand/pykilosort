@@ -515,19 +515,19 @@ def find_merges(ctx):
     # (DEV_NOTES) nbins is not a variable in Marius' code, I include it here to avoid
     # unexplainable, hard-coded constants later
 
-    st3 = cp.asarray(ir.st3)
-    Xsim = cp.asarray(ir.simScore)  # this is the pairwise similarity score
+    st3 = ir.st3
+    Xsim = ir.simScore  # this is the pairwise similarity score
     Nk = Xsim.shape[0]
-    Xsim = Xsim - cp.diag(cp.diag(Xsim))
+    Xsim = Xsim - np.diag(np.diag(Xsim))
 
     # sort by firing rate first
-    nspk = cp.zeros(Nk)
+    nspk = np.zeros(Nk)
     for j in range(Nk):
         # determine total number of spikes in each neuron
-        nspk[j] = cp.sum(st3[:, 1] == j)
+        nspk[j] = np.sum(st3[:, 1] == j)
 
     # we traverse the set of neurons in ascending order of firing rates
-    isort = cp.argsort(nspk)
+    isort = np.argsort(nspk)
 
     logger.debug('Initialized spike counts.')
 
@@ -543,7 +543,7 @@ def find_merges(ctx):
         # sort all the pairs of this neuron, discarding any that have fewer spikes
 
         uu = Xsim[isort[j], :] * (nspk > s1.size)
-        ix = cp.argsort(uu)[::-1]
+        ix = np.argsort(uu)[::-1]
         ccsort = uu[ix]
         ienu = int(np.nonzero(ccsort < .5)[0][0])
 
