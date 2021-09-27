@@ -60,6 +60,10 @@ class DatashiftParams(BaseModel):
 
 class KilosortParams(BaseModel):
 
+    low_memory: bool = Field(
+        False, description='low memory setting for running chronic recordings'
+    )
+
     save_drift_output: bool = Field(False, description='save detected spikes in drift correction')
 
     #TODO: Make algorithm deterministic for a fixed seed
