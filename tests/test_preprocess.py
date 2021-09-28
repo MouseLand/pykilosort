@@ -3,7 +3,7 @@ import numpy as np
 from scipy.signal import lfilter as lfilter_cpu
 import cupy as cp
 
-from pykilosort.postprocess import my_conv2
+from pykilosort.postprocess import my_conv2, merge_by_order
 
 sig = 250
 tmax = 1000
@@ -52,3 +52,34 @@ def create_test_dataset():
     s1 = s1[int(tmax):] / cNorm[:, np.newaxis]
 
     np.save(test_path.joinpath('my_conv2_output.npy'), s1)
+
+
+def test_merge_by_order():
+
+    n_chan = 32
+    n_rank = 3
+    n1 = 20
+    n2 = 30
+
+    total = n1 + n2
+
+    features1 = np.asfortranarray(np.random.randn(n_chan, n_rank, n1))
+    features2 = np.asfortranarray(np.random.randn(n_chan, n_rank, n2))
+
+    times1 = np.sort(np.random.choice(total, n1, replace=False))
+    mask = np.ones(total, dtype='bool')
+    mask[times1] = False
+    times2 = np.where(mask)[0]
+
+    output = merge_by_order(features1, features2, times1, times2, axis=2)
+
+    test_output = np.zeros((n_chan, n_rank, total), dtype=features1.dtype, order='F')
+    for i in range(total):
+        if i in times1:
+            location = np.where(times1 == i)[0][0]
+            test_output[:,:,i] = features1[:,:,location]
+        else:
+            location = np.where(times2 == i)[0][0]
+            test_output[:,:,i] = features2[:,:,location]
+
+    assert np.allclose(output, test_output)

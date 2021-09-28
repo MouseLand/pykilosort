@@ -1,4 +1,5 @@
 import logging
+import os
 from math import sqrt, ceil
 
 import numpy as np
@@ -935,6 +936,10 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         ctx.path("fWpc", ext=".dat"), dtype=np.float32, shape=(NchanNear, Nrank, -1)
     )
 
+    if params.low_memory:
+        feature_path = ctx.context_path / 'spike_features'
+        os.mkdir(feature_path)
+
     for ibatch in tqdm(range(niter), desc="Optimizing templates"):
         # korder is the index of the batch at this point in the schedule
         korder = int(irounds[ibatch])
@@ -1089,6 +1094,16 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                 # temporarily use U rather Urot until I have a chance to test it
                 ir.Wraw[:, :, n] = mu[n] * cp.dot(U[:, n, :], W[:, n, :].T)
 
+            if params.low_memory:
+                # Initialise array writers for the spike features of each cluster
+                feature_writers = [
+                    LargeArrayWriter(
+                        feature_path / f'spike_features_{i}',
+                        dtype=np.float32,
+                        shape=(NchanNear, Nrank, -1)
+                    ) for i in range(Nfilt)
+                ]
+
         if ibatch < niter - nBatches - 1:
             # during the main "learning" phase of fitting a model
             if ibatch % 5 == 0:
@@ -1148,13 +1163,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         if ibatch > niter - nBatches - 1:
             # during the final extraction pass, this keeps track of all spikes and features
 
-            # we memorize the spatio-temporal decomposition of the waveforms at this batch
-            # this is currently only used in the GUI to provide an accurate reconstruction
-            # of the raw data at this time
-            ir.WA[..., k] = cp.asnumpy(W)
-            ir.UA[..., k] = cp.asnumpy(U)
-            ir.muA[..., k] = cp.asnumpy(mu)
-
             # we carefully assign the correct absolute times to spikes found in this batch
             toff = nt0min + t0 + NT*k
             st = toff + st0
@@ -1168,19 +1176,25 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             ]
             # Check the number of spikes.
             assert st30.shape[0] == featW.shape[1] == featPC.shape[2]
+
+            # Sort by spike times
+            ix_sort = np.argsort(st30[:,0])
+            st30 = np.asfortranarray(st30[ix_sort])
+            featW = cp.asfortranarray(featW[:, ix_sort])
+            featPC = cp.asfortranarray(featPC[:, :, ix_sort])
+
             st3.append(st30)
             fW.append(featW)
             fWpc.append(featPC)
 
-            ntot = ntot + x0.size  # keeps track of total number of spikes so far
+            if params.low_memory:
+                # Save spike features individually for each cluster
+                for i in range(Nfilt):
+                    sub_array = cp.asfortranarray(featPC[:, :, id0 == i])
+                    feature_writers[i].append(sub_array)
 
-        if ibatch == niter - nBatches - 1:
-            # these next three store the low-d template decompositions
-            ir.WA = np.zeros((nt0, Nfilt, Nrank, nBatches), dtype=np.float32, order="F")
-            ir.UA = np.zeros(
-                (Nchan, Nfilt, Nrank, nBatches), dtype=np.float32, order="F"
-            )
-            ir.muA = np.zeros((Nfilt, nBatches), dtype=np.float32, order="F")
+
+            ntot = ntot + x0.size  # keeps track of total number of spikes so far
 
         if ibatch % 100 == 0:
             # this is some of the relevant diagnostic information to be printed during training
@@ -1208,6 +1222,11 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     fW.close()
     fWpc.close()
 
+    if params.low_memory:
+        # Close the large array writers for each cluster's spike features
+        for writer in feature_writers:
+            writer.close()
+
     # just display the total number of spikes
     logger.info("Found %d spikes.", ntot)
 
@@ -1234,6 +1253,10 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
     # Number of spikes.
     assert ir.st3.shape[0] == fW.shape[-1] == fWpc.shape[-1]
+
+    # Save cluster times and IDs at this stage if requested
+    if params.save_temp_files:
+        np.save(ctx.context_path / 'temp_splits' / 'st3_learn.npy', ir.st3)
 
     # # this whole next block is just done to compress the compressed templates
     # # we separately svd the time components of each template, and the spatial components
@@ -1277,8 +1300,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # cProjPC=ir.cProjPC,
         iNeigh=ir.iNeigh,
         iNeighPC=ir.iNeighPC,
-        WA=ir.WA,
-        UA=ir.UA,
         W=ir.W,
         U=ir.U,
         dWU=ir.dWU,

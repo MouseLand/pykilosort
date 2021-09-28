@@ -1,5 +1,6 @@
 import logging
 import shutil
+import os
 from pathlib import Path
 from phylib.io.traces import get_ephys_reader
 
@@ -71,6 +72,10 @@ def run(
     if clear_context:
         logger.info(f"Clearing context at {ctx_path} ...")
         shutil.rmtree(ctx_path, ignore_errors=True)
+
+    if params.save_temp_files:
+        temp_splits_path = ctx_path / 'temp_splits'
+        temp_splits_path.mkdir(exist_ok=True, parents=True)
 
     ctx = Context(ctx_path)
     ctx.params = params
@@ -192,13 +197,6 @@ def run(
             out = learnAndSolve8b(ctx)
         ctx.save(**out)
     if stop_after == "learn":
-        return ctx
-
-    if "compress" not in ctx.timer.keys():
-        with ctx.time("compress"):
-            out = compress_templates(ctx)
-        ctx.save(**out)
-    if stop_after == "compress":
         return ctx
 
     # Special care for cProj and cProjPC which are memmapped .dat files.
