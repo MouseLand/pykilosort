@@ -43,7 +43,7 @@ def copy_bunch(old_bunch):
     :param old_bunch: Bunch object to be copied
     :return: New Bunch object
     """
-    assert isinstance(old_bunch, Bunch)
+    assert type(old_bunch).__name__ == 'Bunch'
 
     new_bunch = Bunch()
     for key in old_bunch.keys():
