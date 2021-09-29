@@ -1464,7 +1464,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         chanMap0ind = chanMap0ind.astype(np.int32)
 
         _save('channel_map', chanMap0ind)
-        _save('channel_positions', np.c_[xcoords, ycoords])
+        _save('channel_positions', np.c_[xcoords, ycoords], np.float32)
 
         # _save('template_features', templateFeatures)
         # with open(join(savePath, 'template_features.npy'), 'wb') as fp:
