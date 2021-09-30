@@ -841,9 +841,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # find the closest NchanNear channels, and the masks for those channels
     iC, mask, C2C = getClosestChannels(probe, sigmaMask, NchanNear)
 
-    # sorting order for the batches
-    isortbatches = iorig
-
     # batch order schedule is a random permutation of all batches
     ischedule = np.random.permutation(nBatches)
     i1 = np.arange(nBatches)
@@ -941,7 +938,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # korder is the index of the batch at this point in the schedule
         korder = int(irounds[ibatch])
         # k is the index of the batch in absolute terms
-        k = int(isortbatches[korder])
         logger.debug("Batch %d/%d, %d templates.", ibatch, niter, Nfilt)
 
         if ibatch < niter - nBatches:
@@ -950,7 +946,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order="F")
 
         # loading a single batch
-        dataRAW = ir.data_loader.load_batch(k)
+        dataRAW = ir.data_loader.load_batch(korder)
 
         if ibatch == 0:
             # only on the first batch, we first get a new set of spikes from the residuals,
@@ -1155,7 +1151,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             # during the final extraction pass, this keeps track of all spikes and features
 
             # we carefully assign the correct absolute times to spikes found in this batch
-            toff = nt0min + t0 + NT*k
+            toff = nt0min + t0 + NT*korder
             st = toff + st0
 
             st30 = np.c_[
