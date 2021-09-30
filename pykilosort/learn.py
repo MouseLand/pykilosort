@@ -838,14 +838,11 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # decay of gaussian spatial mask centered on a channel
     sigmaMask = params.sigmaMask
 
-    batchstart = list(range(0, NT * nBatches + 1, NT))
-
     # find the closest NchanNear channels, and the masks for those channels
     iC, mask, C2C = getClosestChannels(probe, sigmaMask, NchanNear)
 
     # sorting order for the batches
     isortbatches = iorig
-    nhalf = int(ceil(nBatches / 2)) - 1  # halfway point
 
     # batch order schedule is a random permutation of all batches
     ischedule = np.random.permutation(nBatches)
@@ -946,12 +943,6 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # k is the index of the batch in absolute terms
         k = int(isortbatches[korder])
         logger.debug("Batch %d/%d, %d templates.", ibatch, niter, Nfilt)
-
-        if ibatch > niter - nBatches - 1 and korder == nhalf:
-            # this is required to revert back to the template states in the middle of the
-            # batches
-            W, dWU = ir.W, ir.dWU
-            logger.debug("Reverted back to middle timepoint.")
 
         if ibatch < niter - nBatches:
             # obtained pm for this batch
