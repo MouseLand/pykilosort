@@ -483,9 +483,9 @@ class Context(Bunch):
             # Load a NumPy file.
             if path.exists():
                 logger.debug("Loading %s.npy", name)
-                # Memmap for large files.
-                mmap_mode = 'r' if op.getsize(path) > 1e8 else None
-                self.intermediate[name] = np.load(path, mmap_mode=mmap_mode)
+                # # Memmap for large files.
+                # mmap_mode = 'r' if op.getsize(path) > 1e8 else None
+                self.intermediate[name] = np.load(path)
             else:
                 # Load a value from the metadata file.
                 self.intermediate[name] = self.read_metadata().get(name, None)
