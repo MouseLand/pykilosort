@@ -1325,6 +1325,13 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     spikeTimes = st3[:, 0].astype(np.uint64)
     spikeTemplates = st3[:, 1].astype(np.uint32)
 
+    # If multiple datasets were run, output the original dataset each spike came from as well as
+    # the spike time within the dataset
+    if ctx.raw_data.multiple_datasets:
+        dataset_times = ctx.raw_data.n_samples
+        spike_datasets = np.searchsorted(dataset_times[1:], spikeTimes, side='right')
+        spiketimes_corrected = spikeTimes - dataset_times[spike_datasets]
+
     # (DEV_NOTES) if statement below seems useless due to above if statement
     if st3.shape[1] > 4:
         spikeClusters = (1 + st3[:, 4]).astype(np.uint32)
@@ -1453,6 +1460,11 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
               np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, np.uint32)
+
+        if ctx.raw_data.multiple_datasets:
+            _save('spike_datasets', spike_datasets)
+            _save('spike_times_corrected', spiketimes_corrected)
+
         if st3.shape[1] > 4:
             _save('spike_clusters', spikeClusters, np.uint32)
         else:
