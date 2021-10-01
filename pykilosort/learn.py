@@ -197,6 +197,25 @@ def getMeWtW2(W, U0, Nnearest=None):
         return WtW
 
 
+def custom_lexsort(arrays):
+    """
+    Lexsort of 1D Cupy arrays, last array given is used for the primary sort order, second-last
+    for secondary sort order and so on
+    :param arrays: List of 1D Cupy arrays, all lengths must match
+    :return: Cupy array of indices that sort the arrays according to the above
+    """
+    # Check arrays are one-dimensional and have equal length
+    for array in arrays:
+        assert array.ndim == 1
+    n = arrays[0].shape[0]
+    for array in arrays[1:]:
+        assert array.shape[0] == n
+
+    # Concatenate arrays and pass to cupy lexsort function
+    lex_array = cp.concatenate([array.reshape(1, -1) for array in arrays], axis=0)
+    return cp.lexsort(lex_array)
+
+
 def mexGetSpikes2(Params, drez, wTEMP, iC):
     code, constants = get_cuda("mexGetSpikes2")
 
@@ -266,6 +285,12 @@ def mexGetSpikes2(Params, drez, wTEMP, iC):
         (32,),
         (d_Params, d_x, d_st, d_id, d_st1, d_id1, d_counter),
     )
+
+    # Order of peaks found can vary depending on thread execution times, sort for determinism
+    n_spikes = int(min(maxFR, d_counter[1]))
+    sorted_ids = custom_lexsort([d_id1[:n_spikes], d_st1[:n_spikes]])
+    d_st1[:n_spikes] = d_st1[:n_spikes][sorted_ids]
+    d_id1[:n_spikes] = d_id1[:n_spikes][sorted_ids]
 
     # add new spikes to 2nd counter
     counter[0] = d_counter[1]
