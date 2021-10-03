@@ -323,25 +323,33 @@ def get_Nbatch(raw_data, params):
     # we assume raw_data as been already virtually split with the requested trange
     return ceil(n_samples / params.NT)  # number of data batches
 
-def preprocess(ctx):
+
+def destriping(ctx):
+    """IBL destriping - CPU version for the time being, although leveraging the GPU
+    for the many FFTs performed would probably be quite beneficial """
     probe = ctx.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     wrot = cp.asnumpy(ir.Wrot)
-    # TODO add the sample shift in the parameters
-    logger.info("Loading raw data and applying filters.")
+    # TODO add the sample shift in the probe parameters
+    logger.info("Pre-processing: applying destriping option to the raw data")
     from ibllib.dsp.voltage import decompress_destripe_cbin
-    if raw_data.raw_data.n_parts == 1:
-        ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
-        decompress_destripe_cbin(raw_data.raw_data.name, output_file=ir.proc_path, wrot=wrot, nc_out=probe.Nchan, ns2add=ns2add)
-    else:
+    # there are inconsistencies between the mtscomp reader and the flat binary file reader
+    # the flat bin reader as an attribute _paths that allows looping on each chunk
+    if getattr(raw_data.raw_data, '_paths', None):
         for i, bin_file in enumerate(raw_data.raw_data._paths):
             ns, _ = raw_data.raw_data._mmaps[i].shape
             ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
-            decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0, nc_out=probe.Nchan, ns2add=ns2add)
+            decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0,
+                                     nc_out=probe.Nchan, ns2add=ns2add)
+    else:
+        assert raw_data.raw_data.n_parts == 1
+        ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
+        decompress_destripe_cbin(raw_data.raw_data.name, output_file=ir.proc_path, wrot=wrot,
+                                 nc_out=probe.Nchan, ns2add=ns2add)
 
 
-def preprocess_old(ctx):
+def preprocess(ctx):
     # function rez = preprocessDataSub(ops)
     # this function takes an ops struct, which contains all the Kilosort2 settings and file paths
     # and creates a new binary file of preprocessed data, logging new variables into rez.
