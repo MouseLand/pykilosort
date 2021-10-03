@@ -4,12 +4,14 @@ import pykilosort
 from deploy.serverpc.kilosort2.run_pykilosort import run_spike_sorting_ibl
 
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
+SCRATCH_DIR = Path.home().joinpath("scratch", 'pykilosort')
 bin_file = INTEGRATION_DATA_PATH.joinpath("imec_385_100s.ap.bin")
 
 ks_output_dir = INTEGRATION_DATA_PATH.joinpath(f"{pykilosort.__version__}", bin_file.name.split('.')[0])
 ks_output_dir.mkdir(parents=True, exist_ok=True)
 alf_path = ks_output_dir.joinpath('alf')
-run_spike_sorting_ibl(bin_file, delete=True, version=1, ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG')
+run_spike_sorting_ibl(bin_file, delete=True, scratch_dir=SCRATCH_DIR, neuropixel_version=1,
+                      ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG')
 
 #
 # # Minimum recall to pass checks (percentage)
