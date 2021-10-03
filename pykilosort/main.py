@@ -163,13 +163,14 @@ def run(
     # if stop_after == "reorder":
     #     return ctx
 
-    if "drift_correction" not in ctx.timer.keys() and params.perform_drift_registration:
-        with ctx.time("drift_correction"):
-            out = datashift2(ctx)
-        ctx.save(**out)
-    if stop_after == "drift_correction":
-        return ctx
 
+    if params.perform_drift_registration:
+        if "drift_correction" not in ctx.timer.keys():
+            with ctx.time("drift_correction"):
+                out = datashift2(ctx)
+            ctx.save(**out)
+    else:
+        ctx.intermediate.iorig = np.arange(ctx.intermediate.Nbatch)
     # -------------------------------------------------------------------------
     # Main tracking and template matching algorithm.
     #
