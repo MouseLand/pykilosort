@@ -12,11 +12,11 @@ import cupy as cp
 import cupyx as cpx
 from scipy.signal import lfilter
 
-from .cptools import ones, svdecon, var, mean, free_gpu_memory
+from .cptools import svdecon, var, mean, free_gpu_memory, convolve_gpu
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
-from .preprocess import convolve_gpu, _is_vect, _make_vect
-from .utils import Bunch, NpyWriter
+from .preprocess import _is_vect, _make_vect
+from .utils import NpyWriter
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,7 @@ from .utils import Bunch, memmap_binary_file, read_data, load_probe, plot_dissim
 from .main import run, run_export, run_spikesort, run_preprocess
 
 
-__version__ = 'ibl_1.0.2'
-
+__version__ = 'ibl_1.1.0a02'
 
 # Set a null handler on the root logger
 logger = logging.getLogger(__name__)
