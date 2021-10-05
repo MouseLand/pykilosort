@@ -788,9 +788,9 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     idrop = nsp < m0  # drop any templates with firing rate below this
 
     # remove those templates everywhere
-    W = W[:, ~idrop, :]
-    U = U[:, ~idrop, :]
-    dWU = dWU[:, :, ~idrop]
+    W = cp.asfortranarray(W[:, ~idrop, :])
+    U = cp.asfortranarray(U[:, ~idrop, :])
+    dWU = cp.asfortranarray(dWU[:, :, ~idrop])
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
@@ -815,9 +815,9 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     idrop = amax > 0
 
     # remove these templates everywhere like before
-    W = W[:, ~idrop, :]
-    U = U[:, ~idrop, :]
-    dWU = dWU[:, :, ~idrop]
+    W = cp.asfortranarray(W[:, ~idrop, :])
+    U = cp.asfortranarray(U[:, ~idrop, :])
+    dWU = cp.asfortranarray(dWU[:, :, ~idrop])
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
@@ -1014,12 +1014,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             # iW = int32(squeeze(iW))
 
             isort = cp.argsort(iW)  # sort by max abs channel
-            iW = iW[isort]
-            W = W[
+            iW = cp.asfortranarray(iW[isort])
+            W = cp.asfortranarray(W[
                 :, isort, :
-            ]  # user ordering to resort all the other template variables
-            dWU = dWU[:, :, isort]
-            nsp = nsp[isort]
+            ])  # user ordering to resort all the other template variables
+            dWU = cp.asfortranarray(dWU[:, :, isort])
+            nsp = cp.asfortranarray(nsp[isort])
 
         # decompose dWU by svd of time and space (via covariance matrix of 61 by 61 samples)
         # this uses a "warm start" by remembering the W from the previous iteration
@@ -1091,7 +1091,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             WtW, iList = getMeWtW(W, U, Nnearest)
 
             # iW is the final channel assigned to each template
-            iW = cp.argmax(cp.abs(dWU[nt0min - 1, :, :]), axis=0)
+            iW = cp.asfortranarray(cp.argmax(cp.abs(dWU[nt0min - 1, :, :]), axis=0))
 
             # extract ALL features on the last pass
             Params[
@@ -1155,12 +1155,14 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                     dWU0.shape,
                     order="F",
                 )
-                dWU = cp.concatenate((dWU, dWU0), axis=2)
+                dWU = cp.asfortranarray(cp.concatenate((dWU, dWU0), axis=2))
 
                 m = dWU0.shape[2]
                 # initialize temporal components of waveforms
-                W = _extend(
+                W = cp.asfortranarray(
+                    _extend(
                     W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1
+                    )
                 )
 
                 # initialize the number of spikes with the minimum allowed
