@@ -679,16 +679,23 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
 
     del d_counter, d_Params, d_ftype, d_err, d_eloss, d_z, d_dout, d_data
 
+    # Sort to ensure determinism as different thread execution times leads to spikes being found
+    # in a random order
+
+    sorted_idx = custom_lexsort([d_y[:minSize], d_id[:minSize], d_st[:minSize]])
+
+    # Indexing a f-contiguous array returns a c-contiguous array so we need to recast back into
+    # fortran order
     return (
-        d_st[:minSize],
-        d_id[:minSize],
-        d_y[:minSize],
-        d_feat[..., :minSize],
+        d_st[:minSize][sorted_idx],
+        d_id[:minSize][sorted_idx],
+        d_y[:minSize][sorted_idx],
+        cp.asfortranarray(d_feat[..., :minSize][..., sorted_idx]),
         d_dWU,
         d_draw,
         d_nsp,
-        d_featPC[..., :minSize],
-        d_x[:minSize],
+        cp.asfortranarray(d_featPC[..., :minSize][..., sorted_idx]),
+        d_x[:minSize][sorted_idx],
     )
 
 
