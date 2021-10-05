@@ -426,7 +426,9 @@ class DataLoader(object):
         if not rescale:
             return np.asfortranarray(batch_cpu)
 
-        batch_gpu = cp.asarray(batch_cpu, dtype=np.float32, order='F') / self.scaling_factor
+        batch_gpu = cp.asfortranarray(
+            cp.asarray(batch_cpu, dtype=np.float32) / self.scaling_factor
+        )
 
         return batch_gpu
 
