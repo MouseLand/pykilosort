@@ -66,9 +66,7 @@ class KilosortParams(BaseModel):
 
     save_drift_output: bool = Field(False, description='save detected spikes in drift correction')
 
-    #TODO: Make algorithm deterministic for a fixed seed
-    seed: t.Optional[int] = Field(42, description="seed for deterministic output - \
-                                                   determinism coming soon")
+    seed: t.Optional[int] = Field(42, description="seed for deterministic output")
 
     do_whitening: bool = Field(True, description='whether or not to whiten data, if disabled \
                                                  channels are individually z-scored')
