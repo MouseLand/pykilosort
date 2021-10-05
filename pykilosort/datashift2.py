@@ -627,6 +627,10 @@ def datashift2(ctx):
     )  # this would come out as 16um for Neuropixels probes, which aligns with the geometry.
     xup = np.linspace(xmin, xmax, npt + 1)  # centers of the upsampled x positions
 
+    # Set seed
+    if params.seed:
+        np.random.seed(params.seed)
+
     # determine prototypical timecourses by clustering of simple threshold crossings.
     wTEMP, wPCA = extractTemplatesfromSnippets(
         data_loader=ir.data_loader, probe=probe, params=params, Nbatch=Nbatch

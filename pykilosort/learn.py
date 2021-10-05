@@ -197,6 +197,25 @@ def getMeWtW2(W, U0, Nnearest=None):
         return WtW
 
 
+def custom_lexsort(arrays):
+    """
+    Lexsort of 1D Cupy arrays, last array given is used for the primary sort order, second-last
+    for secondary sort order and so on
+    :param arrays: List of 1D Cupy arrays, all lengths must match
+    :return: Cupy array of indices that sort the arrays according to the above
+    """
+    # Check arrays are one-dimensional and have equal length
+    for array in arrays:
+        assert array.ndim == 1
+    n = arrays[0].shape[0]
+    for array in arrays[1:]:
+        assert array.shape[0] == n
+
+    # Concatenate arrays and pass to cupy lexsort function
+    lex_array = cp.concatenate([array.reshape(1, -1) for array in arrays], axis=0)
+    return cp.lexsort(lex_array)
+
+
 def mexGetSpikes2(Params, drez, wTEMP, iC):
     code, constants = get_cuda("mexGetSpikes2")
 
@@ -266,6 +285,12 @@ def mexGetSpikes2(Params, drez, wTEMP, iC):
         (32,),
         (d_Params, d_x, d_st, d_id, d_st1, d_id1, d_counter),
     )
+
+    # Order of peaks found can vary depending on thread execution times, sort for determinism
+    n_spikes = int(min(maxFR, d_counter[1]))
+    sorted_ids = custom_lexsort([d_id1[:n_spikes], d_st1[:n_spikes]])
+    d_st1[:n_spikes] = d_st1[:n_spikes][sorted_ids]
+    d_id1[:n_spikes] = d_id1[:n_spikes][sorted_ids]
 
     # add new spikes to 2nd counter
     counter[0] = d_counter[1]
@@ -422,7 +447,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype),
     )
 
-    if params.stablemode_enabled and not params.deterministicmode_enabled:
+    if params.stable_mode and not params.deterministic_mode:
         d_draw64 = cp.array(d_draw, dtype=np.float64)
 
     # loop to find and subtract spikes
@@ -464,8 +489,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
                 (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat),
             )
 
-        if params.deterministicmode_enabled:
-            if params.stablemode_enabled:
+        if params.deterministic_mode:
+            if params.stable_mode:
                 d_stSort = d_st[counter[1]:counter[0]] # cudaMemcpy( d_stSort, d_st+counter[1], (counter[0] - counter[1])*sizeof(int), cudaMemcpyDeviceToDevice );
                 d_idx[:counter[0]-counter[1]] = cp.argsort(d_stSort) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
             else:
@@ -507,7 +532,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
                 ),
             )
         else:
-            if params.stablemode_enabled:
+            if params.stable_mode:
                 subtract_spikes_v4 = cp.RawKernel(code, "subtract_spikes_v4")
                 subtract_spikes_v4(
                     (Nfilt,),
@@ -591,7 +616,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         # update 1st counter from 2nd counter
         d_counter[1] = d_counter[0]
 
-    if params.stablemode_enabled and not params.deterministicmode_enabled:
+    if params.stable_mode and not params.deterministic_mode:
         d_draw = cp.array(d_draw64, dtype=np.float32)
 
     # compute PC features from residuals + subtractions
@@ -618,7 +643,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
             ),
         )
 
-    if params.stablemode_enabled:
+    if params.stable_mode:
         # d_idx = array of time sorted indices
         d_idx[:counter[0]] = cp.argsort(d_st[:counter[0]]) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
     else:
@@ -654,16 +679,23 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
 
     del d_counter, d_Params, d_ftype, d_err, d_eloss, d_z, d_dout, d_data
 
+    # Sort to ensure determinism as different thread execution times leads to spikes being found
+    # in a random order
+
+    sorted_idx = custom_lexsort([d_y[:minSize], d_id[:minSize], d_st[:minSize]])
+
+    # Indexing a f-contiguous array returns a c-contiguous array so we need to recast back into
+    # fortran order
     return (
-        d_st[:minSize],
-        d_id[:minSize],
-        d_y[:minSize],
-        d_feat[..., :minSize],
+        d_st[:minSize][sorted_idx],
+        d_id[:minSize][sorted_idx],
+        d_y[:minSize][sorted_idx],
+        cp.asfortranarray(d_feat[..., :minSize][..., sorted_idx]),
         d_dWU,
         d_draw,
         d_nsp,
-        d_featPC[..., :minSize],
-        d_x[:minSize],
+        cp.asfortranarray(d_featPC[..., :minSize][..., sorted_idx]),
+        d_x[:minSize][sorted_idx],
     )
 
 
@@ -756,9 +788,9 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     idrop = nsp < m0  # drop any templates with firing rate below this
 
     # remove those templates everywhere
-    W = W[:, ~idrop, :]
-    U = U[:, ~idrop, :]
-    dWU = dWU[:, :, ~idrop]
+    W = cp.asfortranarray(W[:, ~idrop, :])
+    U = cp.asfortranarray(U[:, ~idrop, :])
+    dWU = cp.asfortranarray(dWU[:, :, ~idrop])
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
@@ -783,9 +815,9 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     idrop = amax > 0
 
     # remove these templates everywhere like before
-    W = W[:, ~idrop, :]
-    U = U[:, ~idrop, :]
-    dWU = dWU[:, :, ~idrop]
+    W = cp.asfortranarray(W[:, ~idrop, :])
+    U = cp.asfortranarray(U[:, ~idrop, :])
+    dWU = cp.asfortranarray(dWU[:, :, ~idrop])
     mu = mu[~idrop]
     nsp = nsp[~idrop]
     # keep track of how many templates have been removed this way
@@ -838,14 +870,8 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # decay of gaussian spatial mask centered on a channel
     sigmaMask = params.sigmaMask
 
-    batchstart = list(range(0, NT * nBatches + 1, NT))
-
     # find the closest NchanNear channels, and the masks for those channels
     iC, mask, C2C = getClosestChannels(probe, sigmaMask, NchanNear)
-
-    # sorting order for the batches
-    isortbatches = iorig
-    nhalf = int(ceil(nBatches / 2)) - 1  # halfway point
 
     # batch order schedule is a random permutation of all batches
     ischedule = np.random.permutation(nBatches)
@@ -944,14 +970,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # korder is the index of the batch at this point in the schedule
         korder = int(irounds[ibatch])
         # k is the index of the batch in absolute terms
-        k = int(isortbatches[korder])
         logger.debug("Batch %d/%d, %d templates.", ibatch, niter, Nfilt)
-
-        if ibatch > niter - nBatches - 1 and korder == nhalf:
-            # this is required to revert back to the template states in the middle of the
-            # batches
-            W, dWU = ir.W, ir.dWU
-            logger.debug("Reverted back to middle timepoint.")
 
         if ibatch < niter - nBatches:
             # obtained pm for this batch
@@ -959,7 +978,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order="F")
 
         # loading a single batch
-        dataRAW = ir.data_loader.load_batch(k)
+        dataRAW = ir.data_loader.load_batch(korder)
 
         if ibatch == 0:
             # only on the first batch, we first get a new set of spikes from the residuals,
@@ -995,12 +1014,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             # iW = int32(squeeze(iW))
 
             isort = cp.argsort(iW)  # sort by max abs channel
-            iW = iW[isort]
-            W = W[
+            iW = cp.asfortranarray(iW[isort])
+            W = cp.asfortranarray(W[
                 :, isort, :
-            ]  # user ordering to resort all the other template variables
-            dWU = dWU[:, :, isort]
-            nsp = nsp[isort]
+            ])  # user ordering to resort all the other template variables
+            dWU = cp.asfortranarray(dWU[:, :, isort])
+            nsp = cp.asfortranarray(nsp[isort])
 
         # decompose dWU by svd of time and space (via covariance matrix of 61 by 61 samples)
         # this uses a "warm start" by remembering the W from the previous iteration
@@ -1072,7 +1091,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             WtW, iList = getMeWtW(W, U, Nnearest)
 
             # iW is the final channel assigned to each template
-            iW = cp.argmax(cp.abs(dWU[nt0min - 1, :, :]), axis=0)
+            iW = cp.asfortranarray(cp.argmax(cp.abs(dWU[nt0min - 1, :, :]), axis=0))
 
             # extract ALL features on the last pass
             Params[
@@ -1136,12 +1155,14 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                     dWU0.shape,
                     order="F",
                 )
-                dWU = cp.concatenate((dWU, dWU0), axis=2)
+                dWU = cp.asfortranarray(cp.concatenate((dWU, dWU0), axis=2))
 
                 m = dWU0.shape[2]
                 # initialize temporal components of waveforms
-                W = _extend(
+                W = cp.asfortranarray(
+                    _extend(
                     W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1
+                    )
                 )
 
                 # initialize the number of spikes with the minimum allowed
@@ -1164,7 +1185,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             # during the final extraction pass, this keeps track of all spikes and features
 
             # we carefully assign the correct absolute times to spikes found in this batch
-            toff = nt0min + t0 + NT*k
+            toff = nt0min + t0 + NT*korder
             st = toff + st0
 
             st30 = np.c_[
