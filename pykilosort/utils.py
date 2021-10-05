@@ -405,7 +405,7 @@ class DataLoader(object):
         """
         Loads a batch and optionally rescales it and move it to the GPU
         :param batch_number: Specifies which batch to load
-        :param batch_length: Specifies which batch to load
+        :param batch_length: Optional int, length of batch in time samples
         :param rescale: If true, rescales and moves the batch to the GPU
         :return: Loaded batch
         """
