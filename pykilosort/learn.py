@@ -447,7 +447,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         (d_Params, d_dout, d_mu, d_err, d_eloss, d_ftype),
     )
 
-    if params.stablemode_enabled and not params.deterministicmode_enabled:
+    if params.stable_mode and not params.deterministic_mode:
         d_draw64 = cp.array(d_draw, dtype=np.float64)
 
     # loop to find and subtract spikes
@@ -489,8 +489,8 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
                 (d_Params, d_st, d_id, d_counter, d_dout, d_iList, d_mu, d_feat),
             )
 
-        if params.deterministicmode_enabled:
-            if params.stablemode_enabled:
+        if params.deterministic_mode:
+            if params.stable_mode:
                 d_stSort = d_st[counter[1]:counter[0]] # cudaMemcpy( d_stSort, d_st+counter[1], (counter[0] - counter[1])*sizeof(int), cudaMemcpyDeviceToDevice );
                 d_idx[:counter[0]-counter[1]] = cp.argsort(d_stSort) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
             else:
@@ -532,7 +532,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
                 ),
             )
         else:
-            if params.stablemode_enabled:
+            if params.stable_mode:
                 subtract_spikes_v4 = cp.RawKernel(code, "subtract_spikes_v4")
                 subtract_spikes_v4(
                     (Nfilt,),
@@ -616,7 +616,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
         # update 1st counter from 2nd counter
         d_counter[1] = d_counter[0]
 
-    if params.stablemode_enabled and not params.deterministicmode_enabled:
+    if params.stable_mode and not params.deterministic_mode:
         d_draw = cp.array(d_draw64, dtype=np.float32)
 
     # compute PC features from residuals + subtractions
@@ -643,7 +643,7 @@ def mexMPnu8(Params, dataRAW, U, W, mu, iC, iW, UtU, iList, wPCA, params):
             ),
         )
 
-    if params.stablemode_enabled:
+    if params.stable_mode:
         # d_idx = array of time sorted indices
         d_idx[:counter[0]] = cp.argsort(d_st[:counter[0]]) # cdp_simple_quicksort<<< 1, 1 >>>(d_stSort, d_idx, 0, counter[0] - counter[1] - 1, 0);
     else:

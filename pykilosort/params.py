@@ -105,12 +105,12 @@ class KilosortParams(BaseModel):
 
     sig_datashift: float = Field(20.0, description="sigma for the Gaussian process smoothing")
 
-    stablemode_enabled: bool = Field(True, description="make output more stable")
-    deterministicmode_enabled: bool = Field(True, description="make output deterministic by sorting spikes before applying kernels")
+    stable_mode: bool = Field(True, description="make output more stable")
+    deterministic_mode: bool = Field(True, description="make output deterministic by sorting spikes before applying kernels")
 
-    @validator("deterministicmode_enabled")
-    def validate_deterministicmode(cls, v, values):
-        if values.get("stablemode_enabled"):
+    @validator("deterministic_mode")
+    def validate_deterministic_mode(cls, v, values):
+        if values.get("stable_mode"):
             return v
         else:
             if v:
