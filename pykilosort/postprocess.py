@@ -13,10 +13,10 @@ import cupyx as cpx
 from scipy.signal import lfilter
 from scipy.sparse import coo_matrix
 
-from .cptools import ones, svdecon, var, mean, free_gpu_memory
+from .cptools import svdecon, var, mean, free_gpu_memory, convolve_gpu
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
-from .preprocess import convolve_gpu, _is_vect, _make_vect
+from .preprocess import _is_vect, _make_vect
 from .utils import Bunch, NpyWriter, memmap_large_array, LargeArrayWriter
 
 logger = logging.getLogger(__name__)
@@ -1451,13 +1451,14 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
 
     if savePath is not None:
         # units um, dimension (ntimes, ndepths)
-        _save('drift.um', ir.dshift)
-        # units um, dimension (1, ndepths)
-        _save('drift_depths.um', ir.yblk[np.newaxis, :])
-        batch_size = params.NT / params.fs
-        # units secs, dimension (ntimes,)
-        _save('drift.times',
-              np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
+        if params.perform_drift_registration:
+            _save('drift.um', ir.dshift)
+            # units um, dimension (1, ndepths)
+            _save('drift_depths.um', ir.yblk[np.newaxis, :])
+            batch_size = params.NT / params.fs
+            # units secs, dimension (ntimes,)
+            _save('drift.times',
+                  np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, np.uint32)
 

@@ -7,8 +7,7 @@ from scipy.signal import butter
 import cupy as cp
 from tqdm.auto import tqdm
 
-from .cptools import lfilter, _get_lfilter_fun, median, convolve_gpu
-from .utils import _make_fortran
+from .cptools import lfilter, median
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +324,31 @@ def get_Nbatch(raw_data, params):
     return ceil(n_samples / params.NT)  # number of data batches
 
 
+def destriping(ctx):
+    """IBL destriping - CPU version for the time being, although leveraging the GPU
+    for the many FFTs performed would probably be quite beneficial """
+    probe = ctx.probe
+    raw_data = ctx.raw_data
+    ir = ctx.intermediate
+    wrot = cp.asnumpy(ir.Wrot)
+    # TODO add the sample shift in the probe parameters
+    logger.info("Pre-processing: applying destriping option to the raw data")
+    from ibllib.dsp.voltage import decompress_destripe_cbin
+    # there are inconsistencies between the mtscomp reader and the flat binary file reader
+    # the flat bin reader as an attribute _paths that allows looping on each chunk
+    if getattr(raw_data.raw_data, '_paths', None):
+        for i, bin_file in enumerate(raw_data.raw_data._paths):
+            ns, _ = raw_data.raw_data._mmaps[i].shape
+            ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
+            decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0,
+                                     nc_out=probe.Nchan, ns2add=ns2add)
+    else:
+        assert raw_data.raw_data.n_parts == 1
+        ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
+        decompress_destripe_cbin(raw_data.raw_data.name, output_file=ir.proc_path, wrot=wrot,
+                                 nc_out=probe.Nchan, ns2add=ns2add)
+
+
 def preprocess(ctx):
     # function rez = preprocessDataSub(ops)
     # this function takes an ops struct, which contains all the Kilosort2 settings and file paths
@@ -367,11 +391,6 @@ def preprocess(ctx):
 
             # number of samples to start reading at.
             i = max(0, NT * ibatch - ntb)
-            if ibatch == 0:
-                # The very first batch has no pre-buffer, and has to be treated separately
-                ioffset = 0
-            else:
-                ioffset = params.ntbuff
 
             buff = raw_data[i:i + NTbuff]
             if buff.size == 0:
@@ -392,9 +411,6 @@ def preprocess(ctx):
 
             datr = gpufilter(buff, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
 
-            # buff_c = np.array(buff, dtype=np.float32)
-            # datr_c = cpufilter(buff_c, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
-            # datr = cp.asarray(datr_c, dtype=np.float32)
             assert datr.flags.c_contiguous
 
             datr[ntb:2*ntb] = w_edge * datr[ntb:2*ntb] + (1 - w_edge) * datr_prev
@@ -412,4 +428,6 @@ def preprocess(ctx):
             datcpu = cp.asnumpy(datr.astype(np.int16))
 
             # write this batch to binary file
+            logger.debug(f"{ir.proc_path.stat().st_size} total, {datr.size * 2} bytes written to file {datcpu.shape} array size")
             datcpu.tofile(fw)
+        logger.debug(f"{ir.proc_path.stat().st_size} total")

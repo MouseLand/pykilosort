@@ -2,13 +2,10 @@ import logging
 import shutil
 import os
 from pathlib import Path
-from phylib.io.traces import get_ephys_reader
 
 import numpy as np
-from pprint import pprint
-from pydantic import BaseModel
 
-from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch
+from .preprocess import preprocess, get_good_channels, get_whitening_matrix, get_Nbatch, destriping
 from .cluster import clusterSingleBatches
 from .datashift2 import datashift2
 from .learn import learnAndSolve8b, compress_templates
@@ -144,7 +141,10 @@ def run(
     if "preprocess" not in ctx.timer.keys():
         # Do not preprocess again if the proc.dat file already exists.
         with ctx.time("preprocess"):
-            preprocess(ctx)
+            if params.preprocessing_function == 'destriping':
+                destriping(ctx)
+            else:
+                preprocess(ctx)
     if stop_after == "preprocess":
         return ctx
 
@@ -168,15 +168,16 @@ def run(
     # if stop_after == "reorder":
     #     return ctx
 
-    if "drift_correction" not in ctx.timer.keys():
-        with ctx.time("drift_correction"):
-            out = datashift2(ctx)
-        ctx.save(**out)
-    if stop_after == "drift_correction":
-        return ctx
 
+    if params.perform_drift_registration:
+        if "drift_correction" not in ctx.timer.keys():
+            with ctx.time("drift_correction"):
+                out = datashift2(ctx)
+            ctx.save(**out)
+    else:
+        ctx.intermediate.iorig = np.arange(ctx.intermediate.Nbatch)
     # -------------------------------------------------------------------------
-    #  Main tracking and template matching algorithm.
+    # Main tracking and template matching algorithm.
     #
     # This function uses:
     #

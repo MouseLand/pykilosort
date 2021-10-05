@@ -642,7 +642,7 @@ def datashift2(ctx):
         wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.data_loader, probe, params
     )
 
-    if params.save_drift_output:
+    if params.save_drift_spike_detections:
         drift_path = ctx.context_path / 'drift'
         if not os.path.isdir(drift_path):
             os.mkdir(drift_path)
