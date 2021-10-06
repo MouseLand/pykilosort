@@ -59,6 +59,17 @@ class DatashiftParams(BaseModel):
 
 
 class KilosortParams(BaseModel):
+    preprocessing_function: str = Field('kilosort2', description='pre-processing function used choices'
+                                                                 'are "kilosort2" or "destriping"')
+    save_drift_spike_detections: bool = Field(False, description='save detected spikes in drift correction')
+    perform_drift_registration: bool = Field(True, description='Estimate electrode drift and apply registration')
+    #TODO: Make algorithm deterministic for a fixed seed
+    seed: t.Optional[int] = Field(42, description="seed for deterministic output - \
+                                                   determinism coming soon")
+
+    do_whitening: bool = Field(True, description='whether or not to whiten data, if disabled \
+                                                 channels are individually z-scored')
+
     fs: float = Field(30000.0, description="sample rate")
 
     data_dtype: str = Field('int16', description='data type of raw data')

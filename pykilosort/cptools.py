@@ -10,6 +10,12 @@ import numpy as np
 from scipy import signal as ss
 import cupy as cp
 
+# Cupy changed core module to _core for some versions but not all
+try:
+    import cupy._core as cp_core
+except ImportError:
+    import cupy.core as cp_core
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,12 +26,12 @@ logger = logging.getLogger(__name__)
 #              - to rely on CUDA.
 def make_kernel(kernel, name, **const_arrs):
     """Compile a kernel and pass optional constant ararys."""
-    mod = cp._core.core.compile_with_cache(kernel, prepend_cupy_headers=False)
-    b = cp._core.core.memory_module.BaseMemory()
+    mod = cp_core.core.compile_with_cache(kernel, prepend_cupy_headers=False)
+    b = cp_core.core.memory_module.BaseMemory()
     # Pass constant arrays.
     for n, arr in const_arrs.items():
         b.ptr = mod.get_global_var(n)
-        p = cp._core.core.memory_module.MemoryPointer(b, 0)
+        p = cp_core.core.memory_module.MemoryPointer(b, 0)
         p.copy_from_host(arr.ctypes.data_as(ctypes.c_void_p), arr.nbytes)
     return mod.get_function(name)
 

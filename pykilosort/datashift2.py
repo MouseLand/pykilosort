@@ -1,22 +1,15 @@
 from math import floor
 import logging
 import os
-from os.path import join
-from pathlib import Path
-import shutil
 
-from tqdm import tqdm, trange
-import numba
+from tqdm.auto import tqdm, trange
 import numpy as np
 import cupy as cp
-import cupyx as cpx
 from scipy.interpolate import Akima1DInterpolator
 from scipy.sparse import coo_matrix
 
 from .postprocess import my_conv2_cpu
-from .cptools import ones, svdecon, var, mean, free_gpu_memory
 from .learn import extractTemplatesfromSnippets
-from .preprocess import convolve_gpu, _is_vect, _make_vect
 from .utils import get_cuda, Bunch
 
 logger = logging.getLogger(__name__)
@@ -644,6 +637,14 @@ def datashift2(ctx):
     spikes = standalone_detector(
         wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.data_loader, probe, params
     )
+
+    if params.save_drift_spike_detections:
+        drift_path = ctx.context_path / 'drift'
+        if not os.path.isdir(drift_path):
+            os.mkdir(drift_path)
+        np.save(drift_path / 'spike_times.npy', spikes.times)
+        np.save(drift_path / 'spike_depths.npy', spikes.depths)
+        np.save(drift_path / 'spike_amps.npy', spikes.amps)
 
     dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
 

@@ -5,18 +5,18 @@ from os.path import join
 from pathlib import Path
 import shutil
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import numba
 import numpy as np
 import cupy as cp
 import cupyx as cpx
 from scipy.signal import lfilter
 
-from .cptools import ones, svdecon, var, mean, free_gpu_memory
+from .cptools import svdecon, var, mean, free_gpu_memory, convolve_gpu
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
-from .preprocess import convolve_gpu, _is_vect, _make_vect
-from .utils import Bunch, NpyWriter
+from .preprocess import _is_vect, _make_vect
+from .utils import NpyWriter
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +209,7 @@ def ccg_slow(st1, st2, nbins, tbin):
 # NOTE: we get a 50x time improvement with Numba jit of the existing function,
 # but we could probably achieve even more by improving the implementation
 @numba.jit(nopython=True, cache=False)
-def _ccg(st1, st2, nbins, tbin):
+def _ccg_old(st1, st2, nbins, tbin):
     # this function efficiently computes the crosscorrelogram between two sets
     # of spikes (st1, st2), with tbin length each, timelags =  plus/minus nbins
     # and then estimates how refractory the cross-correlogram is, which can be used
@@ -317,15 +317,164 @@ def _ccg(st1, st2, nbins, tbin):
     return K, Qi, Q00, Q01, Ri
 
 
-def ccg(st1, st2, nbins, tbin):
+def ccg_old(st1, st2, nbins, tbin):
     # TODO: move_to_config - There are a lot of parameters in the ccg computation that may need to
     #                      - vary for different setups.
     st1 = cp.asnumpy(st1)
     st2 = cp.asnumpy(st2)
     try:
-        return _ccg(st1, st2, nbins, tbin)
+        return _ccg_old(st1, st2, nbins, tbin)
     except ValueError:
         return 0
+
+
+def ccg_metrics(st1, st2, nbins, tbin):
+    """
+    For two arrays of spike times, use the cross-correlogram to estimate the contamination rate
+    and the statistical significance that there are fewer spikes in the refractory period
+    :param st1: Array of spike times (seconds), numpy or cupy array
+    :param st2: Array of spike times (seconds), numpy or cupy array
+    :param nbins: Number of time bins either side, int
+    :param tbin: Length of each time bin, float
+    :return: contam_ratio: Proportion of refractory period violations, float
+             p_value: Statistical significance of fewer spikes in the refractory period, float
+    """
+
+    K = ccg(st1, st2, nbins, tbin)
+
+    # Indices for the tails of the ccg
+    irange1 = np.concatenate((np.arange(1, nbins // 2), np.arange(3 * nbins // 2, 2 * nbins)))
+
+    # Indices for left shoulder of the ccg
+    irange2 = np.arange(nbins - 50, nbins - 10)
+
+    # Indices for right shoulder of the ccg
+    irange3 = np.arange(nbins + 11, nbins + 50)
+
+    # Estimate the average non-refractory ccg rate by the maximum rate across these ranges
+    ccg_rate = max(
+        np.mean(K[irange1]),
+        np.mean(K[irange2]),
+        np.mean(K[irange3]),
+    )
+
+    # Set centre of CCG to 0 to avoid double-counted spikes
+    K[nbins] = 0
+
+    # test the probability that a central area in the autocorrelogram might be refractory
+    # test increasingly larger areas of the central CCG
+
+    contam_rates = np.zeros(10)
+    p_values = np.zeros(10)
+
+    for i in range(1, 11):
+
+        irange = np.arange(nbins - i, nbins + i + 1)
+
+        # for this central range of the CCG compute the mean CCG rate
+        # as central value is set to 0, divide by 2*i
+        contam_rates[i - 1] = np.sum(K[irange]) /  2*i
+
+        n = np.sum(K[irange]) / 2
+        lam = ccg_rate * i
+        if lam == 0:
+            p = 1
+        else:
+            # NOTE: make sure lam is not zero to avoid divide by zero error
+            # lam = max(1e-10, R00 * i)
+
+            # log(p) = log(lam) * n - lam - gammaln(n+1)
+
+            # this is tricky: we approximate the Poisson likelihood with a gaussian of equal mean
+            # and variance that allows us to integrate the probability that we would see <N spikes
+            # in the center of the cross-correlogram from a distribution with mean R00*i spikes
+
+            p = 1 / 2 * (1 + erf((n - lam) / sqrt(2 * lam)))
+
+        p_values[i - 1] = p  # keep track of p for each bin size i
+
+    # Use the central region that has lowest refractory violation rate
+    p_value = np.min(p_values)
+    if ccg_rate == 0:
+        if np.min(contam_rates) == 0:
+            contam_ratio = 0 # CCG is empty so contamination rate set to 0
+        else:
+            contam_ratio = 1 # Contamination rate is infinite so set to full contamination
+    else:
+        contam_ratio = np.min(contam_rates) / ccg_rate
+
+    return contam_ratio, p_value
+
+
+def ccg(st1, st2, nbins, tbin):
+    """
+    Computes the cross-correlogram for two arrays of spike times
+    :param st1: Array of spike times (seconds), numpy or cupy array
+    :param st2: Array of spike times (seconds), numpy or cupy array
+    :param nbins: Number of time bins either side, int
+    :param tbin: Length of each time bin, float
+    :return: Cross-correlogram, numpy array
+    """
+    if (len(st1) == 0) or (len(st2) == 0):
+        return np.zeros(2*nbins + 1)
+
+    st1 = cp.asnumpy(st1)
+    st2 = cp.asnumpy(st2)
+
+    return _ccg(st1, st2, nbins, tbin)
+
+
+@numba.jit(nopython=True, cache=False)
+def _ccg(st1, st2, nbins, tbin):
+    """ JIT compiled ccg function for speed """
+
+    st1 = np.sort(st1)  # makes sure spike trains are sorted in increasing order
+    st2 = np.sort(st2)
+
+    dt = nbins * tbin
+
+    # Avoid divide by zero error.
+    T = max(1e-10, np.max(np.concatenate((st1, st2))) - np.min(np.concatenate((st1, st2))))
+    N1 = max(1, len(st1))
+    N2 = max(1, len(st2))
+
+    # we traverse both spike trains together, keeping track of the spikes in the first
+    # spike train that are within dt of spikes in the second spike train
+
+    ilow = 0  # lower bound index
+    ihigh = 0  # higher bound index
+    j = 0  # index of the considered spike
+
+    K = np.zeros(2 * nbins + 1)
+
+    while j <= N2 - 1:  # traverse all spikes in the second spike train
+
+        while (ihigh <= N1 - 1) and (st1[ihigh] < st2[j] + dt):
+            ihigh += 1  # keep increasing higher bound until it's OUTSIDE of dt range
+
+        while (ilow <= N1 - 1) and (st1[ilow] <= st2[j] - dt):
+            ilow += 1  # keep increasing lower bound until it's INSIDE of dt range
+
+        if ilow > N1 - 1:
+            break  # break if we exhausted the spikes from the first spike train
+
+        if st1[ilow] > st2[j] + dt:
+            # if the lower bound is actually outside of dt range, means we overshot (there were no
+            # spikes in range)
+            # simply move on to next spike from second spike train
+            j += 1
+            continue
+
+        for k in range(ilow, ihigh):
+            # for all spikes within plus/minus dt range
+            ibin = np.rint((st2[j] - st1[k]) / tbin)  # convert ISI to integer
+            ibin2 = np.asarray(ibin, dtype=np.int64)
+
+            K[ibin2 + nbins] += 1
+
+        j += 1
+
+    return K
 
 
 def clusterAverage(clu, spikeQuantity):
@@ -411,18 +560,13 @@ def find_merges(ctx):
         for k in range(ienu):
             # find the spikes of the pair
             s2 = st3[:, 0][st3[:, 1] == ix[k]] / params.fs
-            # compute cross-correlograms, refractoriness scores (Qi and rir), and normalization
-            # for these scores
-            K, Qi, Q00, Q01, rir = ccg(s1, s2, nbins, dt)
-            # normalize the central cross-correlogram bin by its shoulders OR
-            # by its mean firing rate
-            Q = (Qi / max(Q00, Q01)).min()
-            # R is the estimated probability that any of the center bins are refractory,
-            # and kicks in when there are very few spikes
-            R = rir.min()
+
+            # Compute contamination ratio and probability the center is refractory from the
+            # cross-correlogram. The p_value kicks in when there are very few spikes
+            contam_ratio, p_value = ccg_metrics(s1, s2, nbins, dt)
 
             # TODO: move_to_config
-            if (Q < 0.2) and (R < 0.05):  # if both refractory criteria are met
+            if (contam_ratio < 0.2) and (p_value < 0.05):  # if both refractory criteria are met
                 i = ix[k]
                 # now merge j into i and move on
                 # simply overwrite all the spikes of neuron j with i (i>j by construction)
@@ -602,14 +746,12 @@ def splitAllClusters(ctx, flag):
         # did this split fix the autocorrelograms?
         # compute the cross-correlogram between spikes in the putative new clusters
         ilow_cpu = cp.asnumpy(ilow)
-        K, Qi, Q00, Q01, rir = ccg(ss[ilow_cpu], ss[~ilow_cpu], 500, dt)
-        Q12 = (Qi / max(Q00, Q01)).min()  # refractoriness metric 1
-        R = rir.min()  # refractoriness metric 2
+        contam_ratio, p_value = ccg_metrics(ss[ilow_cpu], ss[~ilow_cpu], 500, dt)
 
         # if the CCG has a dip, don't do the split.
         # These thresholds are consistent with the ones from merges.
         # TODO: move_to_config (or at least a single constant so the are the same as the merges)
-        if (Q12 < 0.25) and (R < 0.05):  # if both metrics are below threshold.
+        if (contam_ratio < 0.25) and (p_value < 0.05):  # if both metrics are below threshold.
             nccg += 1  # keep track of how many splits were voided by the CCG criterion
             continue
 
@@ -781,6 +923,7 @@ def set_cutoff(ctx):
     # cProj = ir.cProj
     # cProjPC = ir.cProjPC
 
+    nbins = 500     # no of bins for CCG
     dt = 1. / 1000  # step size for CCG binning
 
     Nk = int(st3[:, 1].max()) + 1  # number of templates
@@ -810,27 +953,18 @@ def set_cutoff(ctx):
                 Th -= 0.5  # if there are no spikes, we need to keep lowering the threshold
                 continue
 
-            # compute the auto-correlogram with 500 bins at 1ms bins
-            K, Qi, Q00, Q01, rir = ccg(st, st, 500, dt)
-            # this is a measure of refractoriness
-            if max(Q00, Q01) == 0:
-                if Qi.max() > 0:
-                    Q = np.inf
-                else:
-                    Q = 0
-            else:
-                Q = (Qi / max(Q00, Q01)).min()
-            # this is a second measure of refractoriness (kicks in for very low firing rates)
-            R = rir.min()
+            # compute the refractory violation metrics using the cross-corellogram
+            contam_ratio, p_value = ccg_metrics(st, st, nbins, dt)
+
             # if the unit is already contaminated, we break, and use the next higher threshold
-            if (Q > fcontamination) or (R > 0.05):
+            if (contam_ratio > fcontamination) or (p_value > 0.05):
                 break
             else:
-                if (Th == params.Th[0]) and (Q < 0.05):
+                if (Th == params.Th[0]) and (contam_ratio < 0.05):
                     # only on the first iteration, we consider if the unit starts well isolated
                     # if it does, then we put much stricter criteria for isolation
                     # to make sure we don't settle for a relatively high contamination unit
-                    fcontamination = min(0.05, max(0.01, Q * 2))
+                    fcontamination = min(0.05, max(0.01, contam_ratio * 2))
 
                     # if the unit starts out contaminated, we will settle with the higher
                     # contamination rate
@@ -844,17 +978,11 @@ def set_cutoff(ctx):
         # threshold
         Th += 0.5
         st = ss[vexp > Th]  # take spikes above the current threshold
-        # compute the auto-correlogram with 500 bins at 1ms bins
-        K, Qi, Q00, Q01, rir = ccg(st, st, 500, dt)
-        # this is a measure of refractoriness
-        if max(Q00, Q01) == 0:
-            if Qi.max() > 0:
-                Q = np.inf
-            else:
-                Q = 1
-        else:
-            Q = (Qi / max(Q00, Q01)).min()
-        est_contam_rate[j] = Q  # this score will be displayed in Phy
+
+        # compute the refractory violation metrics using the cross-corellogram
+        contam_ratio, p_value = ccg_metrics(st, st, nbins, dt)
+
+        est_contam_rate[j] = contam_ratio  # this score will be displayed in Phy
 
         Ths[j] = Th  # store the threshold for potential debugging
 
@@ -1112,13 +1240,14 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
 
     if savePath is not None:
         # units um, dimension (ntimes, ndepths)
-        _save('drift.um', ir.dshift)
-        # units um, dimension (1, ndepths)
-        _save('drift_depths.um', ir.yblk[np.newaxis, :])
-        batch_size = params.NT / params.fs
-        # units secs, dimension (ntimes,)
-        _save('drift.times',
-              np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
+        if params.perform_drift_registration:
+            _save('drift.um', ir.dshift)
+            # units um, dimension (1, ndepths)
+            _save('drift_depths.um', ir.yblk[np.newaxis, :])
+            batch_size = params.NT / params.fs
+            # units secs, dimension (ntimes,)
+            _save('drift.times',
+                  np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
         _save('spike_templates', spikeTemplates, cp.uint32)
         if st3.shape[1] > 4:

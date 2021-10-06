@@ -26,6 +26,7 @@ dependencies:
  - pyqtgraph
  - pyqt
  - pip:
-    - spikeextractors
-    - git+https://github.com/cortex-lab/phylib.git
+    - ibllib
+    - phylib
     - phy --pre
+    - spikeextractors

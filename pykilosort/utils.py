@@ -9,7 +9,7 @@ import os.path as op
 import re
 from time import perf_counter
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import numpy as np
 from numpy.lib.format import (
     _check_version, _write_array_header, header_data_from_array_1_0, dtype_to_descr)
