@@ -1489,6 +1489,8 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         #     save_large_array(fp, pcFeatures)
         _save('pc_feature_ind', pcFeatureInds.T)
 
+        _save('spike_pc_components', ir.wPCA)
+
         _save('whitening_mat', whiteningMatrix)
         _save('whitening_mat_inv', whiteningMatrixInv)
 
