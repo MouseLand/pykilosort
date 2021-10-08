@@ -11,12 +11,13 @@ import numpy as np
 import cupy as cp
 import cupyx as cpx
 from scipy.signal import lfilter
+from scipy.sparse import coo_matrix
 
 from .cptools import svdecon, var, mean, free_gpu_memory, convolve_gpu
 from .cluster import getClosestChannels
 from .learn import getKernels, getMeWtW, mexSVDsmall2
 from .preprocess import _is_vect, _make_vect
-from .utils import NpyWriter
+from .utils import Bunch, NpyWriter, memmap_large_array, LargeArrayWriter
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ def my_conv2_cpu(x, sig, varargin=None, **kwargs):
 
         x_n = cp.asnumpy(x)
         x_n = lfilter(gaus, np.array([1.]), np.concatenate((x_n, np.zeros((tmax, dsnew[1])))),
-                    axis=0)
+                      axis=0)
         x_n = x_n[tmax:]
         x_n = np.reshape(x_n, dsnew)
 
@@ -490,15 +491,192 @@ def clusterAverage(clu, spikeQuantity):
     # array, the values of any duplicate indices are added. So this is the
     # fastest way I know to make the sum of the entries of spikeQuantity for each of
     # the unique entries of clu
-    _, cluInds, spikeCounts = cp.unique(clu, return_inverse=True, return_counts=True)
+    _, cluInds, spikeCounts = np.unique(clu, return_inverse=True, return_counts=True)
 
     # summation
-    q = cpx.scipy.sparse.coo_matrix((spikeQuantity, (cluInds, cp.zeros(len(clu))))).toarray().flatten()
+    q = coo_matrix((spikeQuantity, (cluInds, np.zeros(len(clu), dtype='int32')))) \
+        .toarray().flatten()
 
     # had sums so dividing by spike counts gives the mean depth of each cluster
     clusterQuantity = q / spikeCounts
 
     return clusterQuantity
+
+
+def sort_and_inverse(array):
+    """
+    Get sorted indices and their inverse for a Numpy array
+    :param array: Numpy array
+    :return: Sorted indices and their inverse
+    """
+    perm = np.argsort(array)
+    perm_inv = np.zeros_like(perm)
+    perm_inv[perm] = np.arange(len(perm))
+
+    return perm, perm_inv
+
+
+def merge_by_order(array1, array2, ordering1, ordering2, axis=0):
+    """
+    Concatenate two arrays along given axis according to the given ordering arrays
+    This is used to concatenate spike features according to their spike times
+    :param array1: Array to be concatenated, fortran order numpy array
+    :param array2: Array to be concatenated, fortran order numpy array
+    :param ordering1: Ordering for first array, numpy array
+    :param ordering2: Ordering for second array, numpy array
+    :param axis: Axis along which to concatenate
+    :return: Concatenated array, fortran order numpy array
+    """
+    assert array1.dtype == array2.dtype
+    dtype = array1.dtype
+
+    perm1 = np.argsort(ordering1)
+    perm2 = np.argsort(ordering2)
+
+    ordering1 = ordering1[perm1]
+    ordering2 = ordering2[perm2]
+
+    n1 = array1.shape[axis]
+    assert n1 == len(ordering1)
+    n2 = array2.shape[axis]
+    assert n2 == len(ordering2)
+
+    # Get shape of new array
+    new_shape = list(array1.shape)
+    new_shape[axis] += array2.shape[axis]
+
+    # Initialise new array
+    new_array = np.zeros(new_shape, dtype=dtype, order='F')
+
+    # Get indices for inserting first array
+    indices1 = np.arange(n1) + np.searchsorted(ordering2, ordering1)
+
+    # Indices for inserting second array
+    mask = np.ones(n1 + n2, dtype='bool')
+    mask[indices1] = False
+    indices2 = np.where(mask)[0]
+
+    slicer_new = [slice(None)] * new_array.ndim
+    slicer_new[axis] = indices1
+    slicer_old = [slice(None)] * array1.ndim
+    slicer_old[axis] = perm1
+    new_array[tuple(slicer_new)] = array1[tuple(slicer_old)]
+
+    slicer_new = [slice(None)] * new_array.ndim
+    slicer_new[axis] = indices2
+    slicer_old = [slice(None)] * array2.ndim
+    slicer_old[axis] = perm2
+    new_array[tuple(slicer_new)] = array2[tuple(slicer_old)]
+
+    return new_array
+
+
+def get_spike_features(feature_path, cluster_id):
+    """
+    Load spike features for the cluster given by cluster_id
+    :param feature_path: Path to spike features folder, Pathlib path
+    :param cluster_id: ID of cluster to load
+    :return: Spike features, fortran order numpy array
+    """
+
+    # Load array as memmap
+    memmaped_array = memmap_large_array(feature_path / f'spike_features_{cluster_id}')
+
+    # Convert to numpy array and return
+    return np.array(memmaped_array)
+
+
+def delete_spike_features(feature_path, cluster_id):
+    """
+    Delete spike features for the cluster given by cluster_id
+    :param feature_path: Path to spike features folder, Pathlib path
+    :param cluster_id: ID of cluster to delete
+    """
+
+    os.remove(feature_path / f'spike_features_{cluster_id}')
+    os.remove(feature_path / f'spike_features_{cluster_id}.json')
+
+
+def write_spike_features(feature_path, cluster_id, dtype, shape, array=None):
+    """
+    Write array to the spike features on disk for the cluster given by cluster_id
+    :param feature_path: Path to spike features
+    :param cluster_id: Cluster ID to write to
+    :param dtype: Array dtype
+    :param shape: Shape of array for array writer
+    :param array: Array to write, fortran order numpy array
+    """
+    writer = LargeArrayWriter(
+        feature_path / f'spike_features_{cluster_id}',
+        dtype = dtype,
+        shape = shape,
+        )
+    if array is not None:
+        writer.append(array)
+    writer.close()
+
+
+def merge_spike_features(feature_path, cluster_1, times_1, cluster_2, times_2, array_shape):
+    """
+    Merge the spike features for two clusters according to their times, save the new features under
+     cluster_1 and delete the old features for cluster_2
+    :param feature_path: Path to folder of spike features
+    :param cluster_1: Cluster ID of first cluster that will have all the spikes after merging
+    :param times_1: Spike times of first cluster
+    :param cluster_2: Cluster ID of second cluster that will be empty after merging
+    :param times_2: Spike times of second cluster
+    :param array_shape: Shape parameter to pass to the array writer
+    :return:
+    """
+    feature_path = Path(feature_path)
+
+    # Load spike features for the clusters
+    features_1 = get_spike_features(feature_path, cluster_1)
+    features_2 = get_spike_features(feature_path, cluster_2)
+
+    # Combine to get new features with spikes ordered according to their times
+    new_features = merge_by_order(features_1,features_2,times_1, times_2, axis=2)
+
+    # Delete the old spike feature files
+    delete_spike_features(feature_path, cluster_1)
+    delete_spike_features(feature_path, cluster_2)
+
+    # Save new features under cluster_1
+    write_spike_features(feature_path, cluster_1, new_features.dtype, array_shape, new_features)
+
+    # Save empty array under cluster_2
+    write_spike_features(feature_path, cluster_2, new_features.dtype, array_shape)
+
+
+def split_features(feature_path, original_cluster, new_cluster, indices, array_shape):
+    """
+    Split the spike features on disk, spikes in indices are re-assigned from old_cluster to
+    new_cluster
+    :param feature_path: Path to spike features, Pathlib path
+    :param original_cluster: Cluster ID of original cluster, int
+    :param new_cluster: Cluster ID of new cluster, int
+    :param indices: Spikes to re-assign to new cluster, boolean numpy array
+    :param array_shape: Array shape argument to pass to spike feature writer
+    """
+
+    feature_path = Path(feature_path)
+
+    # Load spike features of original cluster
+    old_features = get_spike_features(feature_path, original_cluster)
+    assert old_features.shape[2] == len(indices)
+
+    # New features based on split
+    features1 = old_features[:,:,~indices]
+    features2 = old_features[:,:,indices]
+
+    delete_spike_features(feature_path, original_cluster)
+    assert f'spike_features_{new_cluster}' not in os.listdir(feature_path)
+
+    # Save new features
+    write_spike_features(feature_path, original_cluster, old_features.dtype, array_shape,
+                         features1)
+    write_spike_features(feature_path, new_cluster, old_features.dtype, array_shape,
+                         features2)
 
 
 def find_merges(ctx):
@@ -511,25 +689,30 @@ def find_merges(ctx):
     # TODO: move_to_config
     dt = 1. / 1000  # step size for CCG binning
     nbins = 500  # number of bins used for cross-correlograms
+    NchanNear = min(ctx.probe.Nchan, 32)
+    Nrank = 3
 
     # (DEV_NOTES) nbins is not a variable in Marius' code, I include it here to avoid
     # unexplainable, hard-coded constants later
 
-    st3 = cp.asarray(ir.st3)
-    Xsim = cp.asarray(ir.simScore)  # this is the pairwise similarity score
+    st3 = ir.st3
+    Xsim = ir.simScore  # this is the pairwise similarity score
     Nk = Xsim.shape[0]
-    Xsim = Xsim - cp.diag(cp.diag(Xsim))
+    Xsim = Xsim - np.diag(np.diag(Xsim))
 
     # sort by firing rate first
-    nspk = cp.zeros(Nk)
+    nspk = np.zeros(Nk)
     for j in range(Nk):
         # determine total number of spikes in each neuron
-        nspk[j] = cp.sum(st3[:, 1] == j)
+        nspk[j] = np.sum(st3[:, 1] == j)
 
     # we traverse the set of neurons in ascending order of firing rates
-    isort = cp.argsort(nspk)
+    isort = np.argsort(nspk)
 
     logger.debug('Initialized spike counts.')
+
+    if params.low_memory:
+        feature_path = ctx.context_path / 'spike_features'
 
     for j in tqdm(range(Nk), desc='Finding merges'):
         # find all spikes from this cluster
@@ -543,7 +726,7 @@ def find_merges(ctx):
         # sort all the pairs of this neuron, discarding any that have fewer spikes
 
         uu = Xsim[isort[j], :] * (nspk > s1.size)
-        ix = cp.argsort(uu)[::-1]
+        ix = np.argsort(uu)[::-1]
         ccsort = uu[ix]
         ienu = int(np.nonzero(ccsort < .5)[0][0])
 
@@ -572,6 +755,10 @@ def find_merges(ctx):
                 # simply overwrite all the spikes of neuron j with i (i>j by construction)
                 st3[:, 1][st3[:, 1] == isort[j]] = i
                 nspk[i] = nspk[i] + nspk[isort[j]]  # update number of spikes for cluster i
+                # Update spike features
+                if params.low_memory:
+                    merge_spike_features(feature_path, int(i), s2, int(isort[j]), s1,
+                                         array_shape=(NchanNear, Nrank, -1))
                 logger.debug(f'Merged {isort[j]} into {i}')
                 # TODO: unclear - the comment below looks important :)
                 # YOU REALLY SHOULD MAKE SURE THE PC CHANNELS MATCH HERE
@@ -582,7 +769,7 @@ def find_merges(ctx):
     ctx.save(st3=st3)
 
     if params.save_temp_files:
-        ctx.write(st3_m=st3)
+        np.save(ctx.context_path / 'temp_splits' / 'st3_merge.npy', st3)
 
 
 def splitAllClusters(ctx, flag):
@@ -617,6 +804,7 @@ def splitAllClusters(ctx, flag):
     # this is the threshold for splits, and is one of the main parameters users can change
     ccsplit = params.AUCsplit
 
+    Nrank = 3
     NchanNear = min(Nchan, 32)
     Nnearest = min(Nchan, 32)
     sigmaMask = params.sigmaMask
@@ -639,6 +827,9 @@ def splitAllClusters(ctx, flag):
     dt = 1. / 1000
     nccg = 0
 
+    if params.low_memory:
+        feature_path = ctx.context_path / 'spike_features'
+
     while ik < Nfilt:
         if ik % 100 == 0:
             # periodically write updates
@@ -658,7 +849,12 @@ def splitAllClusters(ctx, flag):
 
         ss = st3[isp, 0] / params.fs  # convert to seconds
 
-        clp0 = cProjPC[isp, :, :]  # get the PC projections for these spikes
+        # get the PC projections for these spikes
+        if params.low_memory:
+            clp0 = memmap_large_array(feature_path / f'spike_features_{ik}').T
+        else:
+            clp0 = cProjPC[isp, :, :]
+
         clp0 = cp.asarray(clp0, dtype=cp.float32)  # upload to the GPU
         clp0 = clp0.reshape((clp0.shape[0], -1), order='F')
         clp = clp0 - mean(clp0, axis=0) # mean center them
@@ -771,14 +967,14 @@ def splitAllClusters(ctx, flag):
 
         # if the templates are correlated, and their amplitudes are similar, stop the split!!!
 
-        # TODO: move_to_config 
+        # TODO: move_to_config
         if (cc[0, 1] > 0.9) and (r0 < 0.2):
             continue
 
         # finaly criteria to continue with the split: if the split piece is more than 5% of all
         # spikes, if the split piece is more than 300 spikes, and if the confidences for
         # assigning spikes to # both clusters exceeds a preset criterion ccsplit
-        # TODO: move_to_config 
+        # TODO: move_to_config
         if (nremove > 0.05) and (min(plow, phigh) > ccsplit) and (
                 min(cp.sum(ilow), cp.sum(~ilow)) > 300):
             # one cluster stays, one goes
@@ -838,6 +1034,11 @@ def splitAllClusters(ctx, flag):
             iNeighPC[:, Nfilt - 1] = iNeighPC[:, ik]
             assert iNeighPC.shape[1] == Nfilt
 
+            if params.low_memory:
+                # change spike features on disk to reflect the split
+                split_features(feature_path, int(ik), int(Nfilt - 1),
+                               ilow_cpu, (NchanNear, Nrank, -1))
+
             # try this cluster again
             # the cluster piece that stays at this index needs to be tested for splits again
             # before proceeding
@@ -884,6 +1085,9 @@ def splitAllClusters(ctx, flag):
 
     # ir.isplit = isplit  # keep track of origins for each cluster
 
+    if params.save_temp_files:
+        np.save(ctx.context_path / 'temp_splits' / 'st3_split.npy', cp.asnumpy(st3))
+
     #TODO:
     # st3, W, U, mu, simScore, iNeigh, iNeighPC overwrites
     # isplit overwrites or saves
@@ -893,16 +1097,16 @@ def splitAllClusters(ctx, flag):
     ctx.save(
         st3=st3,
 
-        W_s=W,
-        U_s=U,
-        mu_s=mu,
-        simScore_s=simScore,
-        iNeigh_s=iNeigh,
-        iNeighPC_s=iNeighPC,
+        W_s=cp.asnumpy(W),
+        U_s=cp.asnumpy(U),
+        mu_s=cp.asnumpy(mu),
+        simScore_s=cp.asnumpy(simScore),
+        iNeigh_s=cp.asnumpy(iNeigh),
+        iNeighPC_s=cp.asnumpy(iNeighPC),
 
-        Wphy=Wphy,
-        iList=iList,
-        isplit=isplit,
+        Wphy=cp.asnumpy(Wphy),
+        iList=cp.asnumpy(iList),
+        isplit=cp.asnumpy(isplit),
     )
 
     if params.save_temp_files:
@@ -919,7 +1123,7 @@ def set_cutoff(ctx):
     ir = ctx.intermediate
     params = ctx.params
 
-    st3 = cp.asarray(ir.st3)  # st3_s1 is saved by the first splitting step
+    st3 = ir.st3  # st3_s1 is saved by the first splitting step
     # cProj = ir.cProj
     # cProjPC = ir.cProjPC
 
@@ -929,12 +1133,12 @@ def set_cutoff(ctx):
     Nk = int(st3[:, 1].max()) + 1  # number of templates
 
     # sort by firing rate first
-    good = cp.zeros(Nk)
-    Ths = cp.zeros(Nk)
-    est_contam_rate = cp.zeros(Nk)
+    good = np.zeros(Nk)
+    Ths = np.zeros(Nk)
+    est_contam_rate = np.zeros(Nk)
 
     for j in tqdm(range(Nk), desc='Setting cutoff'):
-        ix = cp.where(st3[:, 1] == j)[0]  # find all spikes from this neuron
+        ix = np.where(st3[:, 1] == j)[0]  # find all spikes from this neuron
         ss = st3[ix, 0] / params.fs  # convert to seconds
         if ss.size == 0:
             continue  # break if there are no spikes
@@ -993,7 +1197,7 @@ def set_cutoff(ctx):
     # (DEV_NOTES) this seems to occur when both Qi and max(Q00, Q01) are zero thus when dividing
     # the two to get Q the result is a NaN
 
-    est_contam_rate[cp.isnan(est_contam_rate)] = 1
+    est_contam_rate[np.isnan(est_contam_rate)] = 1
 
     # remove spikes assigned to the -1 cluster
     ix = st3[:, 1] == -1
@@ -1015,7 +1219,7 @@ def set_cutoff(ctx):
 
     ctx.save(
         st3=st3,  # the spikes assigned to -1 have been removed here
-        spikes_to_remove=cp.asnumpy(ix),
+        spikes_to_remove=ix,
         # cProj_c=cProj,
         # cProjPC_c=cProjPC,
 
@@ -1025,7 +1229,7 @@ def set_cutoff(ctx):
     )
 
     if params.save_temp_files:
-        ctx.write(st3_c=st3)
+        np.save(ctx.context_path / 'temp_splits' / 'st3_cutoff.npy', st3)
 
 
 def checkClusters(ctx):
@@ -1090,15 +1294,15 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     nt0 = params.nt0
 
     # spikeTimes will be in samples, not seconds
-    W = cp.asarray(ir.Wphy).astype(np.float32)
+    W = ir.Wphy.astype(np.float32)
     Wrot = ir.Wrot
     est_contam_rate = ir.est_contam_rate
     good = ir.good
     Ths = ir.Ths
 
-    st3 = cp.asarray(ir.st3)
+    st3 = ir.st3
 
-    U = cp.asarray(ir.U_s).astype(np.float32)
+    U = ir.U_s.astype(np.float32)
     iNeigh = ir.iNeigh_s
     iNeighPC = ir.iNeighPC_s
     simScore = ir.simScore_s
@@ -1106,7 +1310,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     if st3.shape[1] > 4:
         st3 = st3[:, :4]
 
-    isort = cp.argsort(st3[:, 0])
+    isort = np.argsort(st3[:, 0])
     st3 = st3[isort, :]
     # cProj = ir.cProj_c[cp.asnumpy(isort), :]
     # cProjPC = ir.cProjPC_c[cp.asnumpy(isort), :, :]
@@ -1118,20 +1322,27 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     if os.path.isdir(join(savePath, '.phy')):
         shutil.rmtree(join(savePath, '.phy'))
 
-    spikeTimes = st3[:, 0].astype(cp.uint64)
-    spikeTemplates = st3[:, 1].astype(cp.uint32)
+    spikeTimes = st3[:, 0].astype(np.uint64)
+    spikeTemplates = st3[:, 1].astype(np.uint32)
+
+    # If multiple datasets were run, output the original dataset each spike came from as well as
+    # the spike time within the dataset
+    if ctx.raw_data.multiple_datasets:
+        dataset_times = ctx.raw_data.n_samples
+        spike_datasets = np.searchsorted(dataset_times[1:], spikeTimes, side='right')
+        spiketimes_corrected = spikeTimes - dataset_times[spike_datasets]
 
     # (DEV_NOTES) if statement below seems useless due to above if statement
     if st3.shape[1] > 4:
-        spikeClusters = (1 + st3[:, 4]).astype(cp.uint32)
+        spikeClusters = (1 + st3[:, 4]).astype(np.uint32)
 
     # templateFeatures = cProj
-    templateFeatureInds = iNeigh.astype(cp.uint32)
+    templateFeatureInds = iNeigh.astype(np.uint32)
     # pcFeatures = cProjPC
-    pcFeatureInds = iNeighPC.astype(cp.uint32)
+    pcFeatureInds = iNeighPC.astype(np.uint32)
 
-    whiteningMatrix = cp.asarray(Wrot) / params.scaleproc
-    whiteningMatrixInv = cp.linalg.pinv(whiteningMatrix)
+    whiteningMatrix = cp.asnumpy(Wrot) / params.scaleproc
+    whiteningMatrixInv = np.linalg.pinv(whiteningMatrix)
 
     amplitudes = st3[:, 2]
 
@@ -1147,12 +1358,12 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # (DEV_NOTES) 2 lines below can be combined
     # templates = cp.einsum('ikl,jkl->ijk', U, W).astype(cp.float32)
     # templates = cp.zeros((Nchan, nt0, Nfilt), dtype=np.float32, order='F')
-    tempAmpsUnscaled = cp.zeros(Nfilt, dtype=np.float32)
+    tempAmpsUnscaled = np.zeros(Nfilt, dtype=np.float32)
     templates_writer = NpyWriter(join(savePath, 'templates.npy'), (Nfilt, nt0, Nchan), np.float32)
     for iNN in tqdm(range(Nfilt), desc="Computing templates"):
-        t = cp.dot(U[:, iNN, :], W[:, iNN, :].T).T
+        t = np.dot(U[:, iNN, :], W[:, iNN, :].T).T
         templates_writer.append(t)
-        t_unw = cp.dot(t, whiteningMatrixInv)
+        t_unw = np.dot(t, whiteningMatrixInv)
         assert t_unw.ndim == 2
         tempChanAmps = t_unw.max(axis=0) - t_unw.min(axis=0)
         tempAmpsUnscaled[iNN] = tempChanAmps.max()
@@ -1160,7 +1371,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     templates_writer.close()
     # templates = cp.transpose(templates, (2, 1, 0))  # now it's nTemplates x nSamples x nChannels
     # we include all channels so this is trivial
-    templatesInds = cp.tile(np.arange(Nfilt), (Nchan, 1))
+    templatesInds = np.tile(np.arange(Nfilt), (Nchan, 1))
 
     # here we compute the amplitude of every template...
 
@@ -1184,8 +1395,8 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # take the average of all spike amps to get actual template amps (since
     # tempScalingAmps are equal mean for all templates)
     ta = clusterAverage(spikeTemplates, spikeAmps)
-    tids = cp.unique(spikeTemplates).astype(np.int64)
-    tempAmps = cp.zeros_like(tempAmpsUnscaled, order='F')
+    tids = np.unique(spikeTemplates).astype(np.int64)
+    tempAmps = np.zeros_like(tempAmpsUnscaled, order='F')
     tempAmps[tids] = ta  # because ta only has entries for templates that had at least one spike
     tempAmps = params.gain * tempAmps  # for consistency, make first dimension template number
 
@@ -1202,7 +1413,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     tfw = NpyWriter(join(savePath, 'template_features.npy'), cProj_shape, np.float32)
     pcw = NpyWriter(join(savePath, 'pc_features.npy'), cProjPC_shape, np.float32)
 
-    isort = cp.asnumpy(isort)
+    #isort = cp.asnumpy(isort)
     N = len(ix)  # number of spikes including those assigned to -1
     assert ir.cProj.shape[0] == N
     assert ir.cProjPC.shape[0] == N
@@ -1249,19 +1460,24 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
             _save('drift.times',
                   np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
         _save('spike_times', spikeTimes)
-        _save('spike_templates', spikeTemplates, cp.uint32)
+        _save('spike_templates', spikeTemplates, np.uint32)
+
+        if ctx.raw_data.multiple_datasets:
+            _save('spike_datasets', spike_datasets)
+            _save('spike_times_corrected', spiketimes_corrected)
+
         if st3.shape[1] > 4:
-            _save('spike_clusters', spikeClusters, cp.uint32)
+            _save('spike_clusters', spikeClusters, np.uint32)
         else:
-            _save('spike_clusters', spikeTemplates, cp.uint32)
+            _save('spike_clusters', spikeTemplates, np.uint32)
         _save('amplitudes', amplitudes)
         # _save('templates', templates)
         _save('templates_ind', templatesInds)
 
-        chanMap0ind = chanMap0ind.astype(cp.int32)
+        chanMap0ind = chanMap0ind.astype(np.int32)
 
         _save('channel_map', chanMap0ind)
-        _save('channel_positions', np.c_[xcoords, ycoords])
+        _save('channel_positions', np.c_[xcoords, ycoords], np.float32)
 
         # _save('template_features', templateFeatures)
         # with open(join(savePath, 'template_features.npy'), 'wb') as fp:
@@ -1272,6 +1488,8 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         # with open(join(savePath, 'pc_features.npy'), 'wb') as fp:
         #     save_large_array(fp, pcFeatures)
         _save('pc_feature_ind', pcFeatureInds.T)
+
+        _save('spike_pc_components', ir.wPCA)
 
         _save('whitening_mat', whiteningMatrix)
         _save('whitening_mat_inv', whiteningMatrixInv)

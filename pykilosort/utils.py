@@ -43,7 +43,7 @@ def copy_bunch(old_bunch):
     :param old_bunch: Bunch object to be copied
     :return: New Bunch object
     """
-    assert isinstance(old_bunch, Bunch)
+    assert type(old_bunch).__name__ == 'Bunch'
 
     new_bunch = Bunch()
     for key in old_bunch.keys():
@@ -405,7 +405,7 @@ class DataLoader(object):
         """
         Loads a batch and optionally rescales it and move it to the GPU
         :param batch_number: Specifies which batch to load
-        :param batch_length: Specifies which batch to load
+        :param batch_length: Optional int, length of batch in time samples
         :param rescale: If true, rescales and moves the batch to the GPU
         :return: Loaded batch
         """
@@ -426,7 +426,9 @@ class DataLoader(object):
         if not rescale:
             return np.asfortranarray(batch_cpu)
 
-        batch_gpu = cp.asarray(batch_cpu, dtype=np.float32, order='F') / self.scaling_factor
+        batch_gpu = cp.asfortranarray(
+            cp.asarray(batch_cpu, dtype=np.float32) / self.scaling_factor
+        )
 
         return batch_gpu
 
@@ -483,9 +485,9 @@ class Context(Bunch):
             # Load a NumPy file.
             if path.exists():
                 logger.debug("Loading %s.npy", name)
-                # Memmap for large files.
-                mmap_mode = 'r' if op.getsize(path) > 1e8 else None
-                self.intermediate[name] = np.load(path, mmap_mode=mmap_mode)
+                # # Memmap for large files.
+                # mmap_mode = 'r' if op.getsize(path) > 1e8 else None
+                self.intermediate[name] = np.load(path)
             else:
                 # Load a value from the metadata file.
                 self.intermediate[name] = self.read_metadata().get(name, None)
