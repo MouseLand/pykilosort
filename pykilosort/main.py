@@ -1,7 +1,7 @@
 import logging
 import shutil
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
 import numpy as np
 
@@ -60,7 +60,8 @@ def run(
         dir_path = dir_path or Path(dat_path[0]).parent
     else:
         dir_path = dir_path or Path(dat_path).parent
-    assert dir_path, "Please provide a dir_path"
+    assert isinstance(dir_path, (PurePath, str)), 'dir_path must be a string or Path object'
+    dir_path = Path(dir_path)
     dir_path.mkdir(exist_ok=True, parents=True)
     assert dir_path.exists()
 
