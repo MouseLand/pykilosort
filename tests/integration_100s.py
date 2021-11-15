@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-
 import numpy as np
 
 import pykilosort
@@ -125,18 +124,75 @@ def percentage_hits(events, targets, tolerance):
 # viewseis(w[:120000, :], si=1, taxis=0)
 
 
+def _make_compressed_parts(bin_file):
+    import shutil
+    from ibllib.io import spikeglx
+    BATCH_WRITE_BYTES = int(1024 * 1024 * 128)
+    file_part1 = bin_file.parent.joinpath(bin_file.stem + '.part1.bin')
+    file_part2 = bin_file.parent.joinpath(bin_file.stem + '.part2.bin')
+
+    def dump_file(file_in, file_out, part):
+        nbytes = Path(bin_file).stat().st_size
+        print(nbytes)
+        if part == 1:
+            offset = int(0)
+            max_offset = int(nbytes / 2)
+        elif part == 2:
+            offset = int(nbytes / 2)
+            max_offset = int(nbytes)
+        with file_in.open('rb') as fidr, file_out.open('wb+') as fidw:
+            while True:
+                fidr.seek(offset, 0)
+                print(fidr.tell(), offset)
+                bytes2read = int(np.minimum(BATCH_WRITE_BYTES, max_offset - offset))
+                dat = np.fromfile(fidr, dtype=np.int16, offset=0, count=int(bytes2read / 2))
+                # print(dat.shape, bytes2read, fidr.tell(), offset, max_offset)
+                dat.tofile(fidw)
+                offset += bytes2read
+                if offset == max_offset:
+                    break
+        print(f'done file {part}')
+        shutil.copy(file_in.with_suffix('.meta'), file_out.with_suffix('.meta'))
+        srout = spikeglx.Reader(file_out)
+        srout.compress_file(keep_original=False)
+    dump_file(bin_file, file_part1, part=1)
+    dump_file(bin_file, file_part2, part=2)
+    # read after write checks
+    sr0 = spikeglx.Reader(bin_file)
+    sr1 = spikeglx.Reader(file_part1.with_suffix('.cbin'))
+    sr2 = spikeglx.Reader(file_part2.with_suffix('.cbin'))
+    assert np.all(sr0[200000:201000, :] == sr1[200000:201000, :])
+    assert np.all(sr0[int(65 * 30000):int(65.2 * 30000), :] == sr2[int(15 * 30000):int(15.2 * 30000), :])
+
+
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
 SCRATCH_DIR = Path.home().joinpath("scratch", 'pykilosort')
 # bin_file = INTEGRATION_DATA_PATH.joinpath("imec_385_100s.ap.bin")
-bin_file = INTEGRATION_DATA_PATH.joinpath("hybrid_data_100s.bin")
 
 cluster_times_path = INTEGRATION_DATA_PATH.joinpath("cluster_times")
 
-ks_output_dir = INTEGRATION_DATA_PATH.joinpath(f"{pykilosort.__version__}", bin_file.name.split('.')[0])
+
+
+
+MULTIPARTS = False
+if MULTIPARTS:
+    bin_file = list(INTEGRATION_DATA_PATH.rglob("hybrid_data_100s.part*.cbin"))
+    bin_file.sort()
+    # _make_compressed_parts(bin_file)
+    ks_output_dir = INTEGRATION_DATA_PATH.joinpath(
+        f"{pykilosort.__version__}", bin_file[0].name.split('.')[0] + 'multi_parts')
+else:
+    bin_file = INTEGRATION_DATA_PATH.joinpath("hybrid_data_100s.bin")
+    ks_output_dir = INTEGRATION_DATA_PATH.joinpath(f"{pykilosort.__version__}", bin_file.name.split('.')[0])
+
+
 ks_output_dir.mkdir(parents=True, exist_ok=True)
 alf_path = ks_output_dir.joinpath('alf')
+
 run_spike_sorting_ibl(bin_file, delete=True, scratch_dir=SCRATCH_DIR, neuropixel_version=1,
                       ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG')
 
-
 run_checks(ks_output_dir, cluster_times_path)
+
+
+

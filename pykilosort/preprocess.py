@@ -336,12 +336,26 @@ def destriping(ctx):
     from ibllib.dsp.voltage import decompress_destripe_cbin
     # there are inconsistencies between the mtscomp reader and the flat binary file reader
     # the flat bin reader as an attribute _paths that allows looping on each chunk
-    if getattr(raw_data.raw_data, '_paths', None):
+    if isinstance(raw_data.raw_data, list):
+        for i, rd in enumerate(raw_data.raw_data):
+            if i == (len(raw_data.raw_data) - 1):
+                ns2add = ceil(raw_data.n_samples[-1] / ctx.params.NT) * ctx.params.NT - raw_data.n_samples[-1]
+            else:
+                ns2add = 0
+            decompress_destripe_cbin(rd.name, output_file=ir.proc_path, wrot=wrot, append=i > 0,
+                                     nc_out=probe.Nchan, ns2add=ns2add)
+    elif getattr(raw_data.raw_data, '_paths', None):
+        nstot = 0
         for i, bin_file in enumerate(raw_data.raw_data._paths):
             ns, _ = raw_data.raw_data._mmaps[i].shape
-            ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
+            nstot += ns
+            if i == (len(raw_data.raw_data._paths) - 1):
+                ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
+            else:
+                ns2add = 0
             decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0,
                                      nc_out=probe.Nchan, ns2add=ns2add)
+
     else:
         assert raw_data.raw_data.n_parts == 1
         ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
