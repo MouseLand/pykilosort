@@ -205,12 +205,16 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
             buff = np.concatenate(
                 (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
 
+        # if False and params.preprocessing_function == 'destriping':
+        #     from ibllib.dsp.voltage import destripe
+        #     datr = destripe(buff[:, :chanMap.size].T, fs=fs,
+        #                     butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
+        #     datr = cp.asarray(datr.T)
+        # else:
         buff_g = cp.asarray(buff, dtype=np.float32)
-
         # apply filters and median subtraction
         datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
         assert datr.flags.c_contiguous
-
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
     CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
@@ -332,6 +336,9 @@ def destriping(ctx):
     ir = ctx.intermediate
     wrot = cp.asnumpy(ir.Wrot)
     # TODO add the sample shift in the probe parameters
+    kwargs = dict(output_file=ir.proc_path, wrot=wrot, nc_out = probe.Nchan,
+                  butter_kwargs={'N': 3, 'Wn': ctx.params.fshigh / ctx.params.fs * 2, 'btype': 'highpass'})
+
     logger.info("Pre-processing: applying destriping option to the raw data")
     from ibllib.dsp.voltage import decompress_destripe_cbin
     # there are inconsistencies between the mtscomp reader and the flat binary file reader
@@ -342,8 +349,7 @@ def destriping(ctx):
                 ns2add = ceil(raw_data.n_samples[-1] / ctx.params.NT) * ctx.params.NT - raw_data.n_samples[-1]
             else:
                 ns2add = 0
-            decompress_destripe_cbin(rd.name, output_file=ir.proc_path, wrot=wrot, append=i > 0,
-                                     nc_out=probe.Nchan, ns2add=ns2add)
+            decompress_destripe_cbin(rd.name, ns2add=ns2add, append=i > 0)
     elif getattr(raw_data.raw_data, '_paths', None):
         nstot = 0
         for i, bin_file in enumerate(raw_data.raw_data._paths):
@@ -353,14 +359,12 @@ def destriping(ctx):
                 ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
             else:
                 ns2add = 0
-            decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0,
-                                     nc_out=probe.Nchan, ns2add=ns2add)
+            decompress_destripe_cbin(bin_file, append=i > 0, ns2add=ns2add, **kwargs)
 
     else:
         assert raw_data.raw_data.n_parts == 1
         ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
-        decompress_destripe_cbin(raw_data.raw_data.name, output_file=ir.proc_path, wrot=wrot,
-                                 nc_out=probe.Nchan, ns2add=ns2add)
+        decompress_destripe_cbin(raw_data.raw_data.name, ns2add=ns2add, **kwargs)
 
 
 def preprocess(ctx):
