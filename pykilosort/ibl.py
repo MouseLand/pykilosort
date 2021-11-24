@@ -1,0 +1,1 @@
+../../iblscripts/deploy/serverpc/kilosort2/run_pykilosort.py

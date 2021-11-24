@@ -54,6 +54,7 @@ from brainbox.plot import driftmap
 from pathlib import Path
 from ibllib.io import spikeglx
 import numpy as np
+import scipy.signal
 from brainbox.metrics.single_units import quick_unit_metrics
 from easyqc.gui import viewseis
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
@@ -63,9 +64,10 @@ runs = list(INTEGRATION_DATA_PATH.rglob('imec_385_100s'))
 
 import pandas as pd
 csv = []
-for run in runs:
+eqcs = []
+raw = False
+for i, run in enumerate(runs):
     run_label = run.parts[-2]
-    eqcs = []
     if run.joinpath('intermediate').exists():
         bin_file = next(INTEGRATION_DATA_PATH.rglob("imec_385_100s.ap.cbin"))
         sr = spikeglx.Reader(bin_file)
@@ -77,7 +79,13 @@ for run in runs:
         end = start + 80000
         print(run)
         eqcs.append(viewseis(mmap[start:end, :], si=1 / 30, taxis=0, title=run.parts[-2] + 'tap'))
-
+        if raw is False:
+            raw = sr[start:end, :-1].T
+            from ibllib.plots.figures import ephys_bad_channels
+            from ibllib.dsp.voltage import detect_bad_channels
+            labels, features = detect_bad_channels(raw, fs=30000)
+            ffig, eeqcs = ephys_bad_channels(raw, 30000, labels, features, title='integration_100s', save_dir=INTEGRATION_DATA_PATH)
+        break
     fig_file = INTEGRATION_DATA_PATH.joinpath('_'.join(run.parts[-2:]) + '.png')
     # if fig_file.exists():
     #     continue
