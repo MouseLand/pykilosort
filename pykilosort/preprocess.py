@@ -329,18 +329,21 @@ def get_Nbatch(raw_data, params):
 
 
 def destriping(ctx):
-    """IBL destriping - CPU version for the time being, although leveraging the GPU
+    """IBL destriping - multiprocessing CPU version for the time being, although leveraging the GPU
     for the many FFTs performed would probably be quite beneficial """
+    from ibllib.dsp.voltage import decompress_destripe_cbin, detect_bad_channels_cbin
     probe = ctx.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     wrot = cp.asnumpy(ir.Wrot)
+    # get the bad channels
+    # detect_bad_channels_cbin
     # TODO add the sample shift in the probe parameters
     kwargs = dict(output_file=ir.proc_path, wrot=wrot, nc_out = probe.Nchan,
                   butter_kwargs={'N': 3, 'Wn': ctx.params.fshigh / ctx.params.fs * 2, 'btype': 'highpass'})
 
     logger.info("Pre-processing: applying destriping option to the raw data")
-    from ibllib.dsp.voltage import decompress_destripe_cbin
+
     # there are inconsistencies between the mtscomp reader and the flat binary file reader
     # the flat bin reader as an attribute _paths that allows looping on each chunk
     if isinstance(raw_data.raw_data, list):

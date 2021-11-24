@@ -54,12 +54,15 @@ from brainbox.plot import driftmap
 from pathlib import Path
 from ibllib.io import spikeglx
 import numpy as np
+from brainbox.metrics.single_units import quick_unit_metrics
 from easyqc.gui import viewseis
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
 plt.close('all')
 runs = list(INTEGRATION_DATA_PATH.rglob('imec_385_100s'))
 
 
+import pandas as pd
+csv = []
 for run in runs:
     run_label = run.parts[-2]
     eqcs = []
@@ -76,10 +79,18 @@ for run in runs:
         eqcs.append(viewseis(mmap[start:end, :], si=1 / 30, taxis=0, title=run.parts[-2] + 'tap'))
 
     fig_file = INTEGRATION_DATA_PATH.joinpath('_'.join(run.parts[-2:]) + '.png')
-    if fig_file.exists():
-        continue
+    # if fig_file.exists():
+    #     continue
     fig, ax = plt.subplots(figsize=(12, 8))
     spikes = alfio.load_object(run.joinpath('alf'), 'spikes')
+    clusters = alfio.load_object(run.joinpath('alf'), 'clusters')
+    clusters.keys()
     driftmap(spikes['times'], spikes['depths'], plot_style='bincount', t_bin=0.1, d_bin=20,  vmax=5, ax=ax)
-    ax.set(title=run_label)
+    ax.set(title=f"{run_label}")
+
+    nspi = spikes.times.size
+    nclu = clusters.channels.size
+    qc = quick_unit_metrics(spikes['clusters'], spikes['times'], spikes['amps'], spikes['depths'])
     fig.savefig(fig_file)
+    csv.append(dict(label=run_label, sorted=True, nspikes=nspi, nclusters=nclu, quality=np.mean(qc.label)))
+pd.DataFrame(csv)
