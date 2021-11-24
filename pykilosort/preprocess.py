@@ -205,12 +205,16 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
             buff = np.concatenate(
                 (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
 
+        # if False and params.preprocessing_function == 'destriping':
+        #     from ibllib.dsp.voltage import destripe
+        #     datr = destripe(buff[:, :chanMap.size].T, fs=fs,
+        #                     butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
+        #     datr = cp.asarray(datr.T)
+        # else:
         buff_g = cp.asarray(buff, dtype=np.float32)
-
         # apply filters and median subtraction
         datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
         assert datr.flags.c_contiguous
-
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
     CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
@@ -325,28 +329,45 @@ def get_Nbatch(raw_data, params):
 
 
 def destriping(ctx):
-    """IBL destriping - CPU version for the time being, although leveraging the GPU
+    """IBL destriping - multiprocessing CPU version for the time being, although leveraging the GPU
     for the many FFTs performed would probably be quite beneficial """
+    from ibllib.dsp.voltage import decompress_destripe_cbin, detect_bad_channels_cbin
     probe = ctx.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     wrot = cp.asnumpy(ir.Wrot)
+    # get the bad channels
+    # detect_bad_channels_cbin
     # TODO add the sample shift in the probe parameters
+    kwargs = dict(output_file=ir.proc_path, wrot=wrot, nc_out = probe.Nchan,
+                  butter_kwargs={'N': 3, 'Wn': ctx.params.fshigh / ctx.params.fs * 2, 'btype': 'highpass'})
+
     logger.info("Pre-processing: applying destriping option to the raw data")
-    from ibllib.dsp.voltage import decompress_destripe_cbin
+
     # there are inconsistencies between the mtscomp reader and the flat binary file reader
     # the flat bin reader as an attribute _paths that allows looping on each chunk
-    if getattr(raw_data.raw_data, '_paths', None):
+    if isinstance(raw_data.raw_data, list):
+        for i, rd in enumerate(raw_data.raw_data):
+            if i == (len(raw_data.raw_data) - 1):
+                ns2add = ceil(raw_data.n_samples[-1] / ctx.params.NT) * ctx.params.NT - raw_data.n_samples[-1]
+            else:
+                ns2add = 0
+            decompress_destripe_cbin(rd.name, ns2add=ns2add, append=i > 0)
+    elif getattr(raw_data.raw_data, '_paths', None):
+        nstot = 0
         for i, bin_file in enumerate(raw_data.raw_data._paths):
             ns, _ = raw_data.raw_data._mmaps[i].shape
-            ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
-            decompress_destripe_cbin(bin_file, output_file=ir.proc_path, wrot=wrot, append=i > 0,
-                                     nc_out=probe.Nchan, ns2add=ns2add)
+            nstot += ns
+            if i == (len(raw_data.raw_data._paths) - 1):
+                ns2add = ceil(ns / ctx.params.NT) * ctx.params.NT - ns
+            else:
+                ns2add = 0
+            decompress_destripe_cbin(bin_file, append=i > 0, ns2add=ns2add, **kwargs)
+
     else:
         assert raw_data.raw_data.n_parts == 1
         ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples
-        decompress_destripe_cbin(raw_data.raw_data.name, output_file=ir.proc_path, wrot=wrot,
-                                 nc_out=probe.Nchan, ns2add=ns2add)
+        decompress_destripe_cbin(raw_data.raw_data.name, ns2add=ns2add, **kwargs)
 
 
 def preprocess(ctx):
