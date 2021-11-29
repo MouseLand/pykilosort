@@ -19,7 +19,7 @@ A good CPU and a large amount of RAM (minimum 32GB or 64GB) is also required.
 
 See [the Wiki on the Matlab version](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide) for more information.
 
-<!-- TODO: What OS's does this work on? I am testing with Ubuntu 18.04. -->
+<!-- TODO: What OS's does this work on? I am testing with Ubuntu .04. -->
 
 You will need NVIDIA drivers and cuda-toolkit installed on your computer too. This can be the hardest part of the installation. To test if your is working OK you should be able to run the following:
 ```

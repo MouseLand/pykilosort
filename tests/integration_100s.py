@@ -68,7 +68,7 @@ eqcs = []
 raw = False
 for i, run in enumerate(runs):
     run_label = run.parts[-2]
-    if run.joinpath('intermediate').exists():
+    if run.joinpath('intermediate').exists() and False:
         bin_file = next(INTEGRATION_DATA_PATH.rglob("imec_385_100s.ap.cbin"))
         sr = spikeglx.Reader(bin_file)
         pre_proc_file = run.joinpath('intermediate', 'proc.dat')
@@ -81,14 +81,13 @@ for i, run in enumerate(runs):
         eqcs.append(viewseis(mmap[start:end, :], si=1 / 30, taxis=0, title=run.parts[-2] + 'tap'))
         if raw is False:
             raw = sr[start:end, :-1].T
-            from ibllib.plots.figures import ephys_bad_channels
+            from iblapps.figures import ephys_bad_channels
             from ibllib.dsp.voltage import detect_bad_channels
             labels, features = detect_bad_channels(raw, fs=30000)
             ffig, eeqcs = ephys_bad_channels(raw, 30000, labels, features, title='integration_100s', save_dir=INTEGRATION_DATA_PATH)
-        break
     fig_file = INTEGRATION_DATA_PATH.joinpath('_'.join(run.parts[-2:]) + '.png')
-    # if fig_file.exists():
-    #     continue
+    if fig_file.exists():
+        continue
     fig, ax = plt.subplots(figsize=(12, 8))
     spikes = alfio.load_object(run.joinpath('alf'), 'spikes')
     clusters = alfio.load_object(run.joinpath('alf'), 'clusters')

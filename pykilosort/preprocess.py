@@ -199,21 +199,20 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
         buff = raw_data[i:i + NT - ntbuff]
         assert buff.shape[0] > buff.shape[1]
         assert buff.flags.c_contiguous
-
         nsampcurr = buff.shape[0]
         if nsampcurr < NTbuff:
             buff = np.concatenate(
                 (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
 
-        # if False and params.preprocessing_function == 'destriping':
-        #     from ibllib.dsp.voltage import destripe
-        #     datr = destripe(buff[:, :chanMap.size].T, fs=fs,
-        #                     butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
-        #     datr = cp.asarray(datr.T)
-        # else:
-        buff_g = cp.asarray(buff, dtype=np.float32)
-        # apply filters and median subtraction
-        datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
+        if False and params.preprocessing_function == 'destriping':
+            from ibllib.dsp.voltage import destripe
+            datr = destripe(buff[:, :chanMap.size].T, fs=fs, channel_labels=True,
+                            butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
+            datr = cp.asarray(datr.T)
+        else:
+            buff_g = cp.asarray(buff, dtype=np.float32)
+            # apply filters and median subtraction
+            datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
         assert datr.flags.c_contiguous
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
