@@ -337,8 +337,7 @@ def destriping(ctx):
     wrot = cp.asnumpy(ir.Wrot)
     # get the bad channels
     # detect_bad_channels_cbin
-    # TODO add the sample shift in the probe parameters
-    kwargs = dict(output_file=ir.proc_path, wrot=wrot, nc_out = probe.Nchan,
+    kwargs = dict(output_file=ir.proc_path, wrot=wrot, nc_out=probe.Nchan, h=probe,
                   butter_kwargs={'N': 3, 'Wn': ctx.params.fshigh / ctx.params.fs * 2, 'btype': 'highpass'})
 
     logger.info("Pre-processing: applying destriping option to the raw data")
@@ -351,7 +350,7 @@ def destriping(ctx):
                 ns2add = ceil(raw_data.n_samples[-1] / ctx.params.NT) * ctx.params.NT - raw_data.n_samples[-1]
             else:
                 ns2add = 0
-            decompress_destripe_cbin(rd.name, ns2add=ns2add, append=i > 0)
+            decompress_destripe_cbin(rd.name, ns2add=ns2add, append=i > 0, **kwargs)
     elif getattr(raw_data.raw_data, '_paths', None):
         nstot = 0
         for i, bin_file in enumerate(raw_data.raw_data._paths):
@@ -362,7 +361,6 @@ def destriping(ctx):
             else:
                 ns2add = 0
             decompress_destripe_cbin(bin_file, append=i > 0, ns2add=ns2add, **kwargs)
-
     else:
         assert raw_data.raw_data.n_parts == 1
         ns2add = ceil(raw_data.n_samples / ctx.params.NT) * ctx.params.NT - raw_data.n_samples

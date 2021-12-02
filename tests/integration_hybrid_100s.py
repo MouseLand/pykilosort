@@ -164,7 +164,6 @@ def _make_compressed_parts(bin_file):
     assert np.all(sr0[200000:201000, :] == sr1[200000:201000, :])
     assert np.all(sr0[int(65 * 30000):int(65.2 * 30000), :] == sr2[int(15 * 30000):int(15.2 * 30000), :])
 
-
 import shutil
 
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
@@ -189,7 +188,7 @@ else:
 ks_output_dir.mkdir(parents=True, exist_ok=True)
 alf_path = ks_output_dir.joinpath('alf')
 
-run_spike_sorting_ibl(bin_file, delete=True, scratch_dir=SCRATCH_DIR, neuropixel_version=1,
+run_spike_sorting_ibl(bin_file, delete=True, scratch_dir=SCRATCH_DIR,
                       ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG')
 
 

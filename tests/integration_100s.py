@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 import pykilosort
-from deploy.serverpc.kilosort2.run_pykilosort import run_spike_sorting_ibl, ibl_pykilosort_params
+from pykilosort.ibl import run_spike_sorting_ibl, ibl_pykilosort_params
 
 INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
 SCRATCH_DIR = Path.home().joinpath("scratch", 'pykilosort')
@@ -12,7 +12,7 @@ SCRATCH_DIR.mkdir(exist_ok=True)
 DELETE = False  # delete the intermediate run products, if False they'll be copied over
 # bin_file = INTEGRATION_DATA_PATH.joinpath("imec_385_100s.ap.bin")
 
-params = ibl_pykilosort_params()
+
 label = ""
 # params['preprocessing_function'] = 'kilosort2'
 cluster_times_path = INTEGRATION_DATA_PATH.joinpath("cluster_times")
@@ -33,7 +33,7 @@ ks_output_dir.mkdir(parents=True, exist_ok=True)
 alf_path = ks_output_dir.joinpath('alf')
 
 run_spike_sorting_ibl(bin_file, delete=DELETE, scratch_dir=SCRATCH_DIR, neuropixel_version=1,
-                      ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG', params=params)
+                      ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG')
 
 if DELETE == False:
     import shutil
