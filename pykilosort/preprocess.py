@@ -194,23 +194,32 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     CC = cp.zeros((Nchan, Nchan))
 
     for ibatch in tqdm(range(0, Nbatch, nSkipCov), desc="Computing the whitening matrix"):
-        i = max(0, (NT - ntbuff) * ibatch - 2 * ntbuff)
+        i = max(0, NT * ibatch - ntbuff)
         # WARNING: we no longer use Fortran order, so raw_data is nsamples x NchanTOT
-        buff = raw_data[i:i + NT - ntbuff]
+        buff = raw_data[i:i + NTbuff]
         assert buff.shape[0] > buff.shape[1]
         assert buff.flags.c_contiguous
 
         nsampcurr = buff.shape[0]
         if nsampcurr < NTbuff:
             buff = np.concatenate(
-                (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
+                (buff, np.tile(buff[nsampcurr - 1], (NTbuff - nsampcurr, 1))), axis=0)
 
+        # if False and params.preprocessing_function == 'destriping':
+        #     from ibllib.dsp.voltage import destripe
+        #     datr = destripe(buff[:, :chanMap.size].T, fs=fs,
+        #                     butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
+        #     datr = cp.asarray(datr.T)
+        # else:
         buff_g = cp.asarray(buff, dtype=np.float32)
 
         # apply filters and median subtraction
         datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
-        assert datr.flags.c_contiguous
 
+        # remove buffers on either side of the data batch
+        datr = datr[ntbuff: NT + ntbuff]
+
+        assert datr.flags.c_contiguous
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
     CC = CC / max(ceil((Nbatch - 1) / nSkipCov), 1)
@@ -400,7 +409,7 @@ def preprocess(ctx):
             nsampcurr = buff.shape[0]  # how many time samples the current batch has
             if nsampcurr < NTbuff:
                 buff = np.concatenate(
-                    (buff, np.tile(buff[nsampcurr - 1], (NTbuff, 1))), axis=0)
+                    (buff, np.tile(buff[nsampcurr - 1], (NTbuff - nsampcurr, 1))), axis=0)
 
             if i == 0:
                 bpad = np.tile(buff[0], (ntb, 1))
