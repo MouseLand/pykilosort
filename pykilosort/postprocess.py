@@ -1130,7 +1130,7 @@ def set_cutoff(ctx):
     nbins = 500     # no of bins for CCG
     dt = 1. / 1000  # step size for CCG binning
 
-    Nk = int(st3[:, 1].max()) + 1  # number of templates
+    Nk = ir.Wphy.shape[1]  # number of templates
 
     # sort by firing rate first
     good = np.zeros(Nk)
@@ -1240,11 +1240,11 @@ def checkClusters(ctx):
     # 3) Remove these indices from every variable that has n_clusters
 
     ir = ctx.intermediate
-    max_id = int(np.max(ir.st3[:, 1])) + 1
+    n_templates = ir.Wphy.shape[1]
     ids = cp.asnumpy(np.unique(ir.st3[:, 1]).astype(np.int))
     # Check if the max cluster id is equal to the number of cluster ids assigned to spikes.
-    if max_id != len(ids):  # see which cluster ids are missing
-        good_units_mask = np.isin(np.arange(max_id), ids)
+    if n_templates != len(ids):  # see which cluster ids are missing
+        good_units_mask = np.isin(np.arange(n_templates), ids)
         # Remove clusters from fields in `ir` based on `good_units_mask`
         # ir.dWU = ir.dWU[:, :, good_units_mask]
         ir.iNeigh_s = ir.iNeigh_s[:, good_units_mask]

@@ -1,9 +1,13 @@
-# [WIP] Python port of KiloSort2
-[![CircleCI](https://circleci.com/gh/rossant/pykilosort/tree/master.svg?style=svg)](https://circleci.com/gh/rossant/pykilosort/tree/master)
+# Python port of KiloSort2
 
 This is a work-in-progress literal Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
 The code is still being debugged and is not ready for use.
 
+## Scope
+### Why an IBL port of pykilosort? (draft)
+Preprocessing functions and standardization of outputs
+
+Kush Banga, Cyrille Rossant, Olivier Winter
 
 ## Installation 
 
@@ -15,7 +19,7 @@ A good CPU and a large amount of RAM (minimum 32GB or 64GB) is also required.
 
 See [the Wiki on the Matlab version](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide) for more information.
 
-<!-- TODO: What OS's does this work on? I am testing with Ubuntu 18.04. -->
+<!-- TODO: What OS's does this work on? I am testing with Ubuntu .04. -->
 
 You will need NVIDIA drivers and cuda-toolkit installed on your computer too. This can be the hardest part of the installation. To test if your is working OK you should be able to run the following:
 ```
@@ -23,19 +27,29 @@ nvidia-smi # Should show how much your GPU is being used right now
 nvcc # This is the CUDA compiler
 ```
 
-### Doing the install
+### Doing the install using Anaconda
 
-We don't currently provide a packaged version of pykilosort on pypy or conda-forge. Thus you will need to clone the repo first `git clone https://github.com/rossant/pykilosort.git && cd pykilosort`.
+On Linux install 
+    
+    sudo apt-get install -y libfftw3-dev
 
-#### Conda (recomended)
+Create a conda environment
 
-If you don't already have conda installed you can follow the guide [here](https://github.com/MouseLand/Kilosort2/wiki/8.-Hardware-guide).
+    cd ~/Documents/PYTHON/SPIKE_SORTING/pykilosort
+    conda env create -f ./pyks2.yml
+    conda activate pyks2
 
-To create a conda environment with these dependencies, run the command: `conda env create -f pyks2.yml` inside your pykilosort directory.
+Clone the repository:
 
-#### Pip
+    git clone -b ibl_prod https://github.com/int-brain-lab/pykilosort.git
+    cd pykilosort
+    pip install -e .
+    pip install cython
+    pip install pyfftw
+    pip install git+https://github.com/int-brain-lab/ibllib.git
+    pip install -U phylib
 
-You can also install the requirements via pip: `pip install -r requirements.txt`. This is not the tested path and so if you run into issues you may get less support.
+
 
 
 ## Usage
@@ -44,33 +58,34 @@ You can also install the requirements via pip: `pip install -r requirements.txt`
 
 The programming interface is subject to change. The following code example should be saved in a directory, along with the following files:
 
-* imec_385_100s.bin
-* chanMap.npy (be careful with 0- and 1- indexing discrepancy between MATLAB and Python: don't forget to subtract 1 if this file was used in Kilosort)
-* xc.npy
-* yc.npy
-* kcoords.npy
+* `imec_385_100s.bin`
 
+This is how to run for NP1.0 probe
 ```python
+import shutil
 from pathlib import Path
 import numpy as np
 
-from pykilosort import add_default_handler, run, Bunch
+import pykilosort
+from pykilosort.ibl import run_spike_sorting_ibl, ibl_pykilosort_params
 
-add_default_handler(level='DEBUG')
+INTEGRATION_DATA_PATH = Path("/datadisk/Data/spike_sorting/pykilosort_tests")
+SCRATCH_DIR = Path.home().joinpath("scratch", 'pykilosort')
+shutil.rmtree(SCRATCH_DIR, ignore_errors=True)
+SCRATCH_DIR.mkdir(exist_ok=True)
+DELETE = True  # delete the intermediate run products, if False they'll be copied over
+bin_file = INTEGRATION_DATA_PATH.joinpath("imec_385_100s.ap.bin")
+# this is the output of the pykilosort data, unprocessed after the spike sorter
+ks_output_dir = INTEGRATION_DATA_PATH.joinpath("results")
+ks_output_dir.mkdir(parents=True, exist_ok=True)
+# this is the output standardized as per IBL standards (SI units, ALF convention)
+alf_path = ks_output_dir.joinpath('alf')
 
-dat_path = Path('imec_385_100s.bin')
-dir_path = dat_path.parent
-probe = Bunch()
-probe.NchanTOT = 385
-# WARNING: indexing mismatch with MATLAB hence the -1
-probe.chanMap = np.load(dir_path / 'chanMap.npy').squeeze().astype(np.int64) - 1
-probe.xc = np.load(dir_path / 'xc.npy').squeeze()
-probe.yc = np.load(dir_path / 'yc.npy').squeeze()
-probe.kcoords = np.load(dir_path / 'kcoords.npy').squeeze()
 
-run(dat_path, probe=probe, dir_path=dir_path, n_channels=385, dtype=np.int16, sample_rate=3e4)
+params = ibl_pykilosort_params()
+run_spike_sorting_ibl(bin_file, delete=DELETE, scratch_dir=SCRATCH_DIR,
+                      ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG', params=params)
 ```
-
 
 ### Disk cache (serialized results & parameter objects)
 
