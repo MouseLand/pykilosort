@@ -60,7 +60,28 @@ The programming interface is subject to change. The following code example shoul
 
 * `imec_385_100s.bin`
 
-This is how to run for NP1.0 probe
+How to run for general users
+```python
+from pathlib import Path
+from pykilosort import run, add_default_handler, np1_probe, np2_probe
+
+# Run standard ks2.5 algorithm for a np1 probe
+data_path = Path('path/to/data')
+add_default_handler(level='INFO') # print output as the algorithm runs
+run(data_path, probe=np1_probe())
+
+# Run chronic recordings for a np2 probe
+# For now this still uses ks2.5 clustering, chronic clustering algorithm coming soon!
+data_paths = [
+    Path('path/to/first/dataset'),
+    Path('path/to/second/dataset'),
+    Path('path/to/third/dataset'),
+]
+add_default_handler(level='INFO')
+run(data_paths, probe=np2_probe(), low_memory=True)
+```
+
+This is how to run for NP1.0 probe (for IBL)
 ```python
 import shutil
 from pathlib import Path
