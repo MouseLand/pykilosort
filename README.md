@@ -66,16 +66,16 @@ from pathlib import Path
 from pykilosort import run, add_default_handler, np1_probe, np2_probe
 
 # Run standard ks2.5 algorithm for a np1 probe
-data_path = Path('path/to/data')
+data_path = Path('path/to/data/data.bin')
 add_default_handler(level='INFO') # print output as the algorithm runs
 run(data_path, probe=np1_probe())
 
 # Run chronic recordings for a np2 probe
 # For now this still uses ks2.5 clustering, chronic clustering algorithm coming soon!
 data_paths = [
-    Path('path/to/first/dataset'),
-    Path('path/to/second/dataset'),
-    Path('path/to/third/dataset'),
+    Path('path/to/first/dataset/dataset.bin'),
+    Path('path/to/second/dataset/dataset.bin'),
+    Path('path/to/third/dataset/dataset.bin'),
 ]
 add_default_handler(level='INFO')
 run(data_paths, probe=np2_probe(), low_memory=True)
