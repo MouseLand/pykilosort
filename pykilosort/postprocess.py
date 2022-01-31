@@ -1281,19 +1281,18 @@ def checkClusters(ctx):
 def rezToPhy(ctx, dat_path=None, output_dir=None):
     # pull out results from kilosort's rez to either return to workspace or to
     # save in the appropriate format for the phy GUI to run on. If you provide
-    # a savePath it should be a folder
+    # a output_dir it should be a folder
 
-    savePath = Path(output_dir)
-    Path(savePath).mkdir(exist_ok=True, parents=True)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True, parents=True)
 
     ctx = checkClusters(ctx)  # check clusters integrity
 
     probe = ctx.probe
     ir = ctx.intermediate
     params = ctx.params
-    nt0 = params.nt0
 
-    # spikeTimes will be in samples, not seconds
+    # spike_times will be in samples, not seconds
     W = ir.Wphy.astype(np.float32)
     Wrot = ir.Wrot
     est_contam_rate = ir.est_contam_rate
@@ -1315,31 +1314,27 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # cProj = ir.cProj_c[cp.asnumpy(isort), :]
     # cProjPC = ir.cProjPC_c[cp.asnumpy(isort), :, :]
 
-    fs = os.listdir(savePath)
+    fs = os.listdir(output_dir)
     for file in fs:
         if file.endswith('.npy'):
-            os.remove(join(savePath, file))
-    if os.path.isdir(join(savePath, '.phy')):
-        shutil.rmtree(join(savePath, '.phy'))
+            os.remove(output_dir / file)
+    if (output_dir / '.phy').is_dir():
+        shutil.rmtree(output_dir / '.phy')
 
-    spikeTimes = st3[:, 0].astype(np.uint64)
-    spikeTemplates = st3[:, 1].astype(np.uint32)
+    spike_times = st3[:, 0].astype(np.uint64)
+    spike_templates = st3[:, 1].astype(np.uint32)
 
     # If multiple datasets were run, output the original dataset each spike came from as well as
     # the spike time within the dataset
     if ctx.raw_data.multiple_datasets:
         dataset_times = ctx.raw_data.n_samples
-        spike_datasets = np.searchsorted(dataset_times[1:], spikeTimes, side='right')
-        spiketimes_corrected = spikeTimes - dataset_times[spike_datasets]
-
-    # (DEV_NOTES) if statement below seems useless due to above if statement
-    if st3.shape[1] > 4:
-        spikeClusters = (1 + st3[:, 4]).astype(np.uint32)
+        spike_datasets = np.searchsorted(dataset_times[1:], spike_times, side='right')
+        spike_times_corrected = spike_times - dataset_times[spike_datasets]
 
     # templateFeatures = cProj
-    templateFeatureInds = iNeigh.astype(np.uint32)
+    template_feature_inds = iNeigh.astype(np.uint32)
     # pcFeatures = cProjPC
-    pcFeatureInds = iNeighPC.astype(np.uint32)
+    pc_feature_inds = iNeighPC.astype(np.uint32)
 
     whiteningMatrix = cp.asnumpy(Wrot) / params.scaleproc
     whiteningMatrixInv = np.linalg.pinv(whiteningMatrix)
@@ -1358,15 +1353,15 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # (DEV_NOTES) 2 lines below can be combined
     # templates = cp.einsum('ikl,jkl->ijk', U, W).astype(cp.float32)
     # templates = cp.zeros((Nchan, nt0, Nfilt), dtype=np.float32, order='F')
-    tempAmpsUnscaled = np.zeros(Nfilt, dtype=np.float32)
-    templates_writer = NpyWriter(join(savePath, 'templates.npy'), (Nfilt, nt0, Nchan), np.float32)
+    temp_amps_unscaled = np.zeros(Nfilt, dtype=np.float32)
+    templates_writer = NpyWriter(join(output_dir, 'templates.npy'), (Nfilt, nt0, Nchan), np.float32)
     for iNN in tqdm(range(Nfilt), desc="Computing templates"):
         t = np.dot(U[:, iNN, :], W[:, iNN, :].T).T
         templates_writer.append(t)
         t_unw = np.dot(t, whiteningMatrixInv)
         assert t_unw.ndim == 2
-        tempChanAmps = t_unw.max(axis=0) - t_unw.min(axis=0)
-        tempAmpsUnscaled[iNN] = tempChanAmps.max()
+        temp_chan_amps = t_unw.max(axis=0) - t_unw.min(axis=0)
+        temp_amps_unscaled[iNN] = temp_chan_amps.max()
 
     templates_writer.close()
     # templates = cp.transpose(templates, (2, 1, 0))  # now it's nTemplates x nSamples x nChannels
@@ -1382,23 +1377,23 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     #     tempsUnW[t, :, :] = cp.dot(templates[t, :, :], whiteningMatrixInv)
 
     # The amplitude on each channel is the positive peak minus the negative
-    # tempChanAmps = tempsUnW.max(axis=1) - tempsUnW.min(axis=1)
+    # temp_chan_amps = tempsUnW.max(axis=1) - tempsUnW.min(axis=1)
 
     # The template amplitude is the amplitude of its largest channel
-    # tempAmpsUnscaled = tempChanAmps.max(axis=1)
+    # temp_amps_unscaled = temp_chan_amps.max(axis=1)
 
     # assign all spikes the amplitude of their template multiplied by their
     # scaling amplitudes
-    # tempAmpsUnscaled = cp.(tempAmpsUnscaled, axis=0).astype(np.float32)
-    spikeAmps = tempAmpsUnscaled[spikeTemplates] * amplitudes
+    # temp_amps_unscaled = cp.(temp_amps_unscaled, axis=0).astype(np.float32)
+    spike_amps = temp_amps_unscaled[spike_templates] * amplitudes
 
     # take the average of all spike amps to get actual template amps (since
     # tempScalingAmps are equal mean for all templates)
-    ta = clusterAverage(spikeTemplates, spikeAmps)
-    tids = np.unique(spikeTemplates).astype(np.int64)
-    tempAmps = np.zeros_like(tempAmpsUnscaled, order='F')
-    tempAmps[tids] = ta  # because ta only has entries for templates that had at least one spike
-    tempAmps = params.gain * tempAmps  # for consistency, make first dimension template number
+    ta = clusterAverage(spike_templates, spike_amps)
+    tids = np.unique(spike_templates).astype(np.int64)
+    temp_amps = np.zeros_like(temp_amps_unscaled, order='F')
+    temp_amps[tids] = ta  # because ta only has entries for templates that had at least one spike
+    temp_amps = params.gain * temp_amps  # for consistency, make first dimension template number
 
     # PCs
     ix = ir.spikes_to_remove  # length: number of spikes BEFORE -1 cluster removed
@@ -1410,8 +1405,8 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     cProjPC_shape = (st3.shape[0],) + cProjPC_shape[1:]
 
     #TODO:
-    tfw = NpyWriter(join(savePath, 'template_features.npy'), cProj_shape, np.float32)
-    pcw = NpyWriter(join(savePath, 'pc_features.npy'), cProjPC_shape, np.float32)
+    tfw = NpyWriter(output_dir / 'template_features.npy', cProj_shape, np.float32)
+    pcw = NpyWriter(output_dir / 'pc_features.npy', cProjPC_shape, np.float32)
 
     #isort = cp.asnumpy(isort)
     N = len(ix)  # number of spikes including those assigned to -1
@@ -1447,9 +1442,9 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # cProjPC = ir.cProjPC_c[cp.asnumpy(isort), :, :]
 
     def _save(name, arr, dtype=None):
-        cp.save(join(savePath, name + '.npy'), arr.astype(dtype or arr.dtype))
+        cp.save(output_dir / f'{name}.npy', arr.astype(dtype or arr.dtype))
 
-    if savePath is not None:
+    if output_dir is not None:
         # units um, dimension (ntimes, ndepths)
         if params.perform_drift_registration:
             _save('drift.um', ir.dshift)
@@ -1459,17 +1454,16 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
             # units secs, dimension (ntimes,)
             _save('drift.times',
                   np.arange(ir.dshift.shape[0]) * batch_size + batch_size / 2)
-        _save('spike_times', spikeTimes)
-        _save('spike_templates', spikeTemplates, np.uint32)
+        _save('spike_times', spike_times)
+
+        # Save two copies as spike_clusters gets modified by Phy during manual curation
+        _save('spike_templates', spike_templates, np.uint32)
+        _save('spike_clusters', spike_templates, np.uint32)
 
         if ctx.raw_data.multiple_datasets:
             _save('spike_datasets', spike_datasets)
-            _save('spike_times_corrected', spiketimes_corrected)
+            _save('spike_times_corrected', spike_times_corrected)
 
-        if st3.shape[1] > 4:
-            _save('spike_clusters', spikeClusters, np.uint32)
-        else:
-            _save('spike_clusters', spikeTemplates, np.uint32)
         _save('amplitudes', amplitudes)
         # _save('templates', templates)
         _save('templates_ind', templatesInds)
@@ -1480,14 +1474,14 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         _save('channel_positions', np.c_[xcoords, ycoords], np.float32)
 
         # _save('template_features', templateFeatures)
-        # with open(join(savePath, 'template_features.npy'), 'wb') as fp:
+        # with open(join(output_dir, 'template_features.npy'), 'wb') as fp:
         #     save_large_array(fp, templateFeatures)
-        _save('template_feature_ind', templateFeatureInds.T)
+        _save('template_feature_ind', template_feature_inds.T)
 
         # _save('pc_features', pcFeatures)
-        # with open(join(savePath, 'pc_features.npy'), 'wb') as fp:
+        # with open(join(output_dir, 'pc_features.npy'), 'wb') as fp:
         #     save_large_array(fp, pcFeatures)
-        _save('pc_feature_ind', pcFeatureInds.T)
+        _save('pc_feature_ind', pc_feature_inds.T)
 
         _save('spike_pc_components', ir.wPCA)
 
@@ -1501,7 +1495,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
             _save('similar_templates', similarTemplates)
 
         est_contam_rate[np.isnan(est_contam_rate)] = 1
-        with open(join(savePath, 'cluster_KSLabel.tsv'), 'w') as f:
+        with open(join(output_dir, 'cluster_KSLabel.tsv'), 'w') as f:
             f.write('cluster_id\tKSLabel\n')
             for j in range(len(good)):
                 if good[j]:
@@ -1510,7 +1504,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
                     f.write('%d\tmua\n' % j)
 
         # Making a copy with the label group as Phy treats this keyword separately
-        with open(join(savePath, 'cluster_group.tsv'), 'w') as f:
+        with open(join(output_dir, 'cluster_group.tsv'), 'w') as f:
             f.write('cluster_id\tgroup\n')
             for j in range(len(good)):
                 if good[j]:
@@ -1518,19 +1512,19 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
                 else:
                     f.write('%d\tmua\n' % j)
 
-        with open(join(savePath, 'cluster_ContamPct.tsv'), 'w') as f:
+        with open(join(output_dir, 'cluster_ContamPct.tsv'), 'w') as f:
             f.write('cluster_id\tContamPct\n')
             for j in range(len(good)):
                 f.write('%d\t%.1f\n' % (j, 100 * est_contam_rate[j]))
 
-        with open(join(savePath, 'cluster_Amplitude.tsv'), 'w') as f:
+        with open(join(output_dir, 'cluster_Amplitude.tsv'), 'w') as f:
             f.write('cluster_id\tAmplitude\n')
             for j in range(len(good)):
-                f.write('%d\t%.1f\n' % (j, tempAmps[j]))
+                f.write('%d\t%.1f\n' % (j, temp_amps[j]))
 
         # make params file
-        if not os.path.exists(join(savePath, 'params.py')):
-            with open(join(savePath, 'params.py'), 'w') as f:
+        if not os.path.exists(join(output_dir, 'params.py')):
+            with open(join(output_dir, 'params.py'), 'w') as f:
                 f.write('dat_path = "../%s"\n' % dat_path)
                 f.write('n_channels_dat = %d\n' % probe.NchanTOT)
                 f.write('dtype = "int16"\n')
