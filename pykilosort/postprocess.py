@@ -1283,7 +1283,7 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
     # save in the appropriate format for the phy GUI to run on. If you provide
     # a savePath it should be a folder
 
-    savePath = output_dir
+    savePath = Path(output_dir)
     Path(savePath).mkdir(exist_ok=True, parents=True)
 
     ctx = checkClusters(ctx)  # check clusters integrity
@@ -1501,13 +1501,22 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
             _save('similar_templates', similarTemplates)
 
         est_contam_rate[np.isnan(est_contam_rate)] = 1
+        with open(join(savePath, 'cluster_KSLabel.tsv'), 'w') as f:
+            f.write('cluster_id\tKSLabel\n')
+            for j in range(len(good)):
+                if good[j]:
+                    f.write('%d\tgood\n' % j)
+                else:
+                    f.write('%d\tmua\n' % j)
+
+        # Making a copy with the label group as Phy treats this keyword separately
         with open(join(savePath, 'cluster_group.tsv'), 'w') as f:
             f.write('cluster_id\tgroup\n')
             for j in range(len(good)):
                 if good[j]:
                     f.write('%d\tgood\n' % j)
-                # else:
-                #     f.write('%d\tmua\n' % j)
+                else:
+                    f.write('%d\tmua\n' % j)
 
         with open(join(savePath, 'cluster_ContamPct.tsv'), 'w') as f:
             f.write('cluster_id\tContamPct\n')
