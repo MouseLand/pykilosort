@@ -33,34 +33,22 @@ On Linux install
     
     sudo apt-get install -y libfftw3-dev
 
-Create a conda environment
-
-    cd ~/Documents/PYTHON/SPIKE_SORTING/pykilosort
-    conda env create -f ./pyks2.yml
-    conda activate pyks2
-
 Clone the repository:
 
-    git clone -b ibl_prod https://github.com/int-brain-lab/pykilosort.git
+    git clone -b drift_test_stable https://github.com/kushbanga/pykilosort.git
     cd pykilosort
-    pip install -e .
-    pip install cython
-    pip install pyfftw
-    pip install git+https://github.com/int-brain-lab/ibllib.git
-    pip install -U phylib
 
+Create a conda environment
 
-
+    conda env create -f ./pyks2.yml
+    conda activate pyks2
+    conda develop .
 
 ## Usage
 
 ### Example
 
-The programming interface is subject to change. The following code example should be saved in a directory, along with the following files:
-
-* `imec_385_100s.bin`
-
-How to run for general users
+This is how to run for general users
 ```python
 from pathlib import Path
 from pykilosort import run, add_default_handler, np1_probe, np2_probe
