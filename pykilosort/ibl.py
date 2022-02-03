@@ -124,7 +124,7 @@ def probe_geometry(bin_file):
     else:
         assert(bin_file == 1 or bin_file == 2)
         h = neuropixel.trace_header(version=bin_file)
-        ver = bin_file.major_version
+        ver = bin_file
     nc = h['x'].size
     probe = Bunch()
     probe.NchanTOT = nc + 1
