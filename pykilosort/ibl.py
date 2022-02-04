@@ -131,6 +131,8 @@ def probe_geometry(bin_file):
     probe.chanMap = np.arange(nc)
     probe.xc = h['x']
     probe.yc = h['y']
+    probe.x = h['x']
+    probe.y = h['y']
     probe.kcoords = np.zeros(nc)
     probe.neuropixel_version = ver
     probe.sample_shift = h['sample_shift']
