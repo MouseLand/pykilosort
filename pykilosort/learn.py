@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def extractTemplatesfromSnippets(
-    data_loader=None, probe=None, params=None, Nbatch=None, nPCs=None
+        data_loader=None, probe=None, params=None, Nbatch=None, nPCs=None
 ):
     # this function is very similar to extractPCfromSnippets.
     # outputs not just the PC waveforms, but also the template "prototype",
@@ -873,11 +873,18 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # find the closest NchanNear channels, and the masks for those channels
     iC, mask, C2C = getClosestChannels(probe, sigmaMask, NchanNear)
 
-    # batch order schedule is a random permutation of all batches
-    ischedule = np.random.permutation(nBatches)
-    i1 = np.arange(nBatches)
+    nhalf = int(ceil(nBatches / 2)) - 1  # halfway point
 
-    irounds = np.concatenate((ischedule, i1))
+    # this batch order schedule goes through half of the data forward and backward during the model
+    # fitting and then goes through the data symmetrically-out from the center during the final
+    # pass
+    ischedule = np.concatenate(
+        (np.arange(nhalf, nBatches), np.arange(nBatches - 1, nhalf - 1, -1))
+    )
+    i1 = np.arange(nhalf - 1, -1, -1)
+    i2 = np.arange(nhalf, nBatches)
+
+    irounds = np.concatenate((ischedule, i1, i2))
 
     niter = irounds.size
 
@@ -972,6 +979,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # k is the index of the batch in absolute terms
         logger.debug("Batch %d/%d, %d templates.", ibatch, niter, Nfilt)
 
+        if ibatch > niter - nBatches - 1 and korder == nhalf:
+            # this is required to revert back to the template states in the middle of the
+            # batches
+            W, dWU = ir.W, ir.dWU
+            logger.debug("Reverted back to middle timepoint.")
+
         if ibatch < niter - nBatches:
             # obtained pm for this batch
             Params[8] = float(pmi[ibatch])
@@ -1016,8 +1029,8 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             isort = cp.argsort(iW)  # sort by max abs channel
             iW = cp.asfortranarray(iW[isort])
             W = cp.asfortranarray(W[
-                :, isort, :
-            ])  # user ordering to resort all the other template variables
+                                  :, isort, :
+                                  ])  # user ordering to resort all the other template variables
             dWU = cp.asfortranarray(dWU[:, :, isort])
             nsp = cp.asfortranarray(nsp[isort])
 
@@ -1060,11 +1073,9 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         fexp = np.exp(nsp0 * cp.log(pm[:Nfilt]))
         fexp = cp.reshape(fexp, (1, 1, -1), order="F")
 
-        # disable template updates during extraction phase
-        if ibatch <= niter - nBatches - 1:
-            dWU = dWU * fexp + (1 - fexp) * (
+        dWU = dWU * fexp + (1 - fexp) * (
                 dWU0 / cp.reshape(cp.maximum(1, nsp0), (1, 1, -1), order="F")
-            )
+        )
 
         # nsp just gets updated according to the fixed factor p1
         nsp = nsp * p1 + (1 - p1) * nsp0
@@ -1161,7 +1172,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                 # initialize temporal components of waveforms
                 W = cp.asfortranarray(
                     _extend(
-                    W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1
+                        W, Nfilt, Nfilt + m, W0[:, cp.ones(m, dtype=np.int32), :], axis=1
                     )
                 )
 
@@ -1176,8 +1187,8 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
                 W = W[:, :Nfilt, :]  # remove any new filters over the maximum allowed
                 dWU = dWU[
-                    :, :, :Nfilt
-                ]  # remove any new filters over the maximum allowed
+                      :, :, :Nfilt
+                      ]  # remove any new filters over the maximum allowed
                 nsp = nsp[:Nfilt]  # remove any new filters over the maximum allowed
                 mu = mu[:Nfilt]  # remove any new filters over the maximum allowed
 
