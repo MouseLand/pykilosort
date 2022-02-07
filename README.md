@@ -29,7 +29,7 @@ nvcc # This is the CUDA compiler
 
 ### Doing the install using Anaconda
 
-On Linux install 
+Only on Linux, install fftw by running the following 
     
     sudo apt-get install -y libfftw3-dev
 
