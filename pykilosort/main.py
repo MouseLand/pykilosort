@@ -297,8 +297,6 @@ def run(
     #TODO:
     # Add optional deletion of temp files
 
-    return ctx
-
 
 # TODO: use these in the actual main function
 def run_preprocess(ctx):
