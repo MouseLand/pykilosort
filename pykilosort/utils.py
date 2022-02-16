@@ -447,6 +447,11 @@ class DataLoader(object):
 
         self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='C')
 
+    def close(self):
+        """ Close memmap file, not doing this causes issues on Windows"""
+        # TODO: Do this without using internal numpy functions
+        self.data._mmap.close()
+
 
 
 # TODO: design - this is a nice pythonic-ish mirror of the MATLAB global context,
