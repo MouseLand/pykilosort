@@ -152,7 +152,6 @@ def run(
     # Open the proc file.
     # NOTE: now we are always in Fortran order.
     assert ir.proc_path.exists()
-    ir.proc = np.memmap(ir.proc_path, dtype=raw_data.dtype, mode="r+", order="F")
     ir.data_loader = DataLoader(ir.proc_path, params.NT, probe.Nchan, params.scaleproc)
 
     # -------------------------------------------------------------------------
@@ -291,13 +290,17 @@ def run(
     with ctx.time("output"):
         rezToPhy(ctx, dat_path=dat_path, output_dir=output_dir)
 
+    ir.data_loader.close()
+
+    # TODO: Do this without using internal numpy functions
+    ir.cProj._mmap.close()
+    ir.cProjPC._mmap.close()
+
     # Show timing information.
     ctx.show_timer()
 
     #TODO:
     # Add optional deletion of temp files
-
-    return ctx
 
 
 # TODO: use these in the actual main function

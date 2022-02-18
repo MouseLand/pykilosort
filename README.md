@@ -29,20 +29,38 @@ nvcc # This is the CUDA compiler
 
 ### Doing the install using Anaconda
 
-On Linux install 
+Only on Linux, first install fftw by running the following 
     
     sudo apt-get install -y libfftw3-dev
 
-Clone the repository:
+Navigate to the desired location for the repository and clone it
 
     git clone -b drift_test_stable https://github.com/kushbanga/pykilosort.git
     cd pykilosort
 
 Create a conda environment
 
-    conda env create -f ./pyks2.yml
+    conda env create -f pyks2.yml
     conda activate pyks2
     conda develop .
+
+### Managing CUDA Errors
+
+Errors with the CUDA installation can sometimes be fixed by downgrading
+the version of cudatoolkit installed. Currently tested versions are 9.2,
+10.0, 10.2, 11.0 and 11.5
+
+To check the current version run the following:
+
+    conda activate pyks2
+    conda list cudatoolkit
+
+To install version 10.0 for example run the following
+
+    conda activate pyks2
+    conda remove cupy, cudatoolkit
+    conda install -c conda-forge cupy cudatoolkit=10.0
+
 
 ## Usage
 

@@ -223,6 +223,9 @@ class KilosortParams(BaseModel):
         int
     ] = None  # This should be a computed property once we add the probe to the config
 
+    # TODO: Make this true by default
+    read_only: bool = Field(False, description='Read only option for raw data')
+
     # Computed properties
     @property
     def NT(self) -> int:
@@ -244,4 +247,6 @@ class KilosortParams(BaseModel):
             'dtype': self.data_dtype,
             'sample_rate': self.fs,
         }
+        if self.read_only:
+            args['mode'] = 'r'
         return args

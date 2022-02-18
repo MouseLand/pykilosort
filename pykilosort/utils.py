@@ -268,6 +268,8 @@ class RawDataLoader(object):
         # Single dataset case
         if (type(data_path) == str) or isinstance(data_path, PurePath):
             self.multiple_datasets = False
+            data_path = Path(data_path)
+            assert data_path.is_file(), f'File {data_path} not found'
             self.raw_data = get_ephys_reader(data_path, **kwargs)
             self.n_samples, self.n_channels = self.raw_data.shape
             self.dtype = self.raw_data.dtype
@@ -285,6 +287,8 @@ class RawDataLoader(object):
             for path in data_path:
                 assert (type(path) == str) or isinstance(path, PurePath), \
                     'Data paths must be strings or Pathlib paths'
+                path = Path(path)
+                assert path.is_file(), f'File {path} not found'
                 raw_dataset = get_ephys_reader(path, **kwargs)
                 n_samples, n_channels = raw_dataset.shape
                 logger.info(f"Loaded data with {n_channels} channels, {n_samples} samples")
@@ -442,6 +446,11 @@ class DataLoader(object):
         assert batch_data.shape == (self.default_batch_length, self.n_channels)
 
         self.data[batch_number*self.batch_size:(batch_number+1)*self.batch_size] = batch_data.flatten(order='C')
+
+    def close(self):
+        """ Close memmap file, not doing this causes issues on Windows"""
+        # TODO: Do this without using internal numpy functions
+        self.data._mmap.close()
 
 
 

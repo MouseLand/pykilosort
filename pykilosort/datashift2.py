@@ -481,7 +481,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     )
 
     # preallocate the results we assume 50 spikes per channel per second max
-    rl = data_loader.data.size / probe.Nchan / params.fs   # record length
+    rl = data_loader.data.shape[0] / params.fs   # record length
     st3 = np.zeros((int(np.ceil(rl * 50 * probe.Nchan)), 5))
     st3[:, 4] = -1  # batch_id can be zero
     t0 = 0
