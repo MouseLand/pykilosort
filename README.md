@@ -1,11 +1,8 @@
 # Python port of KiloSort2
 
 This is a work-in-progress literal Python port of the original MATLAB version of Kilosort 2, written by Marius Pachitariu.
-The code is still being debugged and is not ready for use.
 
-## Scope
-### Why an IBL port of pykilosort? (draft)
-Preprocessing functions and standardization of outputs
+## Authors
 
 Kush Banga, Cyrille Rossant, Olivier Winter
 
