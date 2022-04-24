@@ -71,7 +71,7 @@ class KilosortParams(BaseModel):
     
     save_drift_spike_detections: bool = Field(False, description='save detected spikes in drift correction')
     
-    perform_drift_registration: bool = Field(True, description='Estimate electrode drift and apply registration')
+    perform_drift_registration: bool = Field(False, description='Estimate electrode drift and apply registration')
 
     do_whitening: bool = Field(True, description='whether or not to whiten data, if disabled \
                                                  channels are individually z-scored')
