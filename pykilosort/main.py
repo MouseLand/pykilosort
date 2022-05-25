@@ -299,8 +299,8 @@ def run(
     # Show timing information.
     ctx.show_timer()
 
-    #TODO:
-    # Add optional deletion of temp files
+    if not params.save_temp_files:
+        ctx.delete_temp_files()
 
 
 # TODO: use these in the actual main function
