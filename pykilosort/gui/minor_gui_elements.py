@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 from pykilosort.gui.logger import setup_logger
-from pykilosort.params import KilosortParams
+from pykilosort.io.params import KilosortParams
 from pykilosort.utils import Bunch
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -25,7 +25,7 @@ class ProbeBuilder(QtWidgets.QDialog):
 
         self.k_coords_value = QtWidgets.QLineEdit()
         self.k_coords_label = QtWidgets.QLabel(
-            "Shrank index ('kcoords') for each " "site (leave blank for single shank):"
+            "Shrank index ('channel_groups') for each " "site (leave blank for single shank):"
         )
 
         self.channel_map_value = QtWidgets.QLineEdit()

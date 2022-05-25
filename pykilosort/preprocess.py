@@ -21,11 +21,11 @@ def get_filter_params(fs, fshigh=None, fslow=None):
         return butter(3, fshigh / fs * 2, 'high')
 
 
-def gpufilter(buff, chanMap=None, fs=None, fslow=None, fshigh=None, car=True):
+def gpufilter(buff, channel_map=None, fs=None, fslow=None, fshigh=None, car=True):
     # filter this batch of data after common average referencing with the
     # median
     # buff is timepoints by channels
-    # chanMap are indices of the channels to be kep
+    # channel_map are indices of the channels to be kep
     # params.fs and params.fshigh are sampling and high-pass frequencies respectively
     # if params.fslow is present, it is used as low-pass frequency (discouraged)
 
@@ -33,8 +33,8 @@ def gpufilter(buff, chanMap=None, fs=None, fslow=None, fshigh=None, car=True):
     assert dataRAW.flags.c_contiguous
     assert dataRAW.ndim == 2
     assert dataRAW.shape[0] > dataRAW.shape[1]
-    if chanMap is not None and len(chanMap):
-        dataRAW = dataRAW[:, chanMap]  # subsample only good channels
+    if channel_map is not None and len(channel_map):
+        dataRAW = dataRAW[:, channel_map]  # subsample only good channels
     assert dataRAW.ndim == 2
 
     # subtract the mean from each channel
@@ -134,39 +134,50 @@ def my_sum(S1, sig, varargin=None):
     return S1
 
 
-def whiteningFromCovariance(CC):
-    # function Wrot = whiteningFromCovariance(CC)
-    # takes as input the matrix CC of channel pairwise correlations
-    # outputs a symmetric rotation matrix (also Nchan by Nchan) that rotates
-    # the data onto uncorrelated, unit-norm axes
+def whitening_from_covariance(channel_covs):
+    """
+    Using the channel pairwise covariances outputs a symmetric rotation matrix (also Nchan by Nchan)
+    that rotates the data onto uncorrelated, unit-norm axes
+    :param channel_covs: (n_channels, n_channels) numpy array of channel covariances
+    :return: whitening_matrix: (n_channels, n_channels) numpy array
+    """
 
     # covariance eigendecomposition (same as svd for positive-definite matrix)
-    E, D, _ = cp.linalg.svd(CC)
+    E, D, _ = cp.linalg.svd(channel_covs)
     eps = 1e-6
     Di = cp.diag(1. / (D + eps) ** .5)
-    Wrot = cp.dot(cp.dot(E, Di), E.T)  # this is the symmetric whitening matrix (ZCA transform)
-    return Wrot
+    whitening_matrix = cp.dot(cp.dot(E, Di), E.T)  # this is the symmetric whitening matrix (ZCA transform)
+    return whitening_matrix
 
 
-def whiteningLocal(CC, yc, xc, nRange):
-    # function to perform local whitening of channels
-    # CC is a matrix of Nchan by Nchan correlations
-    # yc and xc are vector of Y and X positions of each channel
-    # nRange is the number of nearest channels to consider
-    Wrot = cp.zeros((CC.shape[0], CC.shape[0]))
+def whitening_local(channel_covs, probe, n_range):
+    """
+    Performs local whitening of channels using the pair-wise covariances of nearby channels
+    :param channel_covs: (n_channels, n_channels) numpy array of channel covariances
+    :param probe: Object with numpy array attributes xcoords and ycoords
+    :param n_range: No of nearest channels to use
+    :return: whitening_matrix: (n_channels, n_channels) numpy array
+    """
 
-    for j in range(CC.shape[0]):
-        ds = (xc - xc[j]) ** 2 + (yc - yc[j]) ** 2
-        ilocal = np.argsort(ds)
-        # take the closest channels to the primary channel.
-        # First channel in this list will always be the primary channel.
-        ilocal = ilocal[:nRange]
+    whitening_matrix = cp.zeros((channel_covs.shape[0], channel_covs.shape[0]))
 
-        wrot0 = cp.asnumpy(whiteningFromCovariance(CC[np.ix_(ilocal, ilocal)]))
-        # the first column of wrot0 is the whitening filter for the primary channel
-        Wrot[ilocal, j] = wrot0[:, 0]
+    # for each channel compute the local whitening matrix and add the channel's transformation
+    # to the main whitening matrix
 
-    return Wrot
+    for j in range(channel_covs.shape[0]):
+
+        # find closest channels to the primary channel
+        # first channel in the list will always be the primary channel
+        channel_distances = (probe.xcoords - probe.xcoords[j]) ** 2 + (probe.ycoords - probe.ycoords[j]) ** 2
+        ilocal = np.argsort(channel_distances)
+        ilocal = ilocal[:n_range]
+
+        # find the local whitening transformation, the first column is the whitening filter for
+        # the primary channel
+        whitening_matrix_local = cp.asnumpy(whitening_from_covariance(channel_covs[np.ix_(ilocal, ilocal)]))
+        whitening_matrix[ilocal, j] = whitening_matrix_local[:, 0]
+
+    return whitening_matrix
 
 
 def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
@@ -185,13 +196,8 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
     if nSkipCov is None:
         nSkipCov = params.nSkipCov
 
-    xc = probe.xc
-    yc = probe.yc
-    chanMap = probe.chanMap
-    Nchan = probe.Nchan
-
-    # Nchan is obtained after the bad channels have been removed
-    CC = cp.zeros((Nchan, Nchan))
+    # n_channels is obtained after the bad channels have been removed
+    CC = cp.zeros((probe.n_channels, probe.n_channels))
 
     for ibatch in tqdm(range(0, Nbatch, nSkipCov), desc="Computing the whitening matrix"):
         i = max(0, NT * ibatch - ntbuff)
@@ -206,13 +212,13 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
 
         if False and params.preprocessing_function == 'destriping':
             from ibllib.dsp.voltage import destripe
-            datr = destripe(buff[:, :chanMap.size].T, fs=fs, channel_labels=True,
+            datr = destripe(buff[:, :probe.channel_map.size].T, fs=fs, channel_labels=True,
                             butter_kwargs={'N': 3, 'Wn': fshigh / fs * 2, 'btype': 'highpass'})
             datr = cp.asarray(datr.T)
         else:
             buff_g = cp.asarray(buff, dtype=np.float32)
             # apply filters and median subtraction
-            datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, chanMap=chanMap)
+            datr = gpufilter(buff_g, fs=fs, fshigh=fshigh, channel_map=probe.channel_map)
         assert datr.flags.c_contiguous
         CC = CC + cp.dot(datr.T, datr) / NT  # sample covariance
 
@@ -222,12 +228,12 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
         if whiteningRange < np.inf:
             #  if there are too many channels, a finite whiteningRange is more robust to noise
             # in the estimation of the covariance
-            whiteningRange = min(whiteningRange, Nchan)
+            whiteningRange = min(whiteningRange, probe.n_channels)
             # this function performs the same matrix inversions as below, just on subsets of
             # channels around each channel
-            Wrot = whiteningLocal(CC, yc, xc, whiteningRange)
+            Wrot = whitening_local(CC, probe, whiteningRange)
         else:
-            Wrot = whiteningFromCovariance(CC)
+            Wrot = whitening_from_covariance(CC)
     else:
         # Do single channel z-scoring instead of whitening
         Wrot = cp.diag(cp.diag(CC) ** (-0.5))
@@ -241,7 +247,7 @@ def get_whitening_matrix(raw_data=None, probe=None, params=None, nSkipCov=None):
 
 def get_good_channels(raw_data=None, probe=None, params=None):
     """
-    of the channels indicated by the user as good (chanMap)
+    of the channels indicated by the user as good (channel_map)
     further subset those that have a mean firing rate above a certain value
     (default is ops.minfr_goodchannels = 0.1Hz)
     needs the same filtering parameters in ops as usual
@@ -279,7 +285,7 @@ def get_good_channels(raw_data=None, probe=None, params=None):
         # Put on GPU.
         buff = cp.asarray(buff, dtype=np.float32)
         assert buff.flags.c_contiguous
-        datr = gpufilter(buff, chanMap=chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
+        datr = gpufilter(buff, channel_map=chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
         assert datr.shape[0] > datr.shape[1]
 
         # very basic threshold crossings calculation
@@ -331,7 +337,7 @@ def destriping(ctx):
     """IBL destriping - multiprocessing CPU version for the time being, although leveraging the GPU
     for the many FFTs performed would probably be quite beneficial """
     from ibllib.dsp.voltage import decompress_destripe_cbin, detect_bad_channels_cbin
-    probe = ctx.probe
+    probe = ctx.params.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     wrot = cp.asnumpy(ir.Wrot)
@@ -379,7 +385,7 @@ def preprocess(ctx):
     # 5) scaling to int16 values
 
     params = ctx.params
-    probe = ctx.probe
+    probe = params.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
 
@@ -390,7 +396,6 @@ def preprocess(ctx):
     NT = params.NT
     NTbuff = params.NTbuff
     ntb = params.ntbuff
-    Nchan = probe.Nchan
 
     Wrot = cp.asarray(ir.Wrot)
 
@@ -398,7 +403,7 @@ def preprocess(ctx):
 
     # weights to combine batches at the edge
     w_edge = cp.linspace(0,1,ntb).reshape(-1, 1)
-    datr_prev = cp.zeros((ntb, Nchan), dtype=np.int32)
+    datr_prev = cp.zeros((ntb, probe.n_channels), dtype=np.int32)
 
     with open(ir.proc_path, 'wb') as fw:  # open for writing processed data
         for ibatch in tqdm(range(Nbatch), desc="Preprocessing"):
@@ -427,7 +432,7 @@ def preprocess(ctx):
             # apply filters and median subtraction
             buff = cp.asarray(buff, dtype=np.float32)
 
-            datr = gpufilter(buff, chanMap=probe.chanMap, fs=fs, fshigh=fshigh, fslow=fslow)
+            datr = gpufilter(buff, channel_map=probe.channel_map, fs=fs, fshigh=fshigh, fslow=fslow)
 
             assert datr.flags.c_contiguous
 

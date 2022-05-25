@@ -603,7 +603,7 @@ def load_probe(probe_path):
     """Load a .mat probe file from Kilosort2, or a PRB file (experimental)."""
 
     # A bunch with the following attributes:
-    _required_keys = ('NchanTOT', 'chanMap', 'xc', 'yc', 'kcoords')
+    _required_keys = ('NchanTOT', 'channel_map', 'xc', 'yc', 'channel_groups')
     probe = Bunch()
     probe.NchanTOT = 0
     probe_path = Path(probe_path).resolve()
@@ -637,8 +637,8 @@ def load_probe(probe_path):
         probe.xc = mat['xcoords'].ravel().astype(np.float64)
         nc = len(probe.xc)
         probe.yc = mat['ycoords'].ravel().astype(np.float64)
-        probe.kcoords = mat.get('kcoords', np.zeros(nc)).ravel().astype(np.float64)
-        probe.chanMap = (mat['chanMap'] - 1).ravel().astype(np.int32)  # NOTE: 0-indexing in Python
+        probe.kcoords = mat.get('channel_groups', np.zeros(nc)).ravel().astype(np.float64)
+        probe.chanMap = (mat['channel_map'] - 1).ravel().astype(np.int32)  # NOTE: 0-indexing in Python
         probe.NchanTOT = len(probe.chanMap)  # NOTE: should match the # of columns in the raw data
 
     for n in _required_keys:
@@ -655,12 +655,12 @@ def create_prb(probe):
     except AttributeError:
         bad_channels = np.array([])
     probe_prb = {}
-    unique_channel_groups = np.unique(np.array(probe.kcoords))
+    unique_channel_groups = np.unique(np.array(probe.channel_groups))
 
     for channel_group in unique_channel_groups:
         probe_prb[channel_group] = {}
 
-        channel_group_pos = np.where(probe.kcoords == channel_group)
+        channel_group_pos = np.where(probe.channel_groups == channel_group)
         group_channels = chan_map[channel_group_pos]
         group_xc = xc[channel_group_pos]
         group_yc = yc[channel_group_pos]

@@ -28,6 +28,7 @@ dependencies:
  - pyqt
  - pyfftw
  - pip:
+    - ibl-neuropixel
     - ibllib
     - phylib
     - phy --pre

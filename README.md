@@ -113,6 +113,32 @@ run_spike_sorting_ibl(bin_file, delete=DELETE, scratch_dir=SCRATCH_DIR,
                       ks_output_dir=ks_output_dir, alf_path=alf_path, log_level='DEBUG', params=params)
 ```
 
+### Custom Probe Geometry
+A probe can be defined and used in the following manner
+```python
+import numpy as np
+
+from pykilosort import Probe, run
+
+# Example definition of a Neuropixels 1 probe geometry
+example_probe = Probe(
+    n_channels_total = 385, # total no of channels including sync channels
+    channel_map = np.arange(384), # channel indices 
+    xcoords = np.tile(np.array([43., 11., 59., 27.]), 96), # channel x-coordinates
+    ycoords = np.repeat(np.arange(20, 3841, 20.), 2), # channel y-coordinates
+)
+
+# Running kilosort
+run(dat_path='path/to/data', probe=example_probe)
+```
+
+A Neuropixel probe geometry can be automatically found from a meta file
+```python
+from pykilosort import neuropixel_probe_from_metafile
+
+neuropixel_probe = neuropixel_probe_from_metafile('path/to/metafile')
+```
+
 ### Disk cache (serialized results & parameter objects)
 
 The MATLAB version used a big `rez` structured object containing the input data, the parameters, intermediate and final results.

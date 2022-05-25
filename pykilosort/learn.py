@@ -831,7 +831,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
     Nbatch = ctx.intermediate.Nbatch
     params = ctx.params
-    probe = ctx.probe
+    probe = params.probe
     ir = ctx.intermediate
     data_loader = ir.data_loader
 
@@ -860,12 +860,11 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     nBatches = Nbatch
     NT = params.NT
     Nfilt = params.Nfilt
-    Nchan = probe.Nchan
 
     # two variables for the same thing? number of nearest channels to each primary channel
     # TODO: unclear - let's fix this
-    NchanNear = min(probe.Nchan, 32)
-    Nnearest = min(probe.Nchan, 32)
+    NchanNear = min(probe.n_channels, 32)
+    Nnearest = min(probe.n_channels, 32)
 
     # decay of gaussian spatial mask centered on a channel
     sigmaMask = params.sigmaMask
@@ -905,7 +904,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         -1.0 / np.linspace(params.momentum[0], params.momentum[1], niter - nBatches)
     )
 
-    Nsum = min(Nchan, 7)  # how many channels to extend out the waveform in mexgetspikes
+    Nsum = min(probe.n_channels, 7)  # how many channels to extend out the waveform in mexgetspikes
     # lots of parameters passed into the CUDA scripts
     Params = np.array(
         [
@@ -918,7 +917,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
             Nrank,
             params.lam,
             pmi[0],
-            Nchan,
+            probe.n_channels,
             NchanNear,
             params.nt0min,
             1,
@@ -1042,7 +1041,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # it tells us which pairs of templates are likely to "interfere" with each other
         # such as when we subtract off a template
         # this needs to change (but I don't know why!)
-        UtU, maskU = getMeUtU(iW, iC, mask, Nnearest, Nchan)
+        UtU, maskU = getMeUtU(iW, iC, mask, Nnearest, probe.n_channels)
 
         # main CUDA function in the whole codebase. does the iterative template matching
         # based on the current templates, gets features for these templates if requested

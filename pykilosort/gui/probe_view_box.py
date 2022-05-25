@@ -89,7 +89,7 @@ class ProbeViewBox(QtWidgets.QGroupBox):
 
     def set_active_layout(self, probe, good_channels=None):
         self.active_layout = probe
-        self.kcoords = self.active_layout.kcoords
+        self.kcoords = self.active_layout.channel_groups
         self.xc, self.yc = self.active_layout.xc, self.active_layout.yc
         self.channel_map_dict = {}
         for ind, (xc, yc) in enumerate(zip(self.xc, self.yc)):

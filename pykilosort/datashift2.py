@@ -359,7 +359,7 @@ def get_kernel_matrix(probe, shifts, sig):
     """
 
     # 2D coordinates of the original channel positions
-    coords_old = np.vstack([probe.xc, probe.yc]).T
+    coords_old = np.vstack([probe.xcoords, probe.ycoords]).T
 
     # 2D coordinates of the new channel positions
     coords_new = np.copy(coords_old)
@@ -389,7 +389,7 @@ def apply_drift_transform(dat, shifts_in, ysamp, probe, sig):
     """
 
     # upsample to get shifts for each channel
-    shifts = interpolate_1D(shifts_in, ysamp, probe.yc)
+    shifts = interpolate_1D(shifts_in, ysamp, probe.ycoords)
 
     # kernel prediction matrix
     kernel_matrix = get_kernel_matrix(probe, shifts, sig)
@@ -445,10 +445,10 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     # Get nearest channels for every template center.
     # Template products will only be computed on these channels.
     NchanNear = 10
-    iC, dist = getClosestChannels2(ycup, xcup, probe.yc, probe.xc, NchanNear)
+    iC, dist = getClosestChannels2(ycup, xcup, probe.ycoords, probe.xcoords, NchanNear)
 
     # Templates with centers that are far from an active site are discarded
-    dNearActiveSite = np.median(np.diff(np.unique(probe.yc)))
+    dNearActiveSite = np.median(np.diff(np.unique(probe.ycoords)))
     igood = dist[0, :] < dNearActiveSite
     iC = iC[:, igood]
     dist = dist[:, igood]
@@ -469,7 +469,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     NchanUp = iC.shape[1]
     Params = (
         params.NT,
-        probe.Nchan,
+        probe.n_channels,
         params.nt0,
         NchanNear,
         NrankPC,
@@ -481,8 +481,8 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
     )
 
     # preallocate the results we assume 50 spikes per channel per second max
-    rl = data_loader.data.shape[0] / params.fs / probe.Nchan   # record length
-    st3 = np.zeros((int(np.ceil(rl * 50 * probe.Nchan)), 5))
+    rl = data_loader.data.shape[0] / params.fs / probe.n_channels   # record length
+    st3 = np.zeros((int(np.ceil(rl * 50 * probe.n_channels)), 5))
     st3[:, 4] = -1  # batch_id can be zero
     t0 = 0
     nsp = 0  # counter for total number of spikes
@@ -498,7 +498,7 @@ def standalone_detector(wTEMP, wPCA, NrankPC, yup, xup, Nbatch, data_loader, pro
         )
         # upsample the y position using the center of mass of template products
         # coming out of the CUDA function.
-        ys = probe.yc[cp.asnumpy(iC)]
+        ys = probe.ycoords[cp.asnumpy(iC)]
         cF0 = np.maximum(cF, 0)
         cF0 = cF0 / np.sum(cF0, 0)
         iChan = st[1, :]
@@ -552,9 +552,9 @@ def get_drift(spikes, probe, Nbatches, nblocks=5, genericSpkTh=10):
     dd = 5
 
     # min and max for the range of depths
-    dmin = min(probe.yc) - 1
+    dmin = min(probe.ycoords) - 1
 
-    dmax = int(1 + np.ceil((max(probe.yc) - dmin) / dd))
+    dmax = int(1 + np.ceil((max(probe.ycoords) - dmin) / dd))
 
     # preallocate matrix of counts with 20 bins, spaced logarithmically
     F = np.zeros((dmax, 20, Nbatches))
@@ -599,22 +599,20 @@ def datashift2(ctx):
     Main function to re-register the preprocessed data
     """
     params = ctx.params
-    probe = ctx.probe
+    probe = params.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     Nbatch = ir.Nbatch
 
-    ir.xc, ir.yc = probe.xc, probe.yc
-
     # The min and max of the y and x ranges of the channels
-    ymin = min(ir.yc)
-    ymax = max(ir.yc)
-    xmin = min(ir.xc)
-    xmax = max(ir.xc)
+    ymin = min(probe.ycoords)
+    ymax = max(probe.ycoords)
+    xmin = min(probe.xcoords)
+    xmax = max(probe.xcoords)
 
     # Determine the average vertical spacing between channels.
     # Usually all the vertical spacings are the same, i.e. on Neuropixels probes.
-    dmin = np.median(np.diff(np.unique(ir.yc)))
+    dmin = np.median(np.diff(np.unique(probe.ycoords)))
     logger.info(f"pitch is {dmin} um")
     yup = np.arange(
         start=ymin, step=dmin / 2, stop=ymax + (dmin / 2)

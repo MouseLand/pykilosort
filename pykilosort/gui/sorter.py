@@ -43,7 +43,7 @@ def filter_and_whiten(raw_traces, params, probe, whitening_matrix):
 
     filtered_data = gpufilter(
         buff=cp.asarray(raw_traces, dtype=np.float32),
-        chanMap=probe.chanMap,
+        channel_map=probe.chanMap,
         fs=sample_rate,
         fslow=low_pass_freq,
         fshigh=high_pass_freq,
