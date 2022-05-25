@@ -44,7 +44,7 @@ def gpufilter(buff, chanMap=None, fs=None, fslow=None, fshigh=None, car=True):
     # CAR, common average referencing by median
     if car:
         # subtract median across channels
-        dataRAW = dataRAW - median(dataRAW, axis=1)[:, np.newaxis]
+        dataRAW = dataRAW - cp.median(dataRAW, axis=1)[:, np.newaxis]
 
     # set up the parameters of the filter
     filter_params = get_filter_params(fs, fshigh=fshigh, fslow=fslow)
