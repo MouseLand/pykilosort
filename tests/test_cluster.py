@@ -11,7 +11,7 @@ def test_get_closest_channels():
             {
                 "NchanTOT": 4,
                 "channel_map": np.array([0, 1, 2, 3]),
-                "kcoords": np.array([1.0, 1.0, 1.0, 1.0]),
+                "channel_groups": np.array([1.0, 1.0, 1.0, 1.0]),
                 "xc": np.array([0.0, 0.0, 1.0, 1.0]),
                 "yc": np.array([0.0, 1.0, 0.0, 1.0]),
                 "Nchan": 4,

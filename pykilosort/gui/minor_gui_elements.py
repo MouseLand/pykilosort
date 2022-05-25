@@ -25,7 +25,7 @@ class ProbeBuilder(QtWidgets.QDialog):
 
         self.k_coords_value = QtWidgets.QLineEdit()
         self.k_coords_label = QtWidgets.QLabel(
-            "Shrank index ('kcoords') for each " "site (leave blank for single shank):"
+            "Shrank index ('channel_groups') for each " "site (leave blank for single shank):"
         )
 
         self.channel_map_value = QtWidgets.QLineEdit()

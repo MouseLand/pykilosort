@@ -29,14 +29,8 @@ def run(
     clear_context=False,
     **params,
 ):
-    """Launch KiloSort 2.
-
-    probe has the following attributes:
-    - xc
-    - yc
-    - kcoords
-    - Nchan
-
+    """
+    Launch KiloSort 2.
     """
 
     # Get or create the probe object.
@@ -106,7 +100,7 @@ def run(
         params.probe.channel_map = params.probe.channel_map[ir.igood]
         params.probe.xcoords = params.probe.xcoords[ir.igood]  # removes coordinates of bad channels
         params.probe.ycoords = params.probe.ycoords[ir.igood]
-        params.probe.kcoords = params.probe.kcoords[ir.igood]
+        params.probe.channel_groups = params.probe.channel_groups[ir.igood]
 
     assert params.probe.n_channels > 0
 
@@ -313,7 +307,7 @@ def run_preprocess(ctx):
         probe.chanMap = probe.chanMap[ir.igood]
         probe.xc = probe.xc[ir.igood]  # removes coordinates of bad channels
         probe.yc = probe.yc[ir.igood]
-        probe.kcoords = probe.kcoords[ir.igood]
+        probe.channel_groups = probe.channel_groups[ir.igood]
 
     probe.Nchan = len(
         probe.chanMap

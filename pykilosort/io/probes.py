@@ -3,6 +3,7 @@ import typing as t
 import numpy as np
 from pydantic import BaseModel, Field, validator
 
+from spikeglx import Reader
 from ..utils import Bunch
 
 
@@ -17,7 +18,7 @@ class Probe(BaseModel):
     xcoords: np.ndarray = Field(None, description='X coordinates of channels')
     ycoords: np.ndarray = Field(None, description='Y coordinates of channels')
 
-    kcoords: t.Optional[np.ndarray] = Field(None, description='Shank indices')
+    channel_groups: t.Optional[np.ndarray] = Field(None, description='Channel Group Indices')
 
     sample_shifts: t.Optional[np.ndarray] = Field(None, description='Channel Sample Shifts')
 
@@ -25,11 +26,31 @@ class Probe(BaseModel):
     def n_channels(self) -> int:
         return len(self.channel_map)
 
-    @validator('xcoords', 'ycoords', 'kcoords', 'sample_shifts')
+    @validator('xcoords', 'ycoords', 'channel_groups', 'sample_shifts')
     def check_lengths_equal(cls, value, values, field):
         assert len(value) == len(values['channel_map']), \
             f'Length of {field.name} does not match the channel map'
         return value
+
+
+def neuropixel_probe_from_metafile(file_path):
+    """
+    Uses IBL's SpikeGLX reader to automatically load the probe from the metafile
+    :param file_path: Path to metafile, str or pathlib Path
+    :return: Probe object
+    """
+    reader = Reader(file_path)
+
+    probe = Probe(
+        n_channels_total = reader.nc,
+        channel_map = reader.geometry['ind'],
+        xcoords = reader.geometry['x'],
+        ycoords = reader.geometry['y'],
+        channel_groups = reader.geometry['shank'],
+        sample_shifts = reader.geometry['sample_shift'],
+    )
+
+    return probe
 
 
 """ Some standard probe geometries - please check before using! """
@@ -41,7 +62,7 @@ def np1_probe():
         'channel_map': np.arange(384),
         'xcoords': np.tile(np.array([43., 11., 59., 27.]), 96),
         'ycoords': np.repeat(np.arange(20, 3841, 20.), 2),
-        'kcoords': np.zeros(384),
+        'channel_groups': np.zeros(384),
         'sample_shifts': np.tile(np.repeat(np.arange(12)/12, 2), 16),
     }
 
@@ -55,7 +76,7 @@ def np2_probe():
         'channel_map': np.arange(384),
         'xcoords': np.tile(np.array([0., 32.]), 192),
         'ycoords': np.repeat(np.arange(0, 2866, 15.), 2),
-        'kcoords': np.zeros(384),
+        'channel_groups': np.zeros(384),
         'sample_shifts': np.tile(np.repeat(np.arange(16)/16, 2), 12),
     }
 
@@ -94,7 +115,7 @@ def np2_4shank_probe(shank=None):
     if shank is None:
         # Return whole probe
         probe_args['channel_map'] = np.arange(384)
-        probe_args['kcoords'] = np.zeros(384)
+        probe_args['channel_groups'] = np.zeros(384)
         probe_args['xcoords'] = np.zeros(384)
         probe_args['ycoords'] = np.zeros(384)
 
@@ -114,6 +135,6 @@ def np2_4shank_probe(shank=None):
 
     probe_args['xcoords'] = np.tile([0., 32.], 48) + shank * 200
     probe_args['ycoords'] = np.repeat(np.arange(2880, 3586, 15.), 2)
-    probe_args['kcoords'] = np.zeros(96)
+    probe_args['channel_groups'] = np.zeros(96)
 
     return Probe(**probe_args)
