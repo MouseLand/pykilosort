@@ -15,7 +15,7 @@ from pykilosort.gui import (
     probes,
 )
 from pykilosort.gui.logger import setup_logger
-from pykilosort.params import KilosortParams
+from pykilosort.io.params import KilosortParams
 from pykilosort.utils import Context
 from PyQt5 import QtCore, QtGui, QtWidgets
 

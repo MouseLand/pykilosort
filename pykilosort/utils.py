@@ -593,7 +593,7 @@ def load_probe(probe_path):
     """Load a .mat probe file from Kilosort2, or a PRB file (experimental)."""
 
     # A bunch with the following attributes:
-    _required_keys = ('NchanTOT', 'chanMap', 'xc', 'yc', 'kcoords')
+    _required_keys = ('NchanTOT', 'channel_map', 'xc', 'yc', 'kcoords')
     probe = Bunch()
     probe.NchanTOT = 0
     probe_path = Path(probe_path).resolve()
@@ -628,7 +628,7 @@ def load_probe(probe_path):
         nc = len(probe.xc)
         probe.yc = mat['ycoords'].ravel().astype(np.float64)
         probe.kcoords = mat.get('kcoords', np.zeros(nc)).ravel().astype(np.float64)
-        probe.chanMap = (mat['chanMap'] - 1).ravel().astype(np.int32)  # NOTE: 0-indexing in Python
+        probe.chanMap = (mat['channel_map'] - 1).ravel().astype(np.int32)  # NOTE: 0-indexing in Python
         probe.NchanTOT = len(probe.chanMap)  # NOTE: should match the # of columns in the raw data
 
     for n in _required_keys:

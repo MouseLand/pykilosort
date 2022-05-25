@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 from pykilosort.gui.logger import setup_logger
-from pykilosort.params import KilosortParams
+from pykilosort.io.params import KilosortParams
 from pykilosort.utils import Bunch
 from PyQt5 import QtCore, QtGui, QtWidgets
 

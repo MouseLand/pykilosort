@@ -599,7 +599,7 @@ def datashift2(ctx):
     Main function to re-register the preprocessed data
     """
     params = ctx.params
-    probe = ctx.probe
+    probe = params.probe
     raw_data = ctx.raw_data
     ir = ctx.intermediate
     Nbatch = ir.Nbatch

@@ -66,7 +66,7 @@ def probe(data_path):
     probe = Bunch()
     probe.NchanTOT = 385
     # WARNING: indexing mismatch with MATLAB hence the -1
-    probe.chanMap = np.load(data_path / 'chanMap.npy').squeeze().astype(np.int64) - 1
+    probe.chanMap = np.load(data_path / 'channel_map.npy').squeeze().astype(np.int64) - 1
     probe.xc = np.load(data_path / 'xc.npy').squeeze()
     probe.yc = np.load(data_path / 'yc.npy').squeeze()
     probe.kcoords = np.load(data_path / 'kcoords.npy').squeeze()

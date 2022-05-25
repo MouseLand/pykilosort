@@ -18,9 +18,9 @@ def getClosestChannels(probe, sigma, NchanClosest):
     # sigma is the standard deviation of this Gaussian-mask
 
     # compute distances between all pairs of channels
-    xc = cp.asarray(probe.xc, dtype=np.float32, order='F')
-    yc = cp.asarray(probe.yc, dtype=np.float32, order='F')
-    C2C = (xc[:, np.newaxis] - xc) ** 2 + (yc[:, np.newaxis] - yc) ** 2
+    xcoords = cp.asarray(probe.xcoords, dtype=np.float32, order='F')
+    ycoords = cp.asarray(probe.ycoords, dtype=np.float32, order='F')
+    C2C = (xcoords[:, np.newaxis] - xcoords) ** 2 + (ycoords[:, np.newaxis] - ycoords) ** 2
     C2C = cp.sqrt(C2C)
     Nchan = C2C.shape[0]
 
