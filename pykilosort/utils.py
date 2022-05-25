@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from functools import reduce
 import json
@@ -7,6 +8,7 @@ from pathlib import Path, PurePath
 import operator
 import os.path as op
 import re
+import shutil
 from time import perf_counter
 
 from tqdm.auto import tqdm
@@ -72,7 +74,7 @@ def _extend(x, i0, i1, val, axis=0):
         assert x.shape[axis] == i1
     s = [slice(None, None, None)] * x.ndim
     s[axis] = slice(i0, i1, 1)
-    x[s] = val
+    x[tuple(s)] = val
     for i in range(x.ndim):
         if i != axis:
             assert x.shape[i] == shape[i]
@@ -550,6 +552,14 @@ class Context(Bunch):
                 self.intermediate[k] = v
         kwargs = kwargs or self.intermediate
         self.write(**kwargs)
+
+    def delete_temp_files(self):
+        """ Deletes temporary files from disk at the end of a run"""
+        shutil.rmtree(self.context_path)
+
+        # Delete .kilosort parent folder if empty
+        if self.context_path.parent.name == '.kilosort' and len(os.listdir(self.context_path.parent)) == 0:
+            shutil.rmtree(self.context_path.parent)
 
     @contextmanager
     def time(self, name):

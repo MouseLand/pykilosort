@@ -32,7 +32,7 @@ Only on Linux, first install fftw by running the following
 
 Navigate to the desired location for the repository and clone it
 
-    git clone -b drift_test_stable https://github.com/kushbanga/pykilosort.git
+    git clone https://github.com/MouseLand/pykilosort.git
     cd pykilosort
 
 Create a conda environment
