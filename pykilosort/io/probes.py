@@ -55,10 +55,11 @@ def neuropixel_probe_from_metafile(file_path):
 
 """ Some standard probe geometries - please check before using! """
 
-def np1_probe():
+def np1_probe(sync_channel=True):
     """ Returns a Neuropixels 1 probe for use in pykilosort """
+
     probe_args = {
-        'n_channels_total': 385,
+        'n_channels_total': 385 if sync_channel else 384,
         'channel_map': np.arange(384),
         'xcoords': np.tile(np.array([43., 11., 59., 27.]), 96),
         'ycoords': np.repeat(np.arange(20, 3841, 20.), 2),
@@ -69,10 +70,10 @@ def np1_probe():
     return Probe(**probe_args)
 
 
-def np2_probe():
+def np2_probe(sync_channel=True):
     """ Returns a Neuropixels 2 probe for use in pykilosort """
     probe_args = {
-        'n_channels_total': 385,
+        'n_channels_total': 385 if sync_channel else 384,
         'channel_map': np.arange(384),
         'xcoords': np.tile(np.array([0., 32.]), 192),
         'ycoords': np.repeat(np.arange(0, 2866, 15.), 2),
