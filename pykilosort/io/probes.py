@@ -32,6 +32,9 @@ class Probe(BaseModel):
             f'Length of {field.name} does not match the channel map'
         return value
 
+    def keys(self):
+        return self.__fields__.keys()
+
 
 def neuropixel_probe_from_metafile(file_path):
     """
