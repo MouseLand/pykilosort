@@ -49,7 +49,7 @@ def neuropixel_probe_from_metafile(file_path):
         channel_map = reader.geometry['ind'],
         xcoords = reader.geometry['x'],
         ycoords = reader.geometry['y'],
-        channel_groups = reader.geometry['shank'],
+        channel_groups = reader.geometry['shank'].astype('int'),
         sample_shifts = reader.geometry['sample_shift'],
     )
 

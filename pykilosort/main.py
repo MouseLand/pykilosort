@@ -53,6 +53,9 @@ def run(
     dir_path.mkdir(exist_ok=True, parents=True)
     assert dir_path.exists()
 
+    output_dir = output_dir or dir_path / 'output'
+    output_dir.mkdir(exist_ok=True, parents=True)
+
     # Create the context.
     ctx_path = dir_path / ".kilosort" / Path(raw_data.name).name
     if clear_context:
@@ -154,7 +157,7 @@ def run(
     if params.perform_drift_registration:
         if "drift_correction" not in ctx.timer.keys():
             with ctx.time("drift_correction"):
-                out = datashift2(ctx)
+                out = datashift2(ctx, output_dir)
             ctx.save(**out)
     else:
         ctx.intermediate.iorig = np.arange(ctx.intermediate.Nbatch)

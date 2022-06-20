@@ -594,7 +594,7 @@ def get_drift(spikes, probe, Nbatches, nblocks=5, genericSpkTh=10):
     return dshift, yblk
 
 
-def datashift2(ctx):
+def datashift2(ctx, output_dir):
     """
     Main function to re-register the preprocessed data
     """
@@ -640,15 +640,17 @@ def datashift2(ctx):
         wTEMP, wPCA, params.nPCs, yup, xup, Nbatch, ir.data_loader, probe, params
     )
 
+    dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
+
     if params.save_drift_spike_detections:
-        drift_path = ctx.context_path / 'drift'
+        drift_path = output_dir / 'drift'
         if not os.path.isdir(drift_path):
             os.mkdir(drift_path)
         np.save(drift_path / 'spike_times.npy', spikes.times)
         np.save(drift_path / 'spike_depths.npy', spikes.depths)
         np.save(drift_path / 'spike_amps.npy', spikes.amps)
-
-    dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
+        np.save(drift_path / 'dshift.npy', dshift)
+        np.save(drift_path / 'yblk.npy', yblk)
 
     # sort in case we still want to do "tracking"
     iorig = np.argsort(np.mean(dshift, axis=1))
