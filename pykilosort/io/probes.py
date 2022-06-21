@@ -39,7 +39,8 @@ class Probe(BaseModel):
 def neuropixel_probe_from_metafile(file_path):
     """
     Uses IBL's SpikeGLX reader to automatically load the probe from the metafile
-    :param file_path: Path to metafile, str or pathlib Path
+    The ephys dataset and metafile must be in the same folder
+    :param file_path: Path to ephys data with metafile in the same folder, str or pathlib Path
     :return: Probe object
     """
     reader = Reader(file_path)
@@ -47,7 +48,7 @@ def neuropixel_probe_from_metafile(file_path):
     probe = Probe(
         n_channels_total = reader.nc,
         channel_map = reader.geometry['ind'],
-        xcoords = reader.geometry['x'],
+        xcoords = reader.geometry['x'] + 200 * reader.geometry['shank'].astype('int'),
         ycoords = reader.geometry['y'],
         channel_groups = reader.geometry['shank'].astype('int'),
         sample_shifts = reader.geometry['sample_shift'],
