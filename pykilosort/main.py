@@ -154,7 +154,8 @@ def run(
     #     return ctx
 
 
-    if params.perform_drift_registration:
+    if params.perform_drift_registration or \
+        (params.drift_across_recordings and raw_data.multiple_datasets == True):
         if "drift_correction" not in ctx.timer.keys():
             with ctx.time("drift_correction"):
                 out = datashift2(ctx, output_dir)

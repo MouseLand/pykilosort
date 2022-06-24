@@ -31,6 +31,9 @@ class DatashiftParams(BaseModel):
 
 
 class KilosortParams(BaseModel):
+
+    drift_across_recordings: bool = Field(True, description='perform drift correction across'
+                                                            'multiple recordings')
     
     low_memory: bool = Field(
         False, description='low memory setting for running chronic recordings'
@@ -41,7 +44,7 @@ class KilosortParams(BaseModel):
     preprocessing_function: str = Field('kilosort2', description='pre-processing function used choices'
                                                                  'are "kilosort2" or "destriping"')
     
-    save_drift_spike_detections: bool = Field(False, description='save detected spikes in drift correction')
+    save_drift_spike_detections: bool = Field(True, description='save detected spikes in drift correction')
     
     perform_drift_registration: bool = Field(False, description='Estimate electrode drift and apply registration')
 

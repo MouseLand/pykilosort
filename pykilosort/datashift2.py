@@ -594,6 +594,30 @@ def get_drift(spikes, probe, Nbatches, nblocks=5, genericSpkTh=10):
     return dshift, yblk
 
 
+def average_drift_across_days(drift_estimate, recording_times, batch_size):
+    """
+    For each day takes the median estimated drift
+    :param drift_estimate: Drift estimates across batches, numpy array (n_batches, n_blocks)
+    :param recording_times: List of times (in samples) when a new recording starts, including 0 at
+                            the start and the end time of the final recording
+    :param batch_size: Size of each batch in time samples
+    :return: drift_estimate: New estimate after averaging
+    """
+    for recording_id in range(len(recording_times) - 1):
+
+        start_batch = int(recording_times[recording_id] // batch_size)
+        end_batch = int(recording_times[recording_id + 1] // batch_size)
+
+        # Special care for last recording to make sure the index is correct
+        if recording_id == len(recording_times) - 1:
+            end_batch = drift_estimate.shape[0]
+
+        drift_estimate[start_batch:end_batch] = np.median(drift_estimate[start_batch:end_batch], axis=0)
+
+    return drift_estimate
+
+
+
 def datashift2(ctx, output_dir):
     """
     Main function to re-register the preprocessed data
@@ -641,6 +665,9 @@ def datashift2(ctx, output_dir):
     )
 
     dshift, yblk = get_drift(spikes, probe, Nbatch, params.nblocks, params.genericSpkTh)
+
+    if params.drift_across_recordings and not params.perform_drift_registration:
+        average_drift_across_days(dshift, raw_data.n_samples, params.NT)
 
     if params.save_drift_spike_detections:
         drift_path = output_dir / 'drift'
