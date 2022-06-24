@@ -1115,7 +1115,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
             # memorize the state of the templates
             logger.debug("Memorized middle timepoint.")
-            ir.W, ir.dWU, ir.U, ir.mu = W, dWU, U, mu
+
+            ir.W = cp.copy(W)
+            ir.dWU = cp.copy(dWU)
+            ir.U = cp.copy(U)
+            ir.mu = cp.copy(mu)
+
             ir.Wraw = cp.zeros(
                 (U.shape[0], W.shape[0], U.shape[1]), dtype=np.float64, order="F"
             )
