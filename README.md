@@ -136,7 +136,7 @@ A Neuropixel probe geometry can be automatically found from a meta file
 ```python
 from pykilosort import neuropixel_probe_from_metafile
 
-neuropixel_probe = neuropixel_probe_from_metafile('path/to/metafile')
+neuropixel_probe = neuropixel_probe_from_metafile('path/to/data')
 ```
 
 ### Disk cache (serialized results & parameter objects)
