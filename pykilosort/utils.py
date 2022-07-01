@@ -306,7 +306,8 @@ class RawDataLoader(object):
                         'All datasets must have the same number of channels'
                 self.n_samples.append(n_samples)
                 self.raw_data.append(raw_dataset)
-            self.n_samples = np.cumsum(np.array(self.n_samples))
+
+            self.n_samples = np.cumsum(np.array(self.n_samples, dtype='int64'))
 
 
     @property
