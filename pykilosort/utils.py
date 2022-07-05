@@ -17,6 +17,7 @@ from numpy.lib.format import (
     _check_version, _write_array_header, header_data_from_array_1_0, dtype_to_descr)
 import cupy as cp
 
+import phylib
 from phylib.io.traces import get_ephys_reader
 
 from .event import emit, connect, unconnect  # noqa
@@ -380,6 +381,26 @@ class RawDataLoader(object):
 
                 return np.concatenate((sub_batch_0, sub_batch_1), axis=0)
 
+    def close(self):
+        if self.multiple_datasets:
+            for reader in self.raw_data:
+                close_ephys_reader(reader)
+        else:
+            close_ephys_reader(self.raw_data)
+
+
+def close_ephys_reader(ephys_reader):
+    """
+    Close a phylib BaseEphysReader object so it can be deleted safely
+    :param ephys_reader:
+    """
+
+    # FlatEphysReader object uses numpy'e memmap method which needs to be explicity closed
+    if isinstance(ephys_reader, phylib.io.traces.FlatEphysReader):
+        ephys_reader._mmaps[0]._mmap.close()
+
+    if isinstance(ephys_reader, phylib.io.traces.MtscompEphysReader):
+        ephys_reader.reader.close()
 
 
 class DataLoader(object):

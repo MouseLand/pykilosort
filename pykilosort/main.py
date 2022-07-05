@@ -134,6 +134,9 @@ def run(
     if stop_after == "preprocess":
         return ctx
 
+    # Close the files in the raw data loader
+    raw_data.close()
+
     # Open the proc file.
     # NOTE: now we are always in Fortran order.
     assert ir.proc_path.exists()
