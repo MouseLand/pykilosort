@@ -8,6 +8,7 @@ import cupy as cp
 from tqdm.auto import tqdm
 
 from .cptools import lfilter, median
+from neurodsp.fourier import channel_shift
 
 logger = logging.getLogger(__name__)
 
@@ -430,9 +431,20 @@ def preprocess(ctx):
                 buff = np.concatenate((bpad, buff[:NTbuff - ntb]), axis=0)
 
             # apply filters and median subtraction
-            buff = cp.asarray(buff, dtype=np.float32)
 
-            datr = gpufilter(buff, channel_map=probe.channel_map, fs=fs, fshigh=fshigh, fslow=fslow)
+            # Select channels given by the channel map
+            buff = cp.asarray(buff[:, probe.channel_map], dtype=np.float32)
+
+            if params.channel_shift_alignment and probe.sample_shifts is not None:
+                # TODO: Currently need to transpose array and transpose back, keeping it transposed
+                # for filtering should speed that up too
+
+                # Apply channel shift alignment
+                buff = cp.ascontiguousarray(buff.T)
+                buff = channel_shift(buff, cp.array(probe.sample_shifts))
+                buff = cp.ascontiguousarray(buff.T)
+
+            datr = gpufilter(buff, fs=fs, fshigh=fshigh, fslow=fslow)
 
             assert datr.flags.c_contiguous
 

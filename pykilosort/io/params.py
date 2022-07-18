@@ -32,6 +32,9 @@ class DatashiftParams(BaseModel):
 
 class KilosortParams(BaseModel):
 
+    channel_shift_alignment: bool = Field(True, description='perform channel alignemnt if channel'
+                                                            'shifts are provided')
+
     drift_across_recordings: bool = Field(True, description='perform drift correction across'
                                                             'multiple recordings')
     
