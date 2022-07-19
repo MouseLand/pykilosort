@@ -1,4 +1,4 @@
-from math import floor
+from math import floor, log
 import logging
 import os
 
@@ -7,6 +7,9 @@ import numpy as np
 import cupy as cp
 from scipy.interpolate import Akima1DInterpolator
 from scipy.sparse import coo_matrix
+import matplotlib.pyplot as plt
+
+from brainbox.processing import bincount2D
 
 from .postprocess import my_conv2_cpu
 from .learn import extractTemplatesfromSnippets
@@ -543,7 +546,7 @@ def get_drift(spikes, probe, Nbatches, nblocks=5, genericSpkTh=10):
     :param Nbatches: No batches in the dataset
     :param nblocks: No of blocks to divide the probe into when estimating drift
     :param genericSpkTh: Min amplitude of spiking activity found
-    :return: dshift: 2D numpy array of drift estimates per batch and per sub-block in um
+    :return: drift_estimate: 2D numpy array of drift estimates per batch and per sub-block in um
                     size (Nbatches, 2*nblocks-1)
             yblk: 1D numpy array containing average y position of each sub-block
     """
@@ -617,6 +620,72 @@ def average_drift_across_days(drift_estimate, recording_times, batch_size):
     return drift_estimate
 
 
+def calculate_correct_depths(spike_times, spike_depths, drift_estimate, yblk, batch_size=65600):
+    """
+    Uses the estimated drift estimates across times and
+    :param spike_times: numpy array, (n_spikes)
+    :param spike_depths: numpy array (n_spikes)
+    :param drift_estimate: Drift estimates for each time batch and probe section
+        numpy array, (n_batches, n_sections)
+    :param yblk: center y-coordinate for each section
+        numpy array, (n_sections)
+    :param batch_size: int
+    :return:
+    """
+
+    spike_batches = (spike_times // batch_size).astype('int')
+    n_batches = max(spike_batches) + 1
+    assert n_batches <= drift_estimate.shape[0]
+
+    ymin = int(np.min(spike_depths)) - 2
+    ymax = int(np.max(spike_depths)) + 2
+
+    spike_depths_corrected = np.zeros_like(spike_depths)
+
+    # Perform corrections for each time batch
+    for i in tqdm(range(n_batches), desc='Estimating Shifted Spike Depths'):
+
+        # Interpolate the drift estimates across all depths
+        shifts = interpolate_1D(drift_estimate[i], yblk, np.arange(ymin, ymax))
+
+        # Use this to get the corrected depths for all spikes in the batch
+        ix = np.where(spike_batches == i)[0]
+        depth_ints = spike_depths[ix].astype('int') - ymin
+        spike_depths_corrected[ix] = spike_depths[ix] + shifts[depth_ints]
+
+    return spike_depths_corrected
+
+
+def save_drift_plot(spike_times, spike_depths, save_path, d_bin, title=None, **kwargs):
+    """
+    Creates and saves a drift plot, copied and modified from IBL's brainbox.plot driftmap function
+    :param spike_times: numpy array, seconds
+    :param spike_depths: numpy array, um
+    :param save_path:
+    :param d_bin: binning width for spike depth
+    :param title:
+    :return:
+    """
+    fig, ax = plt.subplots(figsize=(20, 12))
+
+    # Use the maximum spike time to estimate a reasonable time bin width
+    t_bin = 10 ** (max(floor(log(np.max(spike_times), 10)) - 4, -1))
+
+    # compute raster map as a function of site depth
+    R, times, depths = bincount2D(spike_times, spike_depths, t_bin, d_bin)
+
+    # plot raster map
+    ax.imshow(R, aspect='auto', cmap='binary', vmin=0, vmax=np.std(R) * 4,
+              extent=np.r_[times[[0, -1]], depths[[0, -1]]], origin='lower', **kwargs)
+
+    ax.set_xlabel('time (secs)')
+    ax.set_ylabel('depth (um)')
+
+    if title is not None:
+        ax.set_title(title)
+
+    plt.savefig(save_path, bbox_inches='tight')
+
 
 def datashift2(ctx, output_dir):
     """
@@ -676,8 +745,17 @@ def datashift2(ctx, output_dir):
         np.save(drift_path / 'spike_times.npy', spikes.times)
         np.save(drift_path / 'spike_depths.npy', spikes.depths)
         np.save(drift_path / 'spike_amps.npy', spikes.amps)
-        np.save(drift_path / 'dshift.npy', dshift)
+        np.save(drift_path / 'drift_estimate.npy', dshift)
         np.save(drift_path / 'yblk.npy', yblk)
+
+        spikes_depths_corrected = calculate_correct_depths(spikes.times, spikes.depths, dshift,
+                                                           yblk, batch_size=params.NT)
+        np.save(drift_path / 'spike_depths_corrected.npy', spikes_depths_corrected)
+
+        save_drift_plot(spikes.times / params.fs, spikes.depths, d_bin=dmin, title='Uncorrected Spike Depths',
+                        save_path=drift_path / 'uncorrected_spike_depths.png')
+        save_drift_plot(spikes.times / params.fs, spikes_depths_corrected, d_bin=dmin, title='Corrected Spike Depths',
+                        save_path=drift_path / 'corrected_spike_depths.png')
 
     # sort in case we still want to do "tracking"
     iorig = np.argsort(np.mean(dshift, axis=1))
