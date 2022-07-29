@@ -433,7 +433,9 @@ def preprocess(ctx):
             # apply filters and median subtraction
 
             # Select channels given by the channel map
-            buff = cp.asarray(buff[:, probe.channel_map], dtype=np.float32)
+            buff = cp.ascontiguousarray(
+                cp.asarray(buff[:, probe.channel_map], dtype=np.float32)
+            )
 
             if params.channel_shift_alignment and probe.sample_shifts is not None:
                 # TODO: Currently need to transpose array and transpose back, keeping it transposed
