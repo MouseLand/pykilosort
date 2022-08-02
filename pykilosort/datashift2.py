@@ -612,7 +612,7 @@ def average_drift_across_days(drift_estimate, recording_times, batch_size):
         end_batch = int(recording_times[recording_id + 1] // batch_size)
 
         # Special care for last recording to make sure the index is correct
-        if recording_id == len(recording_times) - 1:
+        if recording_id == len(recording_times) - 2:
             end_batch = drift_estimate.shape[0]
 
         drift_estimate[start_batch:end_batch] = np.median(drift_estimate[start_batch:end_batch], axis=0)
