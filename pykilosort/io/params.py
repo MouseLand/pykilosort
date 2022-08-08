@@ -33,7 +33,8 @@ class DatashiftParams(BaseModel):
 class KilosortParams(BaseModel):
 
     template_snapshot_times: t.List[float] = Field([], description='points in each recording to take'
-                                                                   'snapshots of the template waveforms')
+            'snapshots of the template waveforms. should be values between 0 and 1 where 0.2 means'
+            '20% of the way through each recording for instance')
 
     channel_shift_alignment: bool = Field(True, description='perform channel alignemnt if channel'
                                                             'shifts are provided')
