@@ -1070,6 +1070,8 @@ def splitAllClusters(ctx, flag):
     WtW, iList = getMeWtW(W.astype(cp.float32), U.astype(cp.float32), Nnearest)
     # ir.iList = iList  # over-write the list of nearest templates
 
+    orig_clusters = np.copy(cp.asnumpy(isplit))
+
     isplit = simScore == 1  # overwrite the similarity scores of clusters with same parent
     simScore = WtW.max(axis=2)
     simScore[isplit] = 1  # 1 means they come from the same parent
@@ -1106,6 +1108,7 @@ def splitAllClusters(ctx, flag):
         Wphy=cp.asnumpy(Wphy),
         iList=cp.asnumpy(iList),
         isplit=cp.asnumpy(isplit),
+        orig_clusters=orig_clusters,
     )
 
     if params.save_temp_files:
@@ -1261,6 +1264,7 @@ def checkClusters(ctx):
         ir.Wphy = ir.Wphy[:, good_units_mask, :]
         ir.iList = ir.iList[:, good_units_mask]
         ir.isplit = ir.isplit[good_units_mask][:, good_units_mask]
+        ir.orig_clusters = ir.orig_clusters[good_units_mask]
         ir.est_contam_rate = ir.est_contam_rate[good_units_mask]
         ir.Ths = ir.Ths[good_units_mask]
         ir.good = ir.good[good_units_mask]
@@ -1479,6 +1483,12 @@ def rezToPhy(ctx, dat_path=None, output_dir=None):
         _save('whitening_mat_inv', whiteningMatrixInv)
 
         _save('thresholds', Ths)
+
+        snapshot_path = ctx.context_path / 'template_snapshots' / 'template_snapshots.npy'
+        if snapshot_path.is_file():
+            template_snapshots = np.load(snapshot_path)
+            template_snapshots = template_snapshots[ir.orig_clusters]
+            _save('template_snapshots', template_snapshots)
 
         if 'simScore' in ir:
             similarTemplates = simScore

@@ -310,13 +310,17 @@ class RawDataLoader(object):
 
             self.n_samples = np.cumsum(np.array(self.n_samples, dtype='int64'))
 
+    @property
+    def break_points(self):
+        if not self.multiple_datasets:
+            return [0, self.n_samples]
+        return self.n_samples
 
     @property
     def total_length(self):
         if not self.multiple_datasets:
             return self.n_samples
-        else:
-            return self.n_samples[-1]
+        return self.n_samples[-1]
 
     @property
     def shape(self):
@@ -326,8 +330,7 @@ class RawDataLoader(object):
     def name(self):
         if not self.multiple_datasets:
             return Path(self.raw_data.name).name
-        else:
-            return Path(self.raw_data[0].name).name
+        return Path(self.raw_data[0].name).name
 
 
     # Slice implementation for ease of use

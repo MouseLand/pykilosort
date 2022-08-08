@@ -186,7 +186,7 @@ def run(
     #
     if "learn" not in ctx.timer.keys():
         with ctx.time("learn"):
-            out = learnAndSolve8b(ctx)
+            out = learnAndSolve8b(ctx, break_points = raw_data.break_points)
         ctx.save(**out)
     if stop_after == "learn":
         return ctx

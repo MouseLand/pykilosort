@@ -826,7 +826,7 @@ def triageTemplates2(params, iW, C2C, W, U, dWU, mu, nsp, ndrop):
     return W, U, dWU, mu, nsp, ndrop
 
 
-def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
+def learnAndSolve8b(ctx, break_points, sanity_plots=False, plot_widgets=None, plot_pos=None):
     """This is the main optimization. Takes the longest time and uses the GPU heavily."""
 
     Nbatch = ctx.intermediate.Nbatch
@@ -834,6 +834,22 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     probe = params.probe
     ir = ctx.intermediate
     data_loader = ir.data_loader
+
+    # If template snapshots requested find which batches to save these
+    n_datasets = len(break_points) - 1
+
+    if len(params.template_snapshot_times) == 0:
+        snapshot_batches = None
+    else:
+        snapshot_path = ctx.context_path / 'template_snapshots'
+        snapshot_path.mkdir(exist_ok=True)
+        snapshot_batches = []
+        for i in range(n_datasets):
+            for j in params.template_snapshot_times:
+                snapshot_batches.append(int(((1-j) * break_points[i] + j*break_points[i+1]) // params.NT))
+
+        snapshot_batches = np.array(snapshot_batches, dtype='int')
+
 
     iorig = ir.iorig
 
@@ -885,6 +901,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
 
     irounds = np.concatenate((ischedule, i1, i2))
 
+    niter_schedule = ischedule.size
     niter = irounds.size
 
     # these two flags are used to keep track of what stage of model fitting we're at
@@ -901,7 +918,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # starts small and goes high, it corresponds approximately to the number of spikes
     # from the past that were averaged to give rise to the current template
     pmi = np.exp(
-        -1.0 / np.linspace(params.momentum[0], params.momentum[1], niter - nBatches)
+        -1.0 / np.linspace(params.momentum[0], params.momentum[1], niter_schedule)
     )
 
     Nsum = min(probe.n_channels, 7)  # how many channels to extend out the waveform in mexgetspikes
@@ -978,13 +995,13 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # k is the index of the batch in absolute terms
         logger.debug("Batch %d/%d, %d templates.", ibatch, niter, Nfilt)
 
-        if ibatch > niter - nBatches - 1 and korder == nhalf:
+        if ibatch > niter_schedule and korder == nhalf:
             # this is required to revert back to the template states in the middle of the
             # batches
             W, dWU = ir.W, ir.dWU
             logger.debug("Reverted back to middle timepoint.")
 
-        if ibatch < niter - nBatches:
+        if ibatch < niter_schedule:
             # obtained pm for this batch
             Params[8] = float(pmi[ibatch])
             pm = pmi[ibatch] * ones((Nfilt,), dtype=np.float64, order="F")
@@ -1079,7 +1096,12 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
         # nsp just gets updated according to the fixed factor p1
         nsp = nsp * p1 + (1 - p1) * nsp0
 
-        if ibatch == niter - nBatches - 1:
+        # Save template snapshots at required times
+        if ibatch >= niter_schedule and snapshot_batches is not None:
+            for i in np.where(snapshot_batches == korder)[0]:
+                cp.save(snapshot_path / f'snapshot_{i}', dWU.T)
+
+        if ibatch == niter_schedule - 1:
             # if we reached this point, we need to disable secondary template updates
             # like dropping, and adding new templates. We need to memorize the state of the
             # templates at this timepoint, and set the processing mode to "extraction and
@@ -1132,13 +1154,13 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                 # Initialise array writers for the spike features of each cluster
                 feature_writers = [
                     LargeArrayWriter(
-                        feature_path / f'spike_features_{i}',
+                        feature_path / f'spike_features_{i}.npy',
                         dtype=np.float32,
                         shape=(NchanNear, Nrank, -1)
                     ) for i in range(Nfilt)
                 ]
 
-        if ibatch < niter - nBatches - 1:
+        if ibatch < niter_schedule - 1:
             # during the main "learning" phase of fitting a model
             if ibatch % 5 == 0:
                 # this drops templates based on spike rates and/or similarities to
@@ -1196,7 +1218,7 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
                 nsp = nsp[:Nfilt]  # remove any new filters over the maximum allowed
                 mu = mu[:Nfilt]  # remove any new filters over the maximum allowed
 
-        if ibatch > niter - nBatches - 1:
+        if ibatch >= niter_schedule:
             # during the final extraction pass, this keeps track of all spikes and features
 
             # we carefully assign the correct absolute times to spikes found in this batch
@@ -1293,6 +1315,15 @@ def learnAndSolve8b(ctx, sanity_plots=False, plot_widgets=None, plot_pos=None):
     # Save cluster times and IDs at this stage if requested
     if params.save_temp_files:
         np.save(ctx.context_path / 'temp_splits' / 'st3_learn.npy', ir.st3)
+
+    if snapshot_batches is not None:
+
+        template_snapshots = np.concatenate(
+            [
+                np.expand_dims(np.load(snapshot_path / f'snapshot_{i}.npy'), axis=1) for i in range(len(snapshot_batches))
+            ]
+        ,axis=1)
+        np.save(snapshot_path / 'template_snapshots.npy', template_snapshots)
 
     # # this whole next block is just done to compress the compressed templates
     # # we separately svd the time components of each template, and the spatial components
