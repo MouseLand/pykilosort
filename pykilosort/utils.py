@@ -72,7 +72,7 @@ def _extend(x, i0, i1, val, axis=0):
         assert x.shape[axis] == i1
     s = [slice(None, None, None)] * x.ndim
     s[axis] = slice(i0, i1, 1)
-    x[s] = val
+    x[tuple(s)] = val
     for i in range(x.ndim):
         if i != axis:
             assert x.shape[i] == shape[i]
