@@ -390,7 +390,7 @@ def median(a, axis=0):
     else:
         indexer[axis] = slice(index - 1, index + 1)
 
-    return cp.mean(part[indexer], axis=axis)
+    return cp.mean(part[tuple(indexer)], axis=axis)
 
 
 def var(x):
