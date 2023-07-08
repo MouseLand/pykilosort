@@ -13,7 +13,7 @@ from .main import run, run_export, run_spikesort, run_preprocess
 from .io.probes import np1_probe, np2_probe, np2_4shank_probe
 
 
-__version__ = 'ibl_1.3.0'
+__version__ = '1.3.0+ibl'
 
 # Set a null handler on the root logger
 logger = logging.getLogger(__name__)
