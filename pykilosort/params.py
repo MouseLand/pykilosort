@@ -191,7 +191,7 @@ class KilosortParams(BaseModel):
     nfilt_factor: int = Field(
         4, description="max number of clusters per good channel (even temporary ones)"
     )
-    ntbuff = Field(
+    ntbuff: int = Field(
         64,
         description="""
     samples of symmetrical buffer for whitening and spike detection
